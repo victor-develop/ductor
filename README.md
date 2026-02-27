@@ -49,6 +49,14 @@ Detailed setup: [`docs/installation.md`](docs/installation.md)
 
 ## Features
 
+### Core
+
+- Real-time streaming with live Telegram edits
+- Provider/model switching with `/model` (sessions are preserved per provider)
+- `@model` directives for inline provider targeting
+- Inline callback buttons, queue tracking with per-message cancel
+- Persistent memory in plain Markdown
+
 ### Named sessions
 
 Run tasks in the background while you keep chatting. Each session gets a unique name and supports follow-ups:
@@ -66,14 +74,6 @@ Run tasks in the background while you keep chatting. Each session gets a unique 
 ```
 
 `@model` shortcuts resolve the provider automatically (`@opus` = Claude, `@flash` = Gemini, `@codex` = Codex).
-
-### Core
-
-- Real-time streaming with live Telegram edits
-- Provider/model switching with `/model` (sessions are preserved per provider)
-- `@model` directives for inline provider targeting
-- Inline callback buttons, queue tracking with per-message cancel
-- Persistent memory in plain Markdown
 
 ### Automation
 
