@@ -504,11 +504,12 @@ class Orchestrator:
         reg.register_async("/sessions", cmd_sessions)
 
     def register_multiagent_commands(self) -> None:
-        """Register /agents, /agent_start, /agent_stop commands.
+        """Register /agents, /agent_start, /agent_stop, /agent_restart commands.
 
         Called by the AgentSupervisor after setting ``_supervisor``.
         """
         from ductor_bot.multiagent.commands import (
+            cmd_agent_restart,
             cmd_agent_start,
             cmd_agent_stop,
             cmd_agents,
@@ -520,6 +521,8 @@ class Orchestrator:
         reg.register_async("/agent_start ", cmd_agent_start)
         reg.register_async("/agent_stop", cmd_agent_stop)
         reg.register_async("/agent_stop ", cmd_agent_stop)
+        reg.register_async("/agent_restart", cmd_agent_restart)
+        reg.register_async("/agent_restart ", cmd_agent_restart)
         logger.info("Multi-agent commands registered")
 
     async def reset_session(self, chat_id: int) -> None:

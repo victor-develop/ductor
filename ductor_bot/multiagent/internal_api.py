@@ -2,9 +2,10 @@
 
 CLI subprocesses (claude, codex, gemini) run as separate OS processes and
 cannot access the in-memory bus directly. This lightweight aiohttp server
-exposes ``/interagent/send``, ``/interagent/send_async``, and
-``/interagent/agents`` on localhost only, so tool scripts like
-``ask_agent.py`` and ``ask_agent_async.py`` can communicate via the bus.
+exposes ``/interagent/send``, ``/interagent/send_async``,
+``/interagent/agents``, and ``/interagent/health`` on localhost only, so
+tool scripts like ``ask_agent.py`` and ``ask_agent_async.py`` can
+communicate via the bus, and ``ductor status`` can query live health.
 """
 
 from __future__ import annotations
@@ -17,6 +18,7 @@ from aiohttp import web
 
 if TYPE_CHECKING:
     from ductor_bot.multiagent.bus import InterAgentBus
+    from ductor_bot.multiagent.health import AgentHealth
 
 logger = logging.getLogger(__name__)
 
@@ -29,11 +31,17 @@ class InternalAgentAPI:
     def __init__(self, bus: InterAgentBus, port: int = _DEFAULT_PORT) -> None:
         self._bus = bus
         self._port = port
+        self._health_ref: dict[str, AgentHealth] | None = None
         self._app = web.Application()
         self._app.router.add_post("/interagent/send", self._handle_send)
         self._app.router.add_post("/interagent/send_async", self._handle_send_async)
         self._app.router.add_get("/interagent/agents", self._handle_list)
+        self._app.router.add_get("/interagent/health", self._handle_health)
         self._runner: web.AppRunner | None = None
+
+    def set_health_ref(self, health: dict[str, AgentHealth]) -> None:
+        """Set reference to supervisor health dict for the /health endpoint."""
+        self._health_ref = health
 
     @property
     def port(self) -> int:
@@ -136,3 +144,18 @@ class InternalAgentAPI:
     async def _handle_list(self, request: web.Request) -> web.Response:
         """GET /interagent/agents — list all registered agents."""
         return web.json_response({"agents": self._bus.list_agents()})
+
+    async def _handle_health(self, request: web.Request) -> web.Response:
+        """GET /interagent/health — return live health for all agents."""
+        if self._health_ref is None:
+            return web.json_response({"agents": {}})
+
+        agents: dict[str, dict[str, object]] = {}
+        for name, health in self._health_ref.items():
+            agents[name] = {
+                "status": health.status,
+                "uptime": health.uptime_human,
+                "restart_count": health.restart_count,
+                "last_crash_error": health.last_crash_error or None,
+            }
+        return web.json_response({"agents": agents})

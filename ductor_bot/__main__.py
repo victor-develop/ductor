@@ -529,7 +529,7 @@ def _print_status() -> None:
     # Show sub-agents
     agents = _load_agents_registry(paths)
     if agents:
-        _print_agents_status(agents, paths)
+        _print_agents_status(agents, paths, bot_running=bot_running)
 
 
 def _count_log_errors(log_dir: Path) -> int:
@@ -549,21 +549,58 @@ def _count_log_errors(log_dir: Path) -> int:
         return 0
 
 
-def _print_agents_status(agents: list[dict[str, object]], paths: DuctorPaths) -> None:
-    """Print a status table for all sub-agents."""
+def _fetch_live_health() -> dict[str, dict[str, object]]:
+    """Query the internal API for live agent health. Returns empty dict on failure."""
+    import urllib.request
+
+    try:
+        req = urllib.request.Request("http://127.0.0.1:8799/interagent/health")
+        with urllib.request.urlopen(req, timeout=2) as resp:
+            data = json.loads(resp.read())
+        return data.get("agents", {})
+    except Exception:
+        return {}
+
+
+def _print_agents_status(agents: list[dict[str, object]], paths: DuctorPaths, bot_running: bool = False) -> None:
+    """Print a status table for all sub-agents with optional live health."""
+    live_health = _fetch_live_health() if bot_running else {}
+
     table = Table(show_header=True, box=None, padding=(0, 2))
     table.add_column("Agent", style="bold")
+    table.add_column("Status")
+    table.add_column("Uptime")
     table.add_column("Provider")
     table.add_column("Model")
-    table.add_column("Home")
+
+    _STATUS_STYLE = {
+        "running": "[bold green]running[/bold green]",
+        "starting": "[yellow]starting[/yellow]",
+        "crashed": "[bold red]crashed[/bold red]",
+        "stopped": "[dim]stopped[/dim]",
+    }
 
     for agent in agents:
         name = str(agent.get("name", "?"))
         prov = str(agent.get("provider", "inherited"))
         mdl = str(agent.get("model", "inherited"))
-        home = paths.ductor_home / "agents" / name
-        home_str = f"[cyan]{home}[/cyan]" if home.is_dir() else f"[dim]{home}[/dim]"
-        table.add_row(name, prov, mdl, home_str)
+
+        health = live_health.get(name, {})
+        status = str(health.get("status", "unknown")) if health else "—"
+        uptime = str(health.get("uptime", "")) if health else ""
+        status_display = _STATUS_STYLE.get(status, f"[dim]{status}[/dim]")
+
+        crash_info = ""
+        if status == "crashed" and health.get("last_crash_error"):
+            error = str(health["last_crash_error"])[:80]
+            crash_info = f"\n  [dim red]{error}[/dim red]"
+
+        restart_count = health.get("restart_count", 0) if health else 0
+        uptime_display = uptime
+        if restart_count:
+            uptime_display += f" [dim](restarts: {restart_count})[/dim]"
+
+        table.add_row(name, status_display + crash_info, uptime_display, prov, mdl)
 
     _console.print(
         Panel(
@@ -631,7 +668,17 @@ def _agents_list() -> None:
         _console.print("[dim]No sub-agents configured.[/dim]")
         _console.print("[dim]Use 'ductor agents add <name>' to create one.[/dim]")
         return
-    _print_agents_status(agents, paths)
+    # Check if bot is running for live health
+    pid_file = paths.ductor_home / "bot.pid"
+    bot_running = False
+    if pid_file.exists():
+        try:
+            pid = int(pid_file.read_text(encoding="utf-8").strip())
+            from ductor_bot.infra.pidlock import _is_process_alive
+            bot_running = _is_process_alive(pid)
+        except (ValueError, OSError):
+            pass
+    _print_agents_status(agents, paths, bot_running=bot_running)
 
 
 def _agents_add(rest: list[str]) -> None:

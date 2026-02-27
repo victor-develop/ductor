@@ -86,3 +86,18 @@ async def cmd_agent_start(orch: Orchestrator, _chat_id: int, text: str) -> Orche
     name = parts[1].strip().lower()
     result = await supervisor.start_agent_by_name(name)
     return OrchestratorResult(text=result)
+
+
+async def cmd_agent_restart(orch: Orchestrator, _chat_id: int, text: str) -> OrchestratorResult:
+    """Handle /agent_restart <name>: restart a sub-agent."""
+    supervisor = getattr(orch, "_supervisor", None)
+    if supervisor is None:
+        return OrchestratorResult(text="Multi-agent mode is not active.")
+
+    parts = text.split(None, 1)
+    if len(parts) < 2:
+        return OrchestratorResult(text="Usage: /agent\\_restart <name>")
+
+    name = parts[1].strip().lower()
+    result = await supervisor.restart_agent(name)
+    return OrchestratorResult(text=result)

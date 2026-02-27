@@ -74,6 +74,7 @@ class AgentSupervisor:
 
         self._bus = InterAgentBus()
         self._internal_api = InternalAgentAPI(self._bus)
+        self._internal_api.set_health_ref(self._health)
         await self._internal_api.start()
         logger.info("InterAgentBus and internal API started")
 
@@ -329,6 +330,22 @@ class AgentSupervisor:
 
         await self._start_sub_agent(match)
         return f"Agent '{name}' started."
+
+    async def restart_agent(self, name: str) -> str:
+        """Restart a sub-agent (stop + start). Returns status message."""
+        if name == "main":
+            return "Cannot restart main agent via this command. Use /restart instead."
+
+        agents = self._registry.load()
+        match = next((a for a in agents if a.name == name), None)
+        if match is None:
+            return f"Agent '{name}' not found in agents.json."
+
+        if name in self._stacks:
+            await self.stop_agent(name)
+
+        await self._start_sub_agent(match)
+        return f"Agent '{name}' restarted."
 
     # -- FileWatcher callback -----------------------------------------------
 
