@@ -124,9 +124,11 @@ async def _build_page(
     rows: list[list[InlineKeyboardButton]] = []
     for idx, job in enumerate(page_jobs):
         number = start + idx + 1
-        state = "ON" if job.enabled else "OFF"
-        run_status = f" [{job.last_run_status}]" if job.last_run_status else ""
-        lines.append(f"{number}. `{state}` `{job.schedule}` -- {job.title}{run_status}")
+        status_tag = "active" if job.enabled else "paused"
+        last_run = ""
+        if job.last_run_status:
+            last_run = f" | last: {job.last_run_status}"
+        lines.append(f"{number}. **{job.title}** ({status_tag}){last_run}\n   `{job.schedule}`")
         button_text = f"{number}. {'Disable' if job.enabled else 'Enable'}"
         rows.append(
             [
@@ -153,17 +155,20 @@ async def _build_page(
         ]
     )
 
-    info_lines = [f"Page {current_page + 1}/{total_pages} · Jobs: {len(jobs)}"]
+    active_count = sum(1 for j in jobs if j.enabled)
+    info_parts = [f"{active_count}/{len(jobs)} active"]
+    if total_pages > 1:
+        info_parts.append(f"page {current_page + 1}/{total_pages}")
+    info_line = " · ".join(info_parts)
     if note:
-        info_lines.append(note)
+        info_line = f"{note}\n{info_line}"
 
     text = fmt(
         "**Scheduled Tasks**",
         SEP,
         "\n".join(lines),
         SEP,
-        "\n".join(info_lines),
-        "Tap a button to toggle a cron job.",
+        info_line,
     )
     return text, InlineKeyboardMarkup(inline_keyboard=rows)
 

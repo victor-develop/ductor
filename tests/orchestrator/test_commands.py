@@ -141,7 +141,7 @@ async def test_cron_lists_jobs(orch: Orchestrator) -> None:
     assert result.reply_markup is not None
     assert "0 9 * * *" in result.text
     assert "Test Job" in result.text
-    assert "Tap a button to toggle" in result.text
+    assert "active" in result.text
 
 
 # -- cmd_diagnose --
