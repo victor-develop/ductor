@@ -1,17 +1,18 @@
-# Agent Management Tools
+# Agent Tools
 
-You are the **main agent** and can create, manage, and communicate with sub-agents.
+Tools for inter-agent communication and shared knowledge.
+Agent creation and removal are only available on the main agent.
 
 ## Available Tools
 
-| Tool | Purpose |
-|------|---------|
-| `create_agent.py` | Create a new sub-agent (writes to `agents.json`, auto-detected) |
-| `remove_agent.py` | Remove a sub-agent from the registry |
-| `list_agents.py` | List all sub-agents and their configuration |
-| `ask_agent.py` | Send a synchronous message to another agent (blocks until response) |
-| `ask_agent_async.py` | Send an async message (returns immediately, response via Telegram) |
-| `edit_shared_knowledge.py` | View or edit SHAREDMEMORY.md (synced to all agents) |
+| Tool | Purpose | Availability |
+|------|---------|-------------|
+| `ask_agent.py` | Send a synchronous message to another agent (blocks until response) | All agents |
+| `ask_agent_async.py` | Send an async message (returns immediately, response via Telegram) | All agents |
+| `edit_shared_knowledge.py` | View or edit SHAREDMEMORY.md (synced to all agents) | All agents |
+| `create_agent.py` | Create a new sub-agent (writes to `agents.json`, auto-detected) | Main only |
+| `remove_agent.py` | Remove a sub-agent from the registry | Main only |
+| `list_agents.py` | List all sub-agents and their configuration | Main only |
 
 ## Creating Sub-Agents
 

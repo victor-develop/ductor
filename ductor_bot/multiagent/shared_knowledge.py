@@ -53,9 +53,21 @@ class SharedKnowledgeSync:
         return self._path
 
     async def start(self) -> None:
-        """Start watching and perform an initial sync."""
-        if self._path.is_file():
-            self._sync_all()
+        """Start watching and perform an initial sync.
+
+        Creates an empty SHAREDMEMORY.md if it does not exist yet, so agents
+        always have a file to write to and the FileWatcher has a target.
+        """
+        if not self._path.is_file():
+            self._path.parent.mkdir(parents=True, exist_ok=True)
+            self._path.write_text(
+                "# Shared Knowledge — All Agents\n\n"
+                "Knowledge written here is automatically synced into every\n"
+                "agent's MAINMEMORY.md by the Supervisor.\n",
+                encoding="utf-8",
+            )
+            logger.info("Created seed SHAREDMEMORY.md at %s", self._path)
+        self._sync_all()
         await self._watcher.start()
         logger.info("SharedKnowledgeSync watching %s", self._path)
 
