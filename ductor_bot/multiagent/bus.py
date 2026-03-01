@@ -67,6 +67,7 @@ class AsyncInterAgentResult:
     elapsed_seconds: float = 0.0
     session_name: str = ""
     provider_switch_notice: str = ""
+    original_message: str = ""
 
 
 AsyncResultCallback = Callable[["AsyncInterAgentResult"], Awaitable[None]]
@@ -252,6 +253,7 @@ class InterAgentBus:
                         success=False,
                         error=f"Agent '{task.recipient}' orchestrator not initialized",
                         elapsed_seconds=time.time() - t0,
+                        original_message=task.message,
                     )
                 )
                 return
@@ -287,6 +289,7 @@ class InterAgentBus:
                     elapsed_seconds=time.time() - t0,
                     session_name=session_name,
                     provider_switch_notice=provider_notice,
+                    original_message=task.message,
                 )
             )
 
@@ -307,6 +310,7 @@ class InterAgentBus:
                     success=False,
                     error=f"Timeout after {_ASYNC_TIMEOUT:.0f}s",
                     elapsed_seconds=time.time() - t0,
+                    original_message=task.message,
                 )
             )
 
@@ -322,6 +326,7 @@ class InterAgentBus:
                     success=False,
                     error=f"{type(exc).__name__}: {exc}",
                     elapsed_seconds=time.time() - t0,
+                    original_message=task.message,
                 )
             )
 

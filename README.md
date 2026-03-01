@@ -86,6 +86,21 @@ Run tasks in the background while you keep chatting. Each session gets a unique 
 
 `@model` shortcuts resolve the provider automatically (`@opus` = Claude, `@flash` = Gemini, `@codex` = Codex).
 
+### Sessions vs. Subagents
+
+ductor has two ways to run work in the background — they solve different problems:
+
+| | `/session` (Named Sessions) | `/agents` (Subagents) |
+|---|---|---|
+| **What it is** | Background task in **your** agent | A **separate** agent with its own Telegram bot |
+| **Workspace** | Same workspace as main chat | Own workspace, own memory |
+| **Provider** | Any provider/model per session | Own default provider/model |
+| **Communication** | Result appears as Telegram reply | Result flows back into your main chat context |
+| **Use case** | Quick parallel tasks you want to track | Dedicated specialist (e.g., Codex for code, Gemini for research) |
+| **Setup** | None — just `/session <prompt>` | `ductor agents add <name>` + BotFather token |
+
+**Rule of thumb:** Use `/session` when you want the same agent to do something on the side. Use subagents when you want a different agent (possibly a different provider) to handle an independent workload — your main agent delegates, receives the result with full context, and reports back to you.
+
 ### Multi-agent system
 
 Run multiple CLIs as independent Telegram bots that can talk to each other. Each agent gets its own bot token, workspace, and memory — but they share knowledge through `SHAREDMEMORY.md`.

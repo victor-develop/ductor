@@ -87,6 +87,7 @@ from ductor_bot.workspace.skill_sync import (
 
 if TYPE_CHECKING:
     from ductor_bot.cli.auth import AuthResult, AuthStatus
+    from ductor_bot.multiagent.bus import AsyncInterAgentResult
     from ductor_bot.multiagent.supervisor import AgentSupervisor
 
 logger = logging.getLogger(__name__)
@@ -1045,45 +1046,70 @@ class Orchestrator:
 
     async def handle_async_interagent_result(
         self,
-        result_text: str,
+        result: AsyncInterAgentResult,
         *,
-        recipient: str,
-        task_id: str,
         chat_id: int = 0,
-        session_name: str = "",
     ) -> str:
-        """Process an async inter-agent result by running a CLI turn.
+        """Inject an async inter-agent result into the current active session.
 
         Called when another agent completes an async request we sent.
-        Runs a full turn so the agent can process the result and respond
-        in its Telegram chat.
+        Resumes the *current* active session (not the one that was active when
+        the task was dispatched) so the agent has full conversation context.
 
-        ``chat_id`` should be the real Telegram user ID so the process is
-        visible in ``/stop`` and can be cancelled.
+        The prompt is self-contained: it includes both the original task
+        description and the sub-agent's response, so the agent can process
+        the result even if the session changed (``/new``, provider switch).
+
+        Caller must hold the per-chat lock to prevent concurrent session access.
         """
         from ductor_bot.cli.types import AgentRequest
+        from ductor_bot.orchestrator.flows import _update_session
 
         own_name = self._cli_service._config.agent_name
+        recipient = result.recipient
+        task_id = result.task_id
+
         session_hint = (
-            f"\nThe recipient processed this in session `{session_name}`. "
+            f"\nThe recipient processed this in session `{result.session_name}`. "
             f"The user can continue this session in the recipient's Telegram chat "
-            f"via `@{session_name} <message>`."
-            if session_name
+            f"via `@{result.session_name} <message>`."
+            if result.session_name
             else ""
         )
+
+        task_context = (
+            f"\n\nOriginal task you sent to '{recipient}':\n{result.original_message}"
+            if result.original_message
+            else ""
+        )
+
         prompt = (
             f"[ASYNC INTER-AGENT RESPONSE from '{recipient}' (task {task_id})]\n"
-            f"{result_text}\n"
-            f"[END ASYNC INTER-AGENT RESPONSE]{session_hint}\n\n"
+            f"{result.result_text}\n"
+            f"[END ASYNC INTER-AGENT RESPONSE]{session_hint}{task_context}\n\n"
             f"You are agent '{own_name}'. Process this response from agent "
             f"'{recipient}' and communicate the relevant results to the user "
             f"in your Telegram chat."
+        )
+
+        # Always resume the CURRENT active session (not the original one).
+        active = await self._sessions.get_active(chat_id)
+        resume_id = active.session_id if active else None
+
+        logger.debug(
+            "Injecting async result into main session: task=%s from=%s "
+            "resume_session=%s original_msg_len=%d",
+            task_id,
+            recipient,
+            resume_id[:8] if resume_id else "<new>",
+            len(result.original_message),
         )
 
         request = AgentRequest(
             prompt=prompt,
             chat_id=chat_id,
             process_label=f"interagent-async:{recipient}",
+            resume_session=resume_id,
             timeout_seconds=self._config.cli_timeout,
         )
 
@@ -1095,8 +1121,11 @@ class Orchestrator:
                 recipient,
             )
             return f"Error processing async result from '{recipient}'"
-        else:
-            return response.result if response else ""
+
+        if active and response:
+            await _update_session(self, active, response)
+
+        return response.result if response else ""
 
     async def shutdown(self) -> None:
         """Cleanup on bot shutdown."""

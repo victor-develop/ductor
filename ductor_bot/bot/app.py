@@ -1177,11 +1177,12 @@ class TelegramBot:
         self,
         result: AsyncInterAgentResult,
     ) -> None:
-        """Handle async inter-agent result: run through orchestrator, send to Telegram.
+        """Handle async inter-agent result: inject into active main session.
 
-        On error: sends the error to the primary user.
-        On success: runs through the orchestrator (without the chat lock, so the
-        user is not blocked) and sends the response to Telegram.
+        On error: sends the error notification to the primary user.
+        On success: acquires the chat lock, resumes the current active session
+        with a self-contained prompt (original task + result), and sends the
+        orchestrator's response to Telegram.
         """
         chat_id = self._config.allowed_user_ids[0] if self._config.allowed_user_ids else 0
         if not chat_id:
@@ -1190,6 +1191,14 @@ class TelegramBot:
 
         set_log_context(operation="ia-async", chat_id=chat_id)
         roots = self._file_roots(self._orch.paths)
+
+        logger.debug(
+            "Async inter-agent result received: task=%s from=%s success=%s len=%d",
+            result.task_id,
+            result.recipient,
+            result.success,
+            len(result.result_text),
+        )
 
         session_info = f"\nSession: `{result.session_name}`" if result.session_name else ""
 
@@ -1212,15 +1221,16 @@ class TelegramBot:
                 SendRichOpts(allowed_roots=roots),
             )
 
-        # Run the orchestrator turn WITHOUT the chat lock so user messages
-        # are not blocked while the async result is being processed.
-        response_text = await self._orch.handle_async_interagent_result(
-            result.result_text,
-            recipient=result.recipient,
-            task_id=result.task_id,
-            chat_id=chat_id,
-            session_name=result.session_name,
-        )
+        # Acquire the chat lock so we safely resume the current active session
+        # (no concurrent CLI access). Queues behind any active user conversation.
+        lock = self._sequential.get_lock(chat_id)
+        logger.debug("Async inter-agent result: waiting for chat lock (chat_id=%d)", chat_id)
+        async with lock, _TypingContext(self._bot, chat_id):
+            logger.debug("Async inter-agent result: lock acquired, injecting into main session")
+            response_text = await self._orch.handle_async_interagent_result(
+                result,
+                chat_id=chat_id,
+            )
 
         if response_text:
             await send_rich(self._bot, chat_id, response_text, SendRichOpts(allowed_roots=roots))
