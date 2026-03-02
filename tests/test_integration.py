@@ -310,7 +310,7 @@ class TestDirectiveParsing:
 
         request = mock_execute.call_args[0][0]
         assert request.model_override == "sonnet"
-        assert request.prompt == "explain this code"
+        assert request.prompt.startswith("explain this code")
 
     async def test_at_model_only_returns_hint(
         self, orch_with_mock_cli: tuple[Orchestrator, AsyncMock]

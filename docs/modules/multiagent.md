@@ -7,7 +7,7 @@ Multi-agent system: run multiple independent ductor agents in a single process w
 - `supervisor.py`: `AgentSupervisor` lifecycle, crash recovery, `agents.json` watcher, sub-agent start/stop
 - `stack.py`: `AgentStack` container (workspace + TelegramBot + config per agent)
 - `bus.py`: `InterAgentBus` in-memory message passing (sync + async)
-- `internal_api.py`: `InternalAgentAPI` host-local HTTP bridge for CLI tool scripts (`127.0.0.1` on host, `0.0.0.0` in Docker mode)
+- `internal_api.py`: `InternalAgentAPI` host-local HTTP bridge for CLI tool scripts (`127.0.0.1` on host, `0.0.0.0` in Docker mode), routing to inter-agent bus and task hub
 - `models.py`: `SubAgentConfig`, `merge_sub_agent_config`
 - `registry.py`: `AgentRegistry` read/write access to `agents.json`
 - `health.py`: `AgentHealth` runtime health tracking per agent
@@ -23,6 +23,7 @@ Key differences from `/session` (named background sessions):
 - `/session` runs tasks in the **same agent** without blocking the chat.
 - Multi-agent runs **separate agents** with their own Telegram bots, workspaces, and provider configurations.
 - Agents communicate via tool scripts; background sessions share the parent agent's CLI service.
+- Delegated task tools (`tools/task_tools/*.py`) run through one shared `TaskHub` (main home registry/folders), not per-agent background observers.
 
 ## Architecture
 
@@ -42,7 +43,10 @@ AgentSupervisor
   |     sync send() + async send_async()
   |
   +-- InternalAgentAPI (127.0.0.1:8799 host / 0.0.0.0:8799 Docker)
-  |     /interagent/send, /interagent/send_async, /interagent/agents, /interagent/health
+  |     /interagent/* + /tasks/*
+  |
+  +-- TaskHub (optional, tasks.enabled=true)
+  |     shared task registry + task execution
   |
   +-- SharedKnowledgeSync
   |     SHAREDMEMORY.md -> all agents' MAINMEMORY.md
@@ -137,6 +141,14 @@ Removing a sub-agent stops its Telegram bot but preserves its workspace under `~
 | `cli_parameters` | `CLIParametersConfig` | no | Inherits from main |
 | `user_timezone` | `str` | no | Inherits from main |
 
+Timeout note:
+
+- `SubAgentConfig` has no explicit `timeouts` override field.
+- `SubAgentConfig` has no explicit `tasks` override field.
+- sub-agents inherit the main agent `timeouts` block through config merge base.
+- sub-agents inherit the main agent `tasks` block through config merge base.
+- inter-agent execution paths currently use `config.cli_timeout`.
+
 ### Config merge behavior
 
 `merge_sub_agent_config()` creates a full `AgentConfig` for each sub-agent:
@@ -177,7 +189,7 @@ Provider-switch behavior in inter-agent sessions:
 
 ### Tool scripts
 
-CLI subprocesses cannot access the in-memory bus directly. Tool scripts use the `InternalAgentAPI` bridge on port `8799` (`127.0.0.1` host bind, `0.0.0.0` in Docker mode).
+CLI subprocesses cannot access in-memory objects directly. Tool scripts use the `InternalAgentAPI` bridge on port `8799` (`127.0.0.1` host bind, `0.0.0.0` in Docker mode) for both inter-agent and delegated-task endpoints.
 
 Environment variables set by the framework:
 
@@ -328,11 +340,12 @@ Logging stays centralized in the main home at `~/.ductor/logs/agent.log`.
 
 ## InternalAgentAPI
 
-HTTP server on port `8799`: binds `127.0.0.1` in host mode and `0.0.0.0` in Docker mode. Bridges CLI subprocesses to the InterAgentBus.
+HTTP server on port `8799`: binds `127.0.0.1` in host mode and `0.0.0.0` in Docker mode. Bridges CLI subprocesses to the InterAgentBus and TaskHub.
 
 Startup behavior:
 
 - startup failure (for example port already bound) is logged but does not stop supervisor startup; agents still run without HTTP bridge endpoints.
+- supports task-only mode (`bus=None`): `/interagent/*` routes are omitted, `/tasks/*` routes remain available.
 
 | Endpoint | Method | Description |
 |---|---|---|
@@ -340,6 +353,11 @@ Startup behavior:
 | `/interagent/send_async` | POST | Async message, returns `task_id` immediately |
 | `/interagent/agents` | GET | List registered agent names |
 | `/interagent/health` | GET | Live health for all agents |
+| `/tasks/create` | POST | Create delegated background task |
+| `/tasks/resume` | POST | Resume completed/waiting task with follow-up |
+| `/tasks/ask_parent` | POST | Forward task-worker question to parent |
+| `/tasks/list` | GET | List tasks (optional `from=<agent>` owner filter) |
+| `/tasks/cancel` | POST | Cancel running task |
 
 ### POST `/interagent/send`
 
@@ -357,6 +375,11 @@ Same request body. Response: `{"success": true, "task_id": "abc123"}`
 
 The result is delivered to the sender agent's primary Telegram user (`allowed_user_ids[0]`) when the target finishes processing.
 
+Task endpoint authorization behavior:
+
+- `POST /tasks/resume` and `POST /tasks/cancel` reject cross-agent operations when `from` does not match task owner.
+- `/tasks/list?from=<agent>` filters to that parent agent's tasks.
+
 ## Wiring
 
 ### Supervisor injection
@@ -366,6 +389,7 @@ The result is delivered to the sender agent's primary Telegram user (`allowed_us
 1. Sets `orch._supervisor` reference.
 2. On the main agent: registers multi-agent commands (`/agents`, `/agent_start`, `/agent_stop`, `/agent_restart`).
 3. On the main agent: wires `/stop_all` callback to `AgentSupervisor.abort_all_agents()` so one command can abort active work across all agents.
+4. When task hub is enabled: wires shared `TaskHub` into each agent orchestrator (CLI service + task result/question handlers + primary chat ID mapping).
 
 ### agents.json watcher
 

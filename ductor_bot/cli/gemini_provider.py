@@ -34,6 +34,7 @@ from ductor_bot.workspace.paths import resolve_paths
 
 if TYPE_CHECKING:
     from ductor_bot.cli.process_registry import ProcessRegistry, TrackedProcess
+    from ductor_bot.cli.timeout_controller import TimeoutController
 
 logger = logging.getLogger(__name__)
 
@@ -151,6 +152,7 @@ class GeminiCLI(BaseCLI):
         resume_session: str | None = None,
         continue_session: bool = False,
         timeout_seconds: float | None = None,
+        timeout_controller: TimeoutController | None = None,
     ) -> CLIResponse:
         """Execute a non-streaming Gemini CLI call."""
         cmd = self._build_command(
@@ -176,8 +178,12 @@ class GeminiCLI(BaseCLI):
 
             reg, tracked = self._track_process(process)
             try:
-                async with asyncio.timeout(timeout_seconds or _DEFAULT_TIMEOUT):
-                    stdout, stderr = await process.communicate(input=prompt.encode())
+                stdout, stderr = await _communicate_with_timeout(
+                    process,
+                    prompt,
+                    timeout_seconds=timeout_seconds or _DEFAULT_TIMEOUT,
+                    timeout_controller=timeout_controller,
+                )
             except TimeoutError:
                 logger.warning("Gemini send timed out")
                 force_kill_process_tree(process.pid)
@@ -202,6 +208,7 @@ class GeminiCLI(BaseCLI):
         resume_session: str | None = None,
         continue_session: bool = False,
         timeout_seconds: float | None = None,
+        timeout_controller: TimeoutController | None = None,
     ) -> AsyncGenerator[StreamEvent, None]:
         """Stream events from Gemini CLI."""
         cmd = self._build_command(
@@ -238,7 +245,12 @@ class GeminiCLI(BaseCLI):
             try:
                 await _feed_prompt(process, prompt)
                 try:
-                    async for event in self._stream_events(process, state, timeout_seconds):
+                    async for event in self._stream_events(
+                        process,
+                        state,
+                        timeout_seconds,
+                        timeout_controller=timeout_controller,
+                    ):
                         yield event
                 except TimeoutError:
                     timed_out = True
@@ -268,6 +280,8 @@ class GeminiCLI(BaseCLI):
         process: asyncio.subprocess.Process,
         state: _GeminiStreamState,
         timeout_seconds: float | None,
+        *,
+        timeout_controller: TimeoutController | None,
     ) -> AsyncGenerator[StreamEvent, None]:
         """Read NDJSON lines and yield normalized stream events."""
         if process.stdout is None:
@@ -275,24 +289,25 @@ class GeminiCLI(BaseCLI):
             raise RuntimeError(msg)
 
         reg = self._config.process_registry
-        async with asyncio.timeout(timeout_seconds or _DEFAULT_TIMEOUT):
-            while True:
-                if reg and reg.was_aborted(self._config.chat_id):
-                    logger.info("Gemini streaming aborted by user")
-                    return
+        if timeout_controller is None:
+            async for event in _stream_events_plain(
+                process,
+                state,
+                timeout_seconds=timeout_seconds or _DEFAULT_TIMEOUT,
+                process_registry=reg,
+                chat_id=self._config.chat_id,
+            ):
+                yield event
+            return
 
-                line_bytes = await process.stdout.readline()
-                if not line_bytes:
-                    return
-
-                line = line_bytes.decode(errors="replace").rstrip()
-                if not line:
-                    continue
-
-                logger.debug("Gemini raw line: %.200s", line)
-                for event in parse_gemini_stream_line(line):
-                    state.track(event)
-                    yield event
+        async for event in _stream_events_with_controller(
+            process,
+            state,
+            timeout_controller=timeout_controller,
+            process_registry=reg,
+            chat_id=self._config.chat_id,
+        ):
+            yield event
 
     def _create_system_prompt_path(self) -> str | None:
         """Create a temporary system prompt file when prompt content is present.
@@ -397,6 +412,98 @@ class GeminiCLI(BaseCLI):
 async def _feed_prompt(process: asyncio.subprocess.Process, prompt: str) -> None:
     """Write prompt to stdin and close the pipe."""
     await _feed_stdin_and_close(process, prompt)
+
+
+async def _communicate_with_timeout(
+    process: asyncio.subprocess.Process,
+    prompt: str,
+    *,
+    timeout_seconds: float,
+    timeout_controller: TimeoutController | None,
+) -> tuple[bytes, bytes]:
+    """Run ``process.communicate`` using either plain or managed timeouts."""
+    communicate_coro = process.communicate(input=prompt.encode())
+    if timeout_controller is not None:
+        return await timeout_controller.run_with_timeout(communicate_coro)
+    async with asyncio.timeout(timeout_seconds):
+        return await communicate_coro
+
+
+async def _stream_events_plain(
+    process: asyncio.subprocess.Process,
+    state: _GeminiStreamState,
+    *,
+    timeout_seconds: float,
+    process_registry: ProcessRegistry | None,
+    chat_id: int,
+) -> AsyncGenerator[StreamEvent, None]:
+    """Read stream output with a fixed timeout (legacy behavior)."""
+    assert process.stdout is not None
+    async with asyncio.timeout(timeout_seconds):
+        while True:
+            if process_registry and process_registry.was_aborted(chat_id):
+                logger.info("Gemini streaming aborted by user")
+                return
+
+            line_bytes = await process.stdout.readline()
+            if not line_bytes:
+                return
+
+            line = line_bytes.decode(errors="replace").rstrip()
+            if not line:
+                continue
+
+            logger.debug("Gemini raw line: %.200s", line)
+            for event in parse_gemini_stream_line(line):
+                state.track(event)
+                yield event
+
+
+async def _stream_events_with_controller(
+    process: asyncio.subprocess.Process,
+    state: _GeminiStreamState,
+    *,
+    timeout_controller: TimeoutController,
+    process_registry: ProcessRegistry | None,
+    chat_id: int,
+) -> AsyncGenerator[StreamEvent, None]:
+    """Read stream output with managed timeout extensions + warnings."""
+    assert process.stdout is not None
+    timeout_controller.begin()
+    warning_task = timeout_controller.start_warning_loop()
+    timeout_secs = timeout_controller.timeout_seconds
+    try:
+        while True:
+            try:
+                async with asyncio.timeout(timeout_secs):
+                    while True:
+                        if process_registry and process_registry.was_aborted(chat_id):
+                            logger.info("Gemini streaming aborted by user")
+                            return
+
+                        line_bytes = await process.stdout.readline()
+                        if not line_bytes:
+                            return
+                        timeout_controller.record_activity()
+
+                        line = line_bytes.decode(errors="replace").rstrip()
+                        if not line:
+                            continue
+
+                        logger.debug("Gemini raw line: %.200s", line)
+                        for event in parse_gemini_stream_line(line):
+                            state.track(event)
+                            yield event
+            except TimeoutError:
+                if timeout_controller.try_extend():
+                    timeout_secs = timeout_controller.activity_extension_seconds
+                    continue
+                raise
+    finally:
+        if warning_task and not warning_task.done():
+            warning_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await warning_task
 
 
 async def _finish_stream_process(

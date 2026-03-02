@@ -5,6 +5,7 @@ ductor automation systems:
 | System | Trigger | Execution Context | Output |
 |---|---|---|---|
 | Sessions (`/session`) | user command | named session (persistent) | Telegram notification |
+| Delegated tasks (`TaskHub`) | task tool scripts (`/tasks/*` API) | shared background task runtime | Telegram notification + parent-session injection |
 | Cron jobs | schedule | isolated task folder | Telegram result |
 | Webhooks | HTTP POST | wake or isolated `cron_task` | Telegram result |
 | Heartbeat | interval | active main session | Telegram alert (non-ACK only) |
@@ -25,10 +26,33 @@ Key properties:
 - `/stop_all` on the main agent also aborts active work across other agents (sub-agent fallback is local-only)
 - max 5 concurrent tasks, max 10 user-created sessions per chat
 - `/status` shows active background tasks
+- `/session` background timeout uses `config.timeouts.background`
 
 Inter-agent sessions (`ia-<sender>`) use a deterministic registry path and are not created through `/session`.
 
+Restart behavior:
+
+- active asyncio task objects are lost on restart,
+- persisted named sessions can still be resumed,
+- startup recovery automatically retries safe named sessions that were `running` before restart.
+
 Status values for named-session runs: `ok`, `error:timeout`, `error:cli`, `error:internal`, `aborted`.
+
+## Delegated tasks (`TaskHub`, `/tasks`)
+
+Delegated tasks are separate from `/session`:
+
+- persisted in `~/.ductor/tasks.json`
+- task folders in `~/.ductor/workspace/tasks/<task_id>/`
+- managed in Telegram via `/tasks` (running/waiting/finished + cancel/cleanup controls)
+- created/resumed/cancelled through task tools (`tools/task_tools/*.py`) over `InternalAgentAPI /tasks/*`
+- timeout source: `config.tasks.timeout_seconds`
+
+Result flow:
+
+- task completion/failure is posted to Telegram
+- result is injected into parent agent's current active session (`handle_task_result`)
+- task questions (`ask_parent.py`) are posted and injected via `handle_task_question`
 
 ## Cron jobs
 

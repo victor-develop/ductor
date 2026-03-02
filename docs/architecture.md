@@ -9,12 +9,12 @@ Telegram Update
   -> SequentialMiddleware (message updates only)
        - exact /stop_all (or stop-all phrase): kill local active CLI process(es) + optional cross-agent callback + drain pending queue
        - exact /stop or bare abort keyword: kill active local CLI process(es) + drain pending queue
-       - quick commands (/status /memory /cron /diagnose /model /showfiles /sessions): lock bypass
+       - quick commands (/status /memory /cron /diagnose /model /showfiles /sessions /tasks): lock bypass
        - otherwise: dedupe + per-chat lock (+ queue tracking)
   -> TelegramBot handler
-       - /start /help /info /showfiles /stop /restart /new /session /sessions
+       - /start /help /info /showfiles /stop /restart /new /session /sessions /tasks
        - normal text/media -> Orchestrator
-       - callback routes (model selector, cron selector, session selector, file browser, named-session buttons, upgrade, queue cancel)
+       - callback routes (model selector, cron selector, session selector, task selector, file browser, named-session buttons, upgrade, queue cancel)
   -> Orchestrator
        - slash command -> CommandRegistry
        - directives (@...)
@@ -37,6 +37,7 @@ Background systems:
 - `WebhookObserver`: HTTP ingress for external triggers.
 - `CleanupObserver`: daily retention cleanup for workspace file directories.
 - `BackgroundObserver`: named session (`/session`) task execution and result delivery.
+- `TaskHub`: delegated background task execution (`/tasks` UI + `/tasks/*` internal API endpoints).
 - `GeminiCacheObserver`: periodic Gemini model-cache refresh (`~/.ductor/config/gemini_models.json`).
 - `CodexCacheObserver`: periodic Codex model-cache refresh (`~/.ductor/config/codex_models.json`).
 - `UpdateObserver`: periodic PyPI version check + Telegram notification (upgradeable installs only).
@@ -52,7 +53,7 @@ Multi-agent runtime core (always active; sub-agents optional):
 
 - `AgentSupervisor`: bootstraps the main agent and manages dynamic sub-agents with crash recovery.
 - `InterAgentBus`: in-memory async message passing between agents.
-- `InternalAgentAPI`: HTTP bridge (`127.0.0.1:8799` on host, `0.0.0.0:8799` in Docker mode) for CLI tool scripts to reach the bus.
+- `InternalAgentAPI`: HTTP bridge (`127.0.0.1:8799` on host, `0.0.0.0:8799` in Docker mode) for CLI tool scripts to reach the bus and task hub.
 - `SharedKnowledgeSync`: watches `SHAREDMEMORY.md` and injects content into all agents' `MAINMEMORY.md`.
 
 ## Startup Flow
@@ -68,9 +69,21 @@ Default path:
 5. Load/create `~/.ductor/config/config.json`.
 6. Deep-merge runtime config with `AgentConfig` defaults.
 7. Run `init_workspace(paths)` inside `load_config()`.
-8. Validate required config fields.
+8. Validate required runtime fields in `run_telegram()`.
 9. Acquire PID lock (`bot.pid`, `kill_existing=True`).
-10. Start `TelegramBot`.
+10. Start `AgentSupervisor` (always-on runtime wrapper for main + optional sub-agents).
+
+### `AgentSupervisor` startup (`ductor_bot/multiagent/supervisor.py`)
+
+1. Start `InterAgentBus`.
+2. Start `InternalAgentAPI` (`127.0.0.1:8799` host mode, `0.0.0.0:8799` Docker mode).
+3. If `tasks.enabled=true`: create shared `TaskHub` (`~/.ductor/tasks.json` + `~/.ductor/workspace/tasks/`) and attach it to `InternalAgentAPI`.
+4. Create/start main `AgentStack` (`TelegramBot` + `Orchestrator`).
+5. Wait up to 120s for main readiness (`_main_ready`) before sub-agent startup.
+6. Load/start sub-agents from `agents.json`.
+7. Start `SharedKnowledgeSync` (`SHAREDMEMORY.md` -> all agent `MAINMEMORY.md`).
+8. Start `agents.json` watcher.
+9. Block on main-agent completion and return its exit code.
 
 ### `TelegramBot` startup (`ductor_bot/bot/app.py`)
 
@@ -78,23 +91,36 @@ Default path:
 2. Fetch bot identity (`get_me`).
 3. Consume restart sentinel and notify chat if present.
 4. Attach cron, heartbeat, webhook, and session result handlers + webhook wake handler.
+   - task result/question handlers are wired by supervisor hook when `TaskHub` is enabled.
 5. Consume upgrade sentinel and notify chat if present.
-6. Start `UpdateObserver` only for upgradeable installs.
-7. Sync Telegram command list.
-8. Start restart-marker watcher.
+6. Detect startup kind (`first_start` / `service_restart` / `system_reboot`) from `startup_state.json` and persist current state.
+7. Broadcast startup notification only when:
+   - no restart sentinel was consumed, and
+   - startup kind is not `service_restart`.
+8. Run `RecoveryPlanner` on:
+   - interrupted foreground turns (`inflight_turns.json`, max age `config.timeouts.normal * 2`),
+   - named sessions recovered from persisted `running` state.
+9. Send per-chat recovery notifications; for safe named-session actions, auto-submit background follow-ups.
+10. Clear inflight tracker file after recovery pass.
+11. Start `UpdateObserver` only for upgradeable installs.
+12. Sync Telegram command list.
+13. Start restart-marker watcher.
 
 ### `Orchestrator.create()` (`ductor_bot/orchestrator/core.py`)
 
 1. Resolve paths from `ductor_home`.
 2. Set process-wide `DUCTOR_HOME` env var only for the main agent (sub-agents use per-subprocess env to avoid races).
-3. If Docker enabled: run `DockerManager.setup()` (includes auth mounts + optional `mount_host_cache` + `docker.mounts`) and keep recovery wiring.
+3. If Docker enabled: run `DockerManager.setup()` (includes auth mounts + optional `mount_host_cache` + `docker.mounts`).
 4. If Docker container is active: re-sync skills in Docker-safe copy mode.
 5. Inject runtime environment notice into workspace rule files (`inject_runtime_environment`).
 6. Build orchestrator instance.
+   - initialize `InflightTracker` (`~/.ductor/inflight_turns.json`)
+   - load named-session registry (downgrades persisted `running` entries to `idle` and marks them for recovery planning)
 7. Check provider auth (`check_all_auth`) and set authenticated provider set.
 8. Start `GeminiCacheObserver` (`~/.ductor/config/gemini_models.json`) and refresh runtime Gemini model registry from its callback.
 9. Start `CodexCacheObserver` (`~/.ductor/config/codex_models.json`).
 10. Create `BackgroundObserver`, `CronObserver`, and `WebhookObserver` (cron/webhook share Codex cache).
+   - named background timeout path uses `config.timeouts.background`
 11. Start cron, heartbeat, webhook, cleanup observers (disabled observers no-op in `start()`).
 12. If `api.enabled=true`: start `ApiServer` (auto-generate token when empty, wire message/abort handlers and file context). If PyNaCl is unavailable, startup logs a warning and skips API server startup.
 13. Start rule-sync and skill-sync watcher tasks.
@@ -104,12 +130,12 @@ Default path:
 
 ### Command ownership
 
-- Bot-level handlers: `/start`, `/help`, `/info`, `/showfiles`, `/stop`, `/stop_all`, `/restart`, `/new`, `/session`, `/sessions`, `/agent_commands`.
-- Orchestrator command registry: `/new`, `/status`, `/model`, `/memory`, `/cron`, `/diagnose`, `/upgrade`, `/sessions`.
+- Bot-level handlers: `/start`, `/help`, `/info`, `/showfiles`, `/stop`, `/stop_all`, `/restart`, `/new`, `/session`, `/sessions`, `/tasks`, `/agent_commands`.
+- Orchestrator command registry: `/new`, `/status`, `/model`, `/memory`, `/cron`, `/diagnose`, `/upgrade`, `/sessions`, `/tasks`.
 - Main agent also registers `/agents`, `/agent_start`, `/agent_stop`, `/agent_restart` handlers in the bot layer (routed into orchestrator via supervisor hooks).
 - `/stop` and `/stop_all` are middleware/bot-local and do not route through orchestrator command dispatch.
 - `/stop_all` uses supervisor callback wiring on the main agent to abort active work across all agent stacks (sub-agent fallback is local-only).
-- Quick-command bypass applies to `/status`, `/memory`, `/cron`, `/diagnose`, `/model`, `/showfiles`, `/sessions`.
+- Quick-command bypass applies to `/status`, `/memory`, `/cron`, `/diagnose`, `/model`, `/showfiles`, `/sessions`, `/tasks`.
 - `/showfiles` is handled directly in bot layer.
 - `/model` bypass has busy check: when active work/queue exists, it returns immediate "agent is working" feedback.
 
@@ -138,14 +164,17 @@ Default path:
 3. New session only: append `MAINMEMORY.md` as `append_system_prompt`, then append multi-agent roster context when available.
 4. Apply message hooks (`MAINMEMORY_REMINDER` every 6th message).
 5. Build `AgentRequest` with `resume_session` if available.
+   - foreground timeout path resolves via `resolve_timeout(config, "normal")` -> `config.timeouts.normal`
 6. Gemini safeguard: if target provider is Gemini, auth mode is API-key, and `gemini_api_key` in config is empty/`"null"`, return warning text and skip CLI call.
-7. Execute CLI (`CLIService.execute` or `execute_streaming`).
-8. Error behavior:
+7. Persist in-flight turn record (`InflightTracker.begin`) before CLI execution.
+8. Execute CLI (`CLIService.execute` or `execute_streaming`).
+9. Always clear in-flight turn record in `finally` (`InflightTracker.complete(chat_id)`).
+10. Error behavior:
    - recoverable:
      - SIGKILL: reset only active provider bucket and retry once.
      - invalid resumed session (`invalid session` / `session not found`): reset active provider bucket and retry once.
    - other errors: kill processes, preserve session, return session-error guidance.
-9. On success: persist session ID (if changed), counters, cost/tokens, and optional session-age note.
+11. On success: persist session ID (if changed), counters, cost/tokens, and optional session-age note.
 
 ## Streaming Path
 
@@ -157,6 +186,9 @@ Bot runtime path uses `bot/message_dispatch.py`:
    - `thinking` -> `THINKING`
    - `compacting` -> `COMPACTING`
    - `recovering` -> `Please wait, recovering...`
+   - `timeout_warning` -> `TIMEOUT APPROACHING`
+   - `timeout_extended` -> `TIMEOUT EXTENDED`
+   - timeout labels appear only when stream paths emit those system-status events
 4. Finalization:
    - flush coalescer,
    - finalize editor,
@@ -202,6 +234,7 @@ Additional HTTP endpoints:
    - `ms:*` model selector,
    - `crn:*` cron selector,
    - `nsc:*` session selector,
+   - `tsc:*` task selector,
    - `ns:*` named-session follow-up buttons,
    - `sf:*` / `sf!` file browser.
 4. generic callback path:
@@ -223,10 +256,21 @@ Lock usage is path-dependent:
 - `NamedSessionRegistry` enforces max 10 user-created named sessions per chat (`/session`) and persists to `~/.ductor/named_sessions.json`.
 - Inter-agent sessions use deterministic names (`ia-<sender>`) and are inserted via `NamedSessionRegistry.add(...)` (separate path from user `/session` cap checks).
 - Named sessions use `CLIService.execute()` with `resume_session` for follow-up persistence.
+- named-session background timeout path is `config.timeouts.background`.
 - Follow-ups: `@session-name <message>` (foreground streaming) or `/session @session-name <message>` (background).
 - Completion callback (`TelegramBot._on_session_result`) sends a tagged Telegram message with session name.
 - `/stop` kills active CLI subprocesses, cancels background tasks, and ends all named sessions for the chat.
 - `/sessions` shows interactive management UI with end/refresh controls.
+
+### Delegated tasks (`TaskHub` + `/tasks`) flow
+
+- shared task hub is created by supervisor when `tasks.enabled=true`.
+- parent agents submit/manage tasks through task tools (`tools/task_tools/*.py`) calling `InternalAgentAPI /tasks/*`.
+- task metadata persists in `~/.ductor/tasks.json`; per-task folders live in `~/.ductor/workspace/tasks/<task_id>/`.
+- `/tasks` renders interactive management UI (cancel/cleanup/refresh) via `task_selector.py` (`tsc:*` callbacks).
+- task worker questions (`/tasks/ask_parent`) are forwarded to parent agent chat, then injected back into parent session via `handle_task_question`.
+- task completions/failures are delivered to Telegram and injected into parent session via `handle_task_result`.
+- `abort_all_agents()` and supervisor shutdown also cancel in-flight task-hub tasks.
 
 ### Cron flow
 
@@ -298,7 +342,7 @@ Copy rules in `workspace/init.py` (`_walk_and_copy`):
 
 - Zone 2 (always overwrite):
   - `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`
-  - `.py` files in `workspace/tools/cron_tools/`, `workspace/tools/webhook_tools/`, and `workspace/tools/agent_tools/`
+  - `.py` files in `workspace/tools/cron_tools/`, `workspace/tools/webhook_tools/`, `workspace/tools/agent_tools/`, and `workspace/tools/task_tools/`
 - Zone 3 (seed once): all other files.
 - `RULES*.md` templates are skipped in raw copy and deployed by `RulesSelector`.
 - Hidden/ignored dirs are skipped.
@@ -333,11 +377,12 @@ AgentSupervisor
   +-- AgentStack "sub-1"   (TelegramBot -> Orchestrator -> CLIService)
   +-- AgentStack "sub-2"   (TelegramBot -> Orchestrator -> CLIService)
   +-- InterAgentBus        (in-memory sync + async messaging)
-  +-- InternalAgentAPI     (127.0.0.1:8799 host / 0.0.0.0:8799 Docker, bridges CLI tools to bus)
+  +-- InternalAgentAPI     (127.0.0.1:8799 host / 0.0.0.0:8799 Docker, bridges CLI tools to bus + task hub)
+  +-- TaskHub              (shared task registry/execution when enabled)
   +-- SharedKnowledgeSync  (SHAREDMEMORY.md -> all agents' MAINMEMORY.md)
 ```
 
-Each sub-agent has its own Telegram bot token, workspace, sessions, and CLI service. Agents communicate via the `InterAgentBus` (in-memory) or `InternalAgentAPI` (localhost HTTP for CLI tool scripts).
+Each sub-agent has its own Telegram bot token, workspace, sessions, and CLI service. Agents communicate via the `InterAgentBus` (in-memory) or `InternalAgentAPI` (localhost HTTP for CLI tool scripts). Delegated tasks use one shared `TaskHub` in the main home.
 
 `AgentSupervisor` watches `agents.json` via `FileWatcher` and auto-starts/stops agents on changes (running-agent auto-restart is currently token-change driven). Each agent runs in a supervised asyncio task with crash recovery (exponential backoff, max 5 retries). Sub-agent restart requests (exit code 42) trigger in-process hot-reload; main agent restart requests propagate to the service/runtime restart path.
 

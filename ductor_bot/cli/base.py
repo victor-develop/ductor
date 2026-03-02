@@ -19,6 +19,7 @@ from ductor_bot.cli.types import CLIResponse
 
 if TYPE_CHECKING:
     from ductor_bot.cli.process_registry import ProcessRegistry
+    from ductor_bot.cli.timeout_controller import TimeoutController
 
 logger = logging.getLogger(__name__)
 
@@ -193,6 +194,7 @@ class BaseCLI(ABC):
         resume_session: str | None = None,
         continue_session: bool = False,
         timeout_seconds: float | None = None,
+        timeout_controller: TimeoutController | None = None,
     ) -> CLIResponse: ...
 
     @abstractmethod
@@ -202,4 +204,5 @@ class BaseCLI(ABC):
         resume_session: str | None = None,
         continue_session: bool = False,
         timeout_seconds: float | None = None,
+        timeout_controller: TimeoutController | None = None,
     ) -> AsyncGenerator[StreamEvent, None]: ...

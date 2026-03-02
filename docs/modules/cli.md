@@ -9,6 +9,7 @@ Provider-agnostic CLI execution layer for Claude Code, Codex, and Gemini.
 - `factory.py`: provider factory (`claude` / `codex` / `gemini`)
 - `service.py`: `CLIService` gateway for orchestrator
 - `executor.py`: shared subprocess lifecycle helpers for provider wrappers
+- `timeout_controller.py`: configurable timeout warnings + activity-based extension controller
 - `claude_provider.py`: Claude subprocess wrapper
 - `codex_provider.py`: Codex subprocess wrapper
 - `gemini_provider.py`: Gemini subprocess wrapper
@@ -77,6 +78,17 @@ Normalized events in `stream_events.py` include:
   - aborted -> empty result,
   - non-error with accumulated text -> use accumulated text,
   - else retry non-streaming and mark `stream_fallback=True`.
+
+Timeout behavior in current production paths:
+
+- provider wrappers accept both `timeout_seconds` and `timeout_controller`, and pass both into executor helpers.
+- `SubprocessSpec.timeout_controller` is used in foreground and named-session flows where orchestrator builds controllers (`flows._make_timeout_controller`).
+- when no controller is supplied, executor falls back to plain `asyncio.timeout(...)`.
+- remaining timeout-only paths still using `timeout_seconds` include cron/webhook one-shot runs, inter-agent turns, and task-result/task-question injection turns.
+
+Status-callback nuance:
+
+- `TimeoutController` warning/extension callbacks are not currently wired to emit `SystemStatusEvent`s, so UI labels like `timeout_warning`/`timeout_extended` depend on future callback wiring.
 
 `bot/message_dispatch.py` wraps delta delivery with `StreamCoalescer` (`coalescer.py`) so Telegram edits flush at readable boundaries (paragraph/sentence/idle/full flush).
 

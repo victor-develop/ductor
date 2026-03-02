@@ -20,10 +20,14 @@ Important runtime paths:
 - `config_path`: `~/.ductor/config/config.json`
 - `sessions_path`: `~/.ductor/sessions.json`
 - `named_sessions_path`: `~/.ductor/named_sessions.json`
+- `tasks_registry_path`: `~/.ductor/tasks.json`
+- `startup_state_path`: `~/.ductor/startup_state.json`
+- `inflight_turns_path`: `~/.ductor/inflight_turns.json`
 - `cron_jobs_path`: `~/.ductor/cron_jobs.json`
 - `webhooks_path`: `~/.ductor/webhooks.json`
 - `logs_dir`: `~/.ductor/logs`
 - `cron_tasks_dir`: `~/.ductor/workspace/cron_tasks`
+- `tasks_dir`: `~/.ductor/workspace/tasks`
 - `api_files_dir`: `~/.ductor/workspace/api_files`
 - `skills_dir`: `~/.ductor/workspace/skills`
 - `bundled_skills_dir`: package `_home_defaults/workspace/skills`
@@ -46,6 +50,7 @@ Idempotent by design (called from multiple startup paths).
 Directory creation note:
 
 - `workspace/api_files/` is not in `_REQUIRED_DIRS`; it is created lazily on first API upload via `prepare_destination(...)`.
+- `workspace/tasks/` is part of `_REQUIRED_DIRS` and always created (used by shared `TaskHub` task folders).
 - sub-agent homes do not create `logs/` by default; all agents write to the main home log file `~/.ductor/logs/agent.log`.
 
 ## Zone copy rules (`_walk_and_copy`)
@@ -57,6 +62,7 @@ Directory creation note:
   - `workspace/tools/cron_tools/`
   - `workspace/tools/webhook_tools/`
   - `workspace/tools/agent_tools/`
+  - `workspace/tools/task_tools/`
 
 Special case:
 

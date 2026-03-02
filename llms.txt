@@ -1,41 +1,128 @@
 # ductor
 
-> Personal AI assistant on Telegram. Runs Claude Code CLI and Codex CLI as subprocesses, streams responses live, persists memory across sessions. Time-based automation (cron jobs), event-based triggers (webhooks), periodic check-ins (heartbeat). Pure Python. Uses only official CLIs - no header spoofing, no API proxying.
+> Telegram-first AI orchestration runtime that executes official provider CLIs (`claude`, `codex`, `gemini`) as subprocesses, supports optional direct WebSocket API transport, streams responses, persists per-chat/provider state, and runs automation (cron, webhook, heartbeat, cleanup) in-process.
 
-ductor bridges Telegram to the Claude Code CLI (Anthropic) and Codex CLI (OpenAI). It spawns the real CLI binary as a child process, parses streaming output, and edits Telegram messages in real time. Everything lives in `~/.ductor/` - config, sessions, memory, cron tasks, tools, logs.
+ductor is a Python service that routes user input to official CLI tools instead of SDK proxy layers. Core principle: keep runtime state inspectable and local (`~/.ductor/`) with JSON/Markdown files and minimal hidden state.
 
-Key design decisions: one Markdown file for agent memory (no RAG, no vector stores), official rule files only (`CLAUDE.md` / `AGENTS.md`), Telegram as the only channel, optional Docker sandboxing for CLI isolation.
+Current stack: Python 3.11+, aiogram 3.x, Pydantic 2.x, asyncio.
 
-Stack: Python 3.12+, aiogram 3.x, Pydantic 2.x, asyncio, hatchling build system.
+## Fast Mental Model
 
-## Getting started
+```text
+Telegram update (or optional API message)
+  -> ingress layer (aiogram middleware/handlers OR ApiServer /ws)
+  -> Orchestrator (commands, directives, flows)
+  -> CLIService (provider wrapper)
+  -> provider subprocess (claude/codex/gemini)
+  -> streamed/non-streamed output back to caller
+```
 
-- [README](https://github.com/PleasePrompto/ductor/blob/main/README.md): Project overview, quick start, features, architecture diagram
-- [Installation guide](https://github.com/PleasePrompto/ductor/blob/main/docs/installation.md): Setup for Linux, macOS, WSL, Windows, VPS hosting with systemd
-- [Automation quickstart](https://github.com/PleasePrompto/ductor/blob/main/docs/automation.md): Cron jobs, webhooks, heartbeat - practical usage guide
-- [Configuration](https://github.com/PleasePrompto/ductor/blob/main/docs/config.md): Full config schema (AgentConfig, StreamingConfig, DockerConfig, HeartbeatConfig, WebhookConfig)
+Runtime supervision model:
 
-## Architecture
+- `AgentSupervisor` is always active.
+- Main agent is mandatory.
+- Sub-agents are optional and loaded from `~/.ductor/agents.json`.
+- Inter-agent communication uses in-memory bus + internal localhost HTTP bridge.
 
-- [Architecture overview](https://github.com/PleasePrompto/ductor/blob/main/docs/architecture.md): Runtime flow, module map, design patterns, background systems
-- [Module index](https://github.com/PleasePrompto/ductor/blob/main/docs/README.md): Links to all module documentation
+## Non-Obvious Runtime Facts
 
-## Module documentation
+- Sessions are provider-isolated per chat.
+- `/new` resets only the active provider bucket.
+- `/stop` aborts local active work and drains pending queue.
+- `/stop_all` on main agent aborts active work across all agents (sub-agent fallback is local-only).
+- `/tasks` opens delegated background-task management for the current chat.
+- Startup classifies lifecycle as `first_start`, `service_restart`, `system_reboot` using `startup_state.json`.
+- Foreground in-flight turns are persisted in `inflight_turns.json` and used for startup recovery planning.
+- Named sessions persisted as `running` are downgraded to `idle` on startup and can be safely resumed by recovery logic.
 
-- [bot/](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/bot.md): Telegram frontend - aiogram handlers, streaming editors, rich sender, middleware
-- [orchestrator/](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/orchestrator.md): Central router - command registry, message flows, hooks, model selector
-- [cli/](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/cli.md): CLI subprocess management - Claude/Codex providers, stream event parsing
-- [session/](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/session.md): Per-chat session lifecycle, JSON persistence
-- [cron/](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/cron.md): In-process scheduler - cron expressions, timezone-aware execution, isolated subagents
-- [webhook/](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/webhook.md): HTTP ingress - bearer/HMAC auth, wake and cron_task modes, template rendering
-- [heartbeat/](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/heartbeat.md): Periodic background checks, quiet hours, cooldown logic
-- [workspace/](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/workspace.md): Path resolution (DuctorPaths), home seeding, rule-file sync
-- [infra/](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/infra.md): PID lock, restart sentinel, version checking, Docker manager
-- [logging](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/logging.md): ContextVar-based async logging with operation prefixes
-- [security](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/security.md): Prompt injection detection, path traversal validation
-- [setup wizard](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/setup_wizard.md): Interactive onboarding flow
+Timeout behavior (current implementation):
 
-## Optional
+- Foreground chat flow: `config.timeouts.normal`
+- Named background `/session`: `config.timeouts.background`
+- Delegated background tasks: `config.tasks.timeout_seconds`
+- Cron/webhook `cron_task` + inter-agent: `config.cli_timeout`
+- Stale process cleanup threshold: `config.cli_timeout * 2`
 
-- [pyproject.toml](https://github.com/PleasePrompto/ductor/blob/main/pyproject.toml): Build config, dependencies, tool settings
-- [CLAUDE.md](https://github.com/PleasePrompto/ductor/blob/main/CLAUDE.md): Development conventions, coding standards, project rules
+`TimeoutController` is wired in foreground/named-session/heartbeat flows; cron/webhook/inter-agent/task-injection paths still use plain `timeout_seconds`.
+
+## Persistent State (Main Home)
+
+`~/.ductor/` typically contains:
+
+- `config/config.json`
+- `sessions.json`
+- `named_sessions.json`
+- `tasks.json`
+- `startup_state.json`
+- `inflight_turns.json`
+- `cron_jobs.json`
+- `webhooks.json`
+- `agents.json`
+- `SHAREDMEMORY.md`
+- `logs/agent.log`
+- `workspace/` (memory, tools, cron tasks, files, skills)
+
+Sub-agent homes live under `~/.ductor/agents/<name>/` with their own config/session/workspace state.
+
+## Transport Surfaces
+
+- Telegram bot ingress (primary)
+- Optional API server (`api.enabled=true`):
+  - WebSocket: `/ws`
+  - HTTP: `/health`, `/files`, `/upload`
+  - WebSocket payloads after auth handshake are E2E encrypted (NaCl Box)
+
+## Automation Systems
+
+- Named background sessions (`/session`)
+- Delegated background tasks (`TaskHub`, `/tasks`, `/tasks/*` internal API routes)
+- Cron scheduler (`cron_jobs.json`)
+- Webhook ingress (`webhooks.json`, modes: `wake`, `cron_task`)
+- Heartbeat observer
+- Cleanup observer
+- Codex/Gemini model cache observers
+- Config hot-reloader
+- Rule-sync and skill-sync watchers
+
+## Core Entry Points
+
+- `ductor_bot/__main__.py` (CLI entry, load/merge config, run supervisor)
+- `ductor_bot/multiagent/supervisor.py` (main + sub-agent lifecycle)
+- `ductor_bot/bot/app.py` (Telegram startup, handlers, callback routing, recovery kickoff)
+- `ductor_bot/orchestrator/core.py` (wiring and routing)
+- `ductor_bot/orchestrator/flows.py` (normal/streaming/session/heartbeat flows)
+- `ductor_bot/cli/service.py` + provider wrappers
+
+## Canonical Docs For LLMs
+
+Start here:
+
+- [System Overview](https://github.com/PleasePrompto/ductor/blob/main/docs/system_overview.md): fastest end-to-end runtime understanding
+- [Developer Quickstart](https://github.com/PleasePrompto/ductor/blob/main/docs/developer_quickstart.md): contributor onboarding + key behavioral facts
+- [Architecture](https://github.com/PleasePrompto/ductor/blob/main/docs/architecture.md): startup sequence, routing, callbacks, background systems
+- [Configuration](https://github.com/PleasePrompto/ductor/blob/main/docs/config.md): full config schema, merge behavior, timeout matrix
+
+Module-level references:
+
+- [bot](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/bot.md)
+- [orchestrator](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/orchestrator.md)
+- [cli](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/cli.md)
+- [session](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/session.md)
+- [background](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/background.md)
+- [tasks](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/tasks.md)
+- [cron](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/cron.md)
+- [webhook](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/webhook.md)
+- [heartbeat](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/heartbeat.md)
+- [infra](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/infra.md)
+- [multiagent](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/multiagent.md)
+- [api](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/api.md)
+- [workspace](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/workspace.md)
+- [setup wizard / CLI commands](https://github.com/PleasePrompto/ductor/blob/main/docs/modules/setup_wizard.md)
+
+Project root docs:
+
+- [README](https://github.com/PleasePrompto/ductor/blob/main/README.md)
+- [Docs index](https://github.com/PleasePrompto/ductor/blob/main/docs/README.md)
+- [Installation](https://github.com/PleasePrompto/ductor/blob/main/docs/installation.md)
+- [Automation quickstart](https://github.com/PleasePrompto/ductor/blob/main/docs/automation.md)
+- [pyproject.toml](https://github.com/PleasePrompto/ductor/blob/main/pyproject.toml)

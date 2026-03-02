@@ -79,3 +79,70 @@ def stop_text(killed: bool, provider: str) -> str:
     else:
         body = "Nothing running right now."
     return fmt("**Agent Stopped**", SEP, body)
+
+
+# -- Timeout messages --
+
+
+def timeout_warning_text(remaining: float) -> str:
+    """Warning text shown when a timeout is approaching."""
+    if remaining >= 60:
+        mins = int(remaining // 60)
+        return f"Timeout in {mins} min"
+    secs = int(remaining)
+    return f"Timeout in {secs}s"
+
+
+def timeout_extended_text(extension: float, remaining_ext: int) -> str:
+    """Notification that the timeout was extended due to activity."""
+    secs = int(extension)
+    return f"Timeout extended (+{secs}s, {remaining_ext} left)"
+
+
+def timeout_result_text(elapsed: float, configured: float) -> str:
+    """Error text when a CLI process hit its timeout."""
+    return fmt(
+        "**Timeout**",
+        SEP,
+        f"The agent timed out after {int(elapsed)}s (limit: {int(configured)}s).\n"
+        "Try a shorter prompt, or ask in smaller steps.",
+    )
+
+
+# -- Startup lifecycle messages --
+
+
+def startup_notification_text(kind: str) -> str:
+    """Notification text for startup events.
+
+    Only ``first_start`` and ``system_reboot`` produce output.
+    ``service_restart`` is silent (handled by the existing sentinel system).
+    """
+    if kind == "first_start":
+        return fmt("**Bot Started**", SEP, "First start — ready to go.")
+    if kind == "system_reboot":
+        return fmt("**Bot Started**", SEP, "System reboot detected — back online.")
+    return ""
+
+
+# -- Auto-recovery messages --
+
+
+def recovery_notification_text(
+    kind: str,
+    prompt_preview: str,
+    session_name: str = "",
+) -> str:
+    """Notification that interrupted work is being recovered."""
+    preview = prompt_preview[:80] + ("…" if len(prompt_preview) > 80 else "")
+    if kind == "named_session":
+        return fmt(
+            "**Auto-Recovery**",
+            SEP,
+            f"Resuming background session **{session_name}**\n`{preview}`",
+        )
+    return fmt(
+        "**Interrupted Task**",
+        SEP,
+        f"A task was interrupted during restart.\n`{preview}`\nPlease re-send to continue.",
+    )

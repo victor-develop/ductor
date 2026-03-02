@@ -22,7 +22,7 @@ Telegram interface layer (`aiogram`): handlers, middleware, streaming delivery, 
 
 Bot-level handlers (`app.py`):
 
-- `/start`, `/help`, `/info`, `/showfiles`, `/stop`, `/stop_all`, `/restart`, `/new`, `/session`, `/sessions`, `/agent_commands`
+- `/start`, `/help`, `/info`, `/showfiles`, `/stop`, `/stop_all`, `/restart`, `/new`, `/session`, `/sessions`, `/tasks`, `/agent_commands`
 - main-agent only bot handlers: `/agents`, `/agent_start`, `/agent_stop`, `/agent_restart` (routed into orchestrator command path)
 
 Command-menu note:
@@ -31,7 +31,7 @@ Command-menu note:
 
 Orchestrator-routed commands:
 
-- `/status`, `/memory`, `/model`, `/cron`, `/diagnose`, `/upgrade`, `/sessions`
+- `/status`, `/memory`, `/model`, `/cron`, `/diagnose`, `/upgrade`, `/sessions`, `/tasks`
 
 ## Middleware behavior
 
@@ -47,7 +47,7 @@ Message flow order:
 1. abort trigger check before lock:
    - `/stop_all` or stop-all phrases (`stop all`, `stopp alle`, `alles stoppen`, `cancel all`, `abort all`)
    - `/stop` and bare abort words
-2. quick command bypass (`/status`, `/memory`, `/cron`, `/diagnose`, `/model`, `/showfiles`, `/sessions`)
+2. quick command bypass (`/status`, `/memory`, `/cron`, `/diagnose`, `/model`, `/showfiles`, `/sessions`, `/tasks`)
 3. dedupe by `chat_id:message_id`
 4. acquire per-chat lock for normal messages
 5. queued messages get indicator + cancel button (`mq:<entry_id>`)
@@ -85,11 +85,16 @@ Queue API:
 - forward callbacks:
   - text delta
   - tool activity
-  - system status (`thinking`, `compacting`, `recovering`)
+  - system status (`thinking`, `compacting`, `recovering`, `timeout_warning`, `timeout_extended`)
 - finalize editor
 - fallback path:
   - `stream_fallback` or empty stream -> `send_rich(full_text)`
   - otherwise only send extracted files via `send_files_from_text()`
+
+Timeout-status note:
+
+- `message_dispatch.py` maps `timeout_warning` and `timeout_extended` to visible labels.
+- timeout warning/extension callbacks are not wired by default, so these labels are not emitted in current runtime paths unless custom status events are introduced.
 
 ## Callback routing
 
@@ -100,6 +105,7 @@ Handled namespaces in `TelegramBot._route_special_callback`:
 - `ms:*` model selector
 - `crn:*` cron selector
 - `nsc:*` session selector
+- `tsc:*` task selector
 - `ns:*` named-session follow-up callbacks from result buttons
 - `sf:*` / `sf!` file browser
 
@@ -141,6 +147,28 @@ Implementation note:
 - webhook wake handler
 - session result handler
 
+Supervisor task wiring (`AgentSupervisor._wire_task_hub`) additionally attaches:
+
+- `on_task_result(...)` delivery callback
+- `on_task_question(...)` delivery callback
+
 Wake handler path (`_handle_webhook_wake`) acquires per-chat lock, routes prompt through orchestrator, then sends response.
 
 Webhook result forwarding sends only `cron_task` results because wake responses are sent directly by wake handler.
+
+## Startup lifecycle and auto-recovery
+
+`TelegramBot._on_startup()` also performs restart-aware lifecycle steps:
+
+1. consume restart/upgrade sentinels and send completion messages
+2. detect startup kind via `startup_state.detect_startup_kind(...)`
+3. persist current startup state via `save_startup_state(...)`
+4. broadcast startup notification on:
+   - `first_start`
+   - `system_reboot`
+   (`service_restart` is intentionally silent; restart-sentinel startup is also silent)
+5. run `RecoveryPlanner` over:
+   - interrupted foreground turns (`inflight_turns.json`)
+   - named sessions that were `running` before restart (downgraded to `idle` on load)
+6. send per-chat auto-recovery notice text and re-submit named-session follow-ups where safe
+7. clear inflight tracker state after recovery pass

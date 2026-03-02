@@ -56,7 +56,7 @@ Other projects manipulate SDKs or patch CLIs and risk violating provider terms o
 - Official CLIs only (`claude`, `codex`, `gemini`)
 - Rule files are plain Markdown (`CLAUDE.md`, `AGENTS.md`, `GEMINI.md`)
 - Memory is one Markdown file (`memory_system/MAINMEMORY.md`)
-- All state is JSON (`sessions.json`, `cron_jobs.json`, `webhooks.json`)
+- All state is JSON (`sessions.json`, `named_sessions.json`, `tasks.json`, `cron_jobs.json`, `webhooks.json`, `startup_state.json`, `inflight_turns.json`)
 
 ## Features
 
@@ -67,10 +67,11 @@ Other projects manipulate SDKs or patch CLIs and risk violating provider terms o
 - `@model` directives for inline provider targeting
 - Inline callback buttons, queue tracking with per-message cancel
 - Persistent memory in plain Markdown
+- Restart-aware startup with safe auto-recovery for interrupted work
 
 ### Named sessions
 
-Start independent conversations with their own context — right inside your main chat. Each session runs separately and doesn't share context with the main conversation:
+Start a separate CLI conversation without polluting your main chat's context — like opening a second terminal window next to your current one. Sessions run inside your main chat but each one has its own isolated context.
 
 ```text
 /session Fix the login bug              -> starts "firmowl" on default provider
@@ -86,23 +87,48 @@ Start independent conversations with their own context — right inside your mai
 
 `@model` shortcuts resolve the provider automatically (`@opus` = Claude, `@flash` = Gemini, `@codex` = Codex).
 
-### Sessions vs. Sub-Agents
+**Example:**
 
-| | `/session` (Named Sessions) | `/agents` (Sub-Agents) |
-|---|---|---|
-| **What it is** | Independent conversation with its own context | A full agent with its own Telegram chat, workspace, and memory |
-| **Context** | **Own context** — separate from main chat | **Own context** in its chat — but when the main agent delegates, results flow **into the main chat context** |
-| **Workspace** | Same workspace as main agent | Own workspace, own memory |
-| **Provider** | Any provider/model per session | Own default provider/model |
-| **Result** | Telegram reply (standalone) | Delegation: main agent processes result and responds to you. Direct chat: standalone, like any other agent. |
-| **Use case** | Parallel side-conversations you manage yourself | Use directly in its own chat, or let the main agent orchestrate it |
-| **Setup** | None — just `/session <prompt>` | `ductor agents add <name>` + BotFather token |
+```text
+You:  "Let's work on the authentication module"
+  → Main conversation — Claude builds up context about auth
 
-**Rule of thumb:** Use `/session` when you want a separate conversation on the side. Use sub-agents when you want a dedicated agent you can either talk to directly or let the main agent delegate to — delegated results flow back into the main chat with full context.
+/session @codex Fix the broken CSV export
+  → Completely separate context — doesn't pollute the auth discussion
 
-### Multi-agent system
+@firmowl Now add proper error messages too
+  → Follow-up goes to the existing "firmowl" session — still separate from main
 
-Each sub-agent is a full agent with its own Telegram chat — you can open it and talk to it directly, just like your main agent. But when the main agent delegates a task, the result flows back into your main conversation so the main agent stays in the loop. Agents share knowledge through `SHAREDMEMORY.md`.
+You:  "Back to auth — now add rate limiting"
+  → Main context is still clean, Claude remembers exactly where you left off
+```
+
+Think of it as keeping your desk organized: your main chat stays focused on one topic, and sessions handle unrelated work without mixing contexts.
+
+### Background tasks
+
+Every chat — main or sub-agent — can delegate long-running work to background tasks. You keep chatting while the task runs autonomously.
+
+The agent decides on its own when to delegate (anything likely taking >30 seconds), but you can also tell it explicitly. When a task finishes, its full result flows back into your chat context — as if the agent had done the work itself.
+
+```text
+You:  "Research the top 5 competitors and write a summary"
+  → Agent delegates this to a background task automatically
+  → You keep chatting: "While that's running, explain our pricing model"
+  → Task finishes → result delivered into your conversation
+
+You:  "Delegate this: generate PDF reports for all Q4 metrics"
+  → Explicitly delegated — task starts, you keep chatting
+  → Task has a question? It asks the agent, agent asks you, you answer, task continues
+
+/tasks                      -> view/manage all background tasks
+```
+
+Each task gets its own memory file (`TASKMEMORY.md`) in the workspace and can be resumed with follow-up prompts. Tasks are isolated per agent — a sub-agent's tasks live in its own workspace.
+
+### Sub-agents
+
+Sub-agents are completely independent Telegram bots — like having ductor installed twice. Each one has its own chat, own workspace, own memory, and own default provider.
 
 **Setup:** Create a second bot via [@BotFather](https://t.me/BotFather), then:
 
@@ -110,35 +136,50 @@ Each sub-agent is a full agent with its own Telegram chat — you can open it an
 ductor agents add codex-agent
 ```
 
-**Example: Claude as main agent, Codex as sub-agent**
+**Example: Claude as main, Codex as sub-agent**
 
 ```text
-# Each agent has its own Telegram chat — use them independently:
-Main chat (Claude):  "Explain the auth flow in this codebase"
-Sub-agent chat (Codex):  "Refactor the parser module"
+# Two separate Telegram chats — use them independently:
+Main chat (Claude):     "Explain the auth flow in this codebase"
+codex-agent chat:       "Refactor the parser module"
 
-# Or delegate from main to sub-agent:
+# They can also talk to each other:
 Main chat:  "Ask codex-agent to write tests for the API module"
   → Claude sends the task to Codex
-  → Codex executes, result comes back to your main chat
+  → Codex works in its own workspace
+  → Result flows back into your main chat — Claude sees it and responds
 
-# Async delegation — keep chatting while Codex works:
+# Background delegation — keep chatting while Codex works:
 Main chat:  "Give codex-agent a task: migrate the database schema"
   → Returns immediately, you keep talking to Claude
   → Codex finishes → result delivered to your main chat
 ```
 
-**What you can do:**
-
-- Chat with each CLI in its own Telegram bot, simultaneously
-- Delegate tasks from main to sub-agent (sync or async)
-- Let Claude plan and Codex execute — or any combination
-- Share facts across all agents via shared memory
+All agents share knowledge through `SHAREDMEMORY.md` and can delegate background tasks independently.
 
 ```text
 /agents                     # Status of all agents with current model
 /agent_commands             # Full multi-agent command reference
 ```
+
+### Sessions vs. Background tasks vs. Sub-agents
+
+| | Named sessions | Background tasks | Sub-agents |
+|---|---|---|---|
+| **Analogy** | Two terminal windows on one desktop | "Work on this while I do something else" | Two separate computers |
+| **Chat** | Same Telegram chat | Same Telegram chat | Own Telegram chat |
+| **Context** | Own context, separate from main | Own context — result flows back into parent chat | Own context, own workspace, own memory |
+| **Workspace** | Shared with main agent | Shared with parent agent (isolated per sub-agent) | Own workspace under `~/.ductor/agents/<name>/` |
+| **Provider** | Any — per session | Inherits from parent | Own default provider/model |
+| **Follow-ups** | `@name` to continue | Resume with follow-up prompt | Chat directly or delegate from main |
+| **Setup** | None — `/session <prompt>` | Automatic — agent decides or you ask | `ductor agents add` + BotFather token |
+| **Best for** | Keeping unrelated work out of your main context | Long-running work you don't want to wait for | Dedicated agent with different CLI/provider |
+
+**When to use what:**
+
+- **Named session** — you need to work on something unrelated without polluting your main conversation. "I'm deep in the auth module, but I also need someone to fix that CSV bug — without mixing the two contexts."
+- **Background task** — anything that takes a while. Just chat normally and the agent delegates when it makes sense. You can also say explicitly: "Delegate this: ..." The result flows back into your chat as if the agent did it inline.
+- **Sub-agent** — you want a dedicated Codex/Gemini/Claude agent with its own workspace, or you want agents that can collaborate across chats.
 
 ### Automation
 
@@ -151,7 +192,7 @@ Main chat:  "Give codex-agent a task: migrate the database schema"
 
 - **Service manager:** Linux (systemd), macOS (launchd), Windows (Task Scheduler)
 - **Docker sandbox:** sidecar container with configurable host mounts
-- **Multi-agent runtime:** main agent + sub-agents, each with own Telegram bot, sync/async delegation, shared memory
+- **Multi-agent runtime:** main agent + sub-agents, each with own Telegram bot, workspace, background tasks, shared memory
 - **Auto-onboarding:** interactive setup wizard on first run
 - **Cross-tool skill sync:** shared skills across `~/.claude/`, `~/.codex/`, `~/.gemini/`
 
@@ -171,9 +212,14 @@ graph LR
     C --> I[Background Systems]
     I --> J[Cron / Webhooks / Heartbeat]
     I --> K[Named Sessions]
+    I --> L[Background Tasks]
+
+    C --> M[Sub-Agent Supervisor]
+    M --> N[Sub-Agent 1 — own chat + workspace]
+    M --> O[Sub-Agent 2 — own chat + workspace]
 ```
 
-The orchestrator routes messages through command dispatch, directive parsing, and conversation flows. Background systems (cron, webhooks, heartbeat, named sessions, config reload, model caches) run as in-process asyncio tasks.
+The orchestrator routes messages through command dispatch, directive parsing, and conversation flows. Background systems (cron, webhooks, heartbeat, named sessions, background tasks, config reload, model caches) run as in-process asyncio tasks. Sub-agents are managed by a supervisor with crash recovery — each one runs its own full bot stack.
 
 Session behavior:
 - Sessions are chat-scoped and provider-isolated
@@ -186,6 +232,7 @@ Session behavior:
 |---|---|
 | `/session <prompt>` | Run named background session |
 | `/sessions` | View/manage active sessions |
+| `/tasks` | View/manage delegated background tasks |
 | `/model` | Interactive model/provider selector |
 | `/new` | Reset active provider session |
 | `/stop` | Abort active run |
@@ -232,6 +279,9 @@ Full CLI reference: [`docs/modules/setup_wizard.md`](docs/modules/setup_wizard.m
   config/config.json        # Bot configuration
   sessions.json             # Chat session state
   named_sessions.json       # Named background sessions
+  tasks.json                # Background task registry
+  startup_state.json        # Startup lifecycle state (restart vs reboot)
+  inflight_turns.json       # In-flight foreground turn tracker
   cron_jobs.json            # Scheduled tasks
   webhooks.json             # Webhook definitions
   SHAREDMEMORY.md           # Shared knowledge across all agents
@@ -241,7 +291,8 @@ Full CLI reference: [`docs/modules/setup_wizard.md`](docs/modules/setup_wizard.m
   logs/agent.log
   workspace/
     memory_system/MAINMEMORY.md      # Persistent memory
-    cron_tasks/ skills/ tools/       # Task scripts, skills, tool scripts
+    cron_tasks/ skills/ tools/       # Cron task scripts, skills, tool scripts
+    tasks/                           # Per-task folders (TASKMEMORY.md + task rules)
     telegram_files/ output_to_user/  # File I/O directories
     api_files/                       # API uploads (dated folders)
 ```
@@ -257,7 +308,7 @@ Full config reference: [`docs/config.md`](docs/config.md)
 | [Architecture](docs/architecture.md) | Startup, routing, streaming, callbacks |
 | [Configuration](docs/config.md) | Config schema and merge behavior |
 | [Automation](docs/automation.md) | Cron, webhooks, heartbeat setup |
-| [Module docs](docs/modules/) | Per-module deep dives (21 modules) |
+| [Module docs](docs/modules/) | Per-module deep dives (22 modules) |
 
 ## Disclaimer
 

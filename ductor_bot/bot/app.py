@@ -70,6 +70,7 @@ from ductor_bot.infra.updater import (
 from ductor_bot.infra.version import VersionInfo, get_current_version
 from ductor_bot.log_context import set_log_context
 from ductor_bot.multiagent.bus import AsyncInterAgentResult
+from ductor_bot.tasks.models import TaskResult
 from ductor_bot.text.response_format import SEP, fmt
 from ductor_bot.workspace.paths import DuctorPaths
 
@@ -118,7 +119,7 @@ _HELP_TEXT = fmt(
     SEP,
     f"Daily\n{_help_line('new')}\n{_help_line('stop')}\n{_help_line('stop_all')}\n"
     f"{_help_line('model')}\n{_help_line('status')}\n{_help_line('memory')}",
-    f"Automation\n{_help_line('session')}\n{_help_line('cron')}",
+    f"Automation\n{_help_line('session')}\n{_help_line('tasks')}\n{_help_line('cron')}",
     f"Multi-Agent\n{_help_line('agent_commands')}",
     f"Browse & Info\n{_help_line('showfiles')}\n{_help_line('info')}\n{_help_line('help')}",
     f"Maintenance\n{_help_line('diagnose')}\n{_help_line('upgrade')}\n{_help_line('restart')}",
@@ -258,6 +259,53 @@ class TelegramBot:
                     ),
                 )
 
+        # -- Startup lifecycle detection --
+        from ductor_bot.infra.startup_state import detect_startup_kind, save_startup_state
+        from ductor_bot.text.response_format import startup_notification_text
+
+        startup_info = await asyncio.to_thread(
+            detect_startup_kind, self._orch.paths.startup_state_path
+        )
+        await asyncio.to_thread(
+            save_startup_state, self._orch.paths.startup_state_path, startup_info
+        )
+        if sentinel is None and startup_info.kind.value != "service_restart":
+            note = startup_notification_text(startup_info.kind.value)
+            if note:
+                await self._broadcast(
+                    note, SendRichOpts(allowed_roots=self._file_roots(self._orch.paths))
+                )
+
+        # -- Auto-recovery of interrupted work --
+        from ductor_bot.infra.recovery import RecoveryPlanner
+        from ductor_bot.text.response_format import recovery_notification_text
+
+        planner = RecoveryPlanner(
+            inflight=self._orch._inflight_tracker,
+            named_sessions=self._orch._named_sessions.pop_recovered_running(),
+            max_age_seconds=self._config.timeouts.normal * 2,
+        )
+        for action in planner.plan():
+            note = recovery_notification_text(
+                action.kind, action.prompt_preview, action.session_name
+            )
+            await send_rich(
+                self._bot,
+                action.chat_id,
+                note,
+                SendRichOpts(allowed_roots=self._file_roots(self._orch.paths)),
+            )
+            if action.kind == "named_session" and action.session_name:
+                with contextlib.suppress(Exception):
+                    self._orch.submit_named_followup_bg(
+                        action.chat_id,
+                        action.session_name,
+                        action.prompt_preview,
+                        message_id=0,
+                        thread_id=None,
+                    )
+        self._orch._inflight_tracker.clear()
+
         # Start background version checker (skip for dev/source installs)
         from ductor_bot.infra.install import is_upgradeable
 
@@ -279,6 +327,7 @@ class TelegramBot:
         r.message(Command("new", ignore_case=True))(self._on_new)
         r.message(Command("session", ignore_case=True))(self._on_session)
         r.message(Command("sessions", ignore_case=True))(self._on_sessions)
+        r.message(Command("tasks", ignore_case=True))(self._on_tasks)
         r.message(Command("showfiles", ignore_case=True))(self._on_showfiles)
         r.message(Command("agent_commands", ignore_case=True))(self._on_agent_commands)
         base_cmds = ["status", "memory", "model", "cron", "diagnose", "upgrade"]
@@ -492,7 +541,7 @@ class TelegramBot:
             await self._on_showfiles(message)
             return True
 
-        if text_lower.startswith("/sessions"):
+        if text_lower.startswith(("/sessions", "/tasks")):
             await handle_command(self._orchestrator, self._bot, message)
             return True
 
@@ -687,6 +736,10 @@ class TelegramBot:
         """Handle /sessions: show session management UI."""
         await handle_command(self._orch, self._bot, message)
 
+    async def _on_tasks(self, message: Message) -> None:
+        """Handle /tasks: show background task management UI."""
+        await handle_command(self._orch, self._bot, message)
+
     async def _on_restart(self, message: Message) -> None:
         from ductor_bot.infra.restart import write_restart_sentinel
 
@@ -788,9 +841,14 @@ class TelegramBot:
             return True
 
         from ductor_bot.orchestrator.session_selector import is_session_selector_callback
+        from ductor_bot.orchestrator.task_selector import is_task_selector_callback
 
         if is_session_selector_callback(data):
             await self._handle_session_selector(chat_id, message_id, data)
+            return True
+
+        if is_task_selector_callback(data):
+            await self._handle_task_selector(chat_id, message_id, data)
             return True
 
         if data.startswith("ns:"):
@@ -839,6 +897,23 @@ class TelegramBot:
 
         async with self._sequential.get_lock(chat_id):
             text, keyboard = await handle_session_callback(self._orch, chat_id, data)
+        with contextlib.suppress(TelegramBadRequest):
+            await self._bot.edit_message_text(
+                text=markdown_to_telegram_html(text),
+                chat_id=chat_id,
+                message_id=message_id,
+                reply_markup=keyboard,
+                parse_mode=ParseMode.HTML,
+            )
+
+    async def _handle_task_selector(self, chat_id: int, message_id: int, data: str) -> None:
+        """Handle task selector wizard by editing the message in-place."""
+        from ductor_bot.orchestrator.task_selector import handle_task_callback
+
+        hub = self._orch.task_hub
+        if hub is None:
+            return
+        text, keyboard = await handle_task_callback(hub, chat_id, data)
         with contextlib.suppress(TelegramBadRequest):
             await self._bot.edit_message_text(
                 text=markdown_to_telegram_html(text),
@@ -1234,6 +1309,94 @@ class TelegramBot:
 
         if response_text:
             await send_rich(self._bot, chat_id, response_text, SendRichOpts(allowed_roots=roots))
+
+    async def on_task_result(self, result: TaskResult) -> None:
+        """Handle background task result: notify user and inject into active session.
+
+        On success/failure: sends a Telegram notification, acquires the chat
+        lock, resumes the current active session with the result, and sends
+        the orchestrator's response.
+        """
+        chat_id = result.chat_id
+        if not chat_id:
+            chat_id = self._config.allowed_user_ids[0] if self._config.allowed_user_ids else 0
+        if not chat_id:
+            logger.warning("No chat_id for task result delivery (task=%s)", result.task_id)
+            return
+
+        set_log_context(operation="task", chat_id=chat_id)
+        roots = self._file_roots(self._orch.paths)
+
+        logger.debug(
+            "Task result: id=%s name='%s' status=%s",
+            result.task_id,
+            result.name,
+            result.status,
+        )
+
+        # 1. Send Telegram notification (skip "waiting" — question already shown)
+        if result.status == "done":
+            duration = f"{result.elapsed_seconds:.0f}s"
+            target = f"{result.provider}/{result.model}" if result.provider else ""
+            detail = f"{duration}, {target}" if target else duration
+            note = f"**Task `{result.name}` completed** ({detail})"
+        elif result.status == "cancelled":
+            note = f"**Task `{result.name}` cancelled**"
+        elif result.status == "waiting":
+            note = ""  # Question already delivered via on_task_question
+        else:
+            note = f"**Task `{result.name}` failed**\nReason: {result.error}"
+        if note:
+            await send_rich(self._bot, chat_id, note, SendRichOpts(allowed_roots=roots))
+
+        # 2. Inject into parent agent's session (for done/failed — not cancelled/waiting)
+        if result.status in ("done", "failed"):
+            lock = self._sequential.get_lock(chat_id)
+            async with lock, _TypingContext(self._bot, chat_id):
+                response_text = await self._orch.handle_task_result(result, chat_id=chat_id)
+            if response_text:
+                await send_rich(
+                    self._bot, chat_id, response_text, SendRichOpts(allowed_roots=roots)
+                )
+
+    async def on_task_question(
+        self,
+        task_id: str,
+        question: str,
+        prompt_preview: str,
+        chat_id: int,
+    ) -> None:
+        """Deliver a background task question to the main agent's Telegram chat.
+
+        Sends a notification, then injects the question into the main agent's
+        session. The agent decides: answer directly (via resume_task.py) or
+        ask the user first, then resume.
+        """
+        if not chat_id:
+            chat_id = self._config.allowed_user_ids[0] if self._config.allowed_user_ids else 0
+        if not chat_id:
+            logger.warning("No chat_id for task question delivery (task=%s)", task_id)
+            return
+
+        set_log_context(operation="task", chat_id=chat_id)
+        roots = self._file_roots(self._orch.paths)
+
+        logger.debug("Task question: id=%s question='%s'", task_id, question[:60])
+
+        # 1. Notify user about the question
+        note = f"**Task `{task_id}` has a question:**\n{question}"
+        await send_rich(self._bot, chat_id, note, SendRichOpts(allowed_roots=roots))
+
+        # 2. Inject into main agent's session so it can handle it
+        lock = self._sequential.get_lock(chat_id)
+        async with lock, _TypingContext(self._bot, chat_id):
+            response = await self._orch.handle_task_question(
+                task_id, question, prompt_preview, chat_id
+            )
+
+        # 3. Send agent's decision to Telegram
+        if response:
+            await send_rich(self._bot, chat_id, response, SendRichOpts(allowed_roots=roots))
 
     async def _handle_webhook_wake(self, chat_id: int, prompt: str) -> str | None:
         """Process webhook wake prompt through the normal message pipeline.

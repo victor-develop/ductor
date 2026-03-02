@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from pydantic import BaseModel, Field
+
+if TYPE_CHECKING:
+    from ductor_bot.cli.timeout_controller import TimeoutController
 
 
 class CLIResponse(BaseModel):
@@ -54,6 +57,7 @@ class AgentRequest:
     resume_session: str | None = None
     continue_session: bool = False
     timeout_seconds: float | None = None
+    timeout_controller: TimeoutController | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,6 +71,7 @@ class AgentResponse:
     cost_usd: float = 0.0
     total_tokens: int = 0
     input_tokens: int = 0
+    num_turns: int = 0
     timed_out: bool = False
     duration_ms: float | None = None
     stream_fallback: bool = False

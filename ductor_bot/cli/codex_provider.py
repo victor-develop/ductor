@@ -6,6 +6,7 @@ import logging
 from collections.abc import AsyncGenerator
 from pathlib import Path
 from shutil import which
+from typing import TYPE_CHECKING
 
 from ductor_bot.cli.base import (
     _IS_WINDOWS,
@@ -31,6 +32,9 @@ from ductor_bot.cli.stream_events import (
     SystemInitEvent,
 )
 from ductor_bot.cli.types import CLIResponse
+
+if TYPE_CHECKING:
+    from ductor_bot.cli.timeout_controller import TimeoutController
 
 logger = logging.getLogger(__name__)
 
@@ -150,6 +154,7 @@ class CodexCLI(BaseCLI):
         resume_session: str | None = None,
         continue_session: bool = False,
         timeout_seconds: float | None = None,
+        timeout_controller: TimeoutController | None = None,
     ) -> CLIResponse:
         """Send a prompt and return the final result."""
         if continue_session:
@@ -159,7 +164,7 @@ class CodexCLI(BaseCLI):
         _log_cmd(exec_cmd)
         return await run_oneshot_subprocess(
             config=self._config,
-            spec=SubprocessSpec(exec_cmd, use_cwd, prompt, timeout_seconds),
+            spec=SubprocessSpec(exec_cmd, use_cwd, prompt, timeout_seconds, timeout_controller),
             parse_output=self._parse_output,
             provider_label="Codex",
         )
@@ -170,6 +175,7 @@ class CodexCLI(BaseCLI):
         resume_session: str | None = None,
         continue_session: bool = False,
         timeout_seconds: float | None = None,
+        timeout_controller: TimeoutController | None = None,
     ) -> AsyncGenerator[StreamEvent, None]:
         """Send a prompt and yield stream events as they arrive."""
         cmd = self._build_command(prompt, resume_session, json_output=True)
@@ -195,7 +201,7 @@ class CodexCLI(BaseCLI):
 
         async for event in run_streaming_subprocess(
             config=self._config,
-            spec=SubprocessSpec(exec_cmd, use_cwd, prompt, timeout_seconds),
+            spec=SubprocessSpec(exec_cmd, use_cwd, prompt, timeout_seconds, timeout_controller),
             line_handler=line_handler,
             provider_label="Codex",
             post_handler=post_handler,

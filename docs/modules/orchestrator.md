@@ -6,14 +6,16 @@ Central routing layer between ingress transports (Telegram + optional API server
 
 - `core.py`: `Orchestrator` lifecycle, routing, observer wiring, shutdown
 - `registry.py`: `CommandRegistry`, `OrchestratorResult`
-- `commands.py`: command handlers (`/status`, `/model`, `/cron`, `/diagnose`, `/upgrade`, `/sessions`, ...)
+- `commands.py`: command handlers (`/status`, `/model`, `/cron`, `/diagnose`, `/upgrade`, `/sessions`, `/tasks`, ...)
 - `flows.py`: normal flow, streaming flow, heartbeat flow, session-recovery/error handling
 - `directives.py`: leading `@...` directive parser
 - `hooks.py`: hook registry + `MAINMEMORY_REMINDER`
 - `model_selector.py`: interactive model/provider switch wizard (`ms:*`)
 - `cron_selector.py`: interactive cron toggles (`crn:*`)
 - `session_selector.py`: interactive named-session manager (`nsc:*`)
+- `task_selector.py`: interactive background-task manager (`tsc:*`)
 - API server integration points in `core.py`: `_start_api_server()`, `_api_stop`, shutdown stop path
+- infra integrations in `core.py`: `InflightTracker` wiring for startup recovery
 
 ## Startup (`Orchestrator.create`)
 
@@ -27,11 +29,14 @@ Workspace precondition:
 4. if Docker active: re-sync skills in copy mode (`docker_active=True`)
 5. inject runtime environment notice into workspace rule files
 6. construct orchestrator instance
+   - initializes `InflightTracker` (`~/.ductor/inflight_turns.json`)
+   - initializes named-session registry with restart recovery metadata
 7. detect provider auth (`check_all_auth`) and update available providers
 8. start model caches (`_init_model_caches`):
    - `GeminiCacheObserver` (`gemini_models.json`) with refresh callback to `set_gemini_models`
    - `CodexCacheObserver` (`codex_models.json`)
 9. construct `BackgroundObserver`, `CronObserver`, `WebhookObserver` (heartbeat/cleanup already constructed in `__init__`)
+   - named background timeout is `config.timeouts.background`
 10. start `CronObserver`, `HeartbeatObserver`, `WebhookObserver`, `CleanupObserver`
 11. if `config.api.enabled`: start `ApiServer` via `_start_api_server` (logs warning + skips startup when PyNaCl is unavailable)
 12. start rule sync watcher (`watch_rule_files`)
@@ -64,6 +69,7 @@ Registered commands:
 - `/diagnose`
 - `/upgrade`
 - `/sessions`
+- `/tasks`
 
 Runtime-registered when supervisor hook is injected on main agent:
 
@@ -113,6 +119,7 @@ Observer lifecycle toggle behavior remains unchanged (`heartbeat`/`cleanup` valu
 - new session: append `MAINMEMORY.md` as system appendix
 - apply hooks
 - build `AgentRequest`
+  - normal timeout path uses `resolve_timeout(config, "normal")` (`timeouts.normal`)
 
 Gemini safeguard:
 
@@ -133,6 +140,12 @@ Success behavior:
 - persist returned session ID
 - increment counters/cost/tokens
 - optional session-age note every 10 messages after threshold
+
+Crash-recovery tracking:
+
+- every foreground turn is recorded in `InflightTracker.begin(...)` before CLI execution.
+- turn record is cleared in `finally` via `InflightTracker.complete(chat_id)`.
+- startup recovery planning/execution happens in bot startup (`TelegramBot._on_startup`), not in orchestrator startup.
 
 ## Heartbeat flow
 
@@ -183,6 +196,15 @@ Callback namespace: `nsc:`
 - `nsc:end:<name>` end one named session
 - `nsc:endall` end all named sessions
 
+## Task selector (`task_selector.py`)
+
+Callback namespace: `tsc:`
+
+- `tsc:r` refresh
+- `tsc:cancel:<task_id>` cancel one running task
+- `tsc:cancelall` cancel all running tasks for current chat
+- `tsc:cleanup` remove finished tasks for current chat
+
 ## Session wiring (`/session`)
 
 - `submit_named_session(...)` creates a named session and submits to `BackgroundObserver`
@@ -190,6 +212,14 @@ Callback namespace: `nsc:`
 - `active_background_tasks(...)` powers `/status` visibility for running tasks
 - `abort(chat_id)` kills active CLI processes, cancels chat-scoped background tasks, and ends all named sessions for that chat
 - result delivery is delegated via `set_session_result_handler(...)` to bot layer callbacks
+
+## Task wiring (`/tasks` + delegated task results)
+
+- `/tasks` command path uses `cmd_tasks` + `task_selector_start(...)`.
+- TaskHub instance is injected by supervisor (`set_task_hub(...)`); when absent, `/tasks` returns disabled-state text.
+- task result injection: `handle_task_result(...)` resumes current active chat session with self-contained task-result prompt.
+- task-question injection: `handle_task_question(...)` resumes current active chat session with question + `resume_task.py` guidance.
+- task-result and task-question execution paths currently use `config.cli_timeout`.
 
 ## Webhook wiring
 
@@ -227,6 +257,7 @@ Inter-agent message handling in `core.py`:
 - deterministic named sessions per sender: `ia-<sender>`
 - real inter-agent `chat_id`: first `allowed_user_ids` entry when available, otherwise `0` (with warning)
 - optional forced fresh session via `new_session=True`
+- inter-agent timeout path currently uses `config.cli_timeout`
 - provider switch auto-reset:
   - if an existing `ia-<sender>` session provider differs from current runtime provider, the old session is ended and a fresh one is created
   - caller receives a provider-switch notice for user delivery

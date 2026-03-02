@@ -50,7 +50,7 @@ API config persistence note:
 | `max_turns` | `int \| None` | `None` | Passed to Claude CLI |
 | `max_session_messages` | `int \| None` | `None` | Session rollover limit |
 | `permission_mode` | `str` | `"bypassPermissions"` | Provider sandbox/approval mode |
-| `cli_timeout` | `float` | `600.0` | Timeout per CLI call (seconds) |
+| `cli_timeout` | `float` | `600.0` | Legacy/global timeout. Still used by cron/webhook `cron_task`, inter-agent turns, stale-process heartbeat cleanup, and as fallback for unknown timeout paths |
 | `reasoning_effort` | `str` | `"medium"` | Default Codex reasoning level |
 | `file_access` | `str` | `"all"` | File access scope (`all`, `home`, `workspace`) for Telegram sends and API `GET /files`; unknown values fall back to workspace-only |
 | `gemini_api_key` | `str \| None` | `None` | Config fallback key injected for Gemini API-key mode |
@@ -64,6 +64,8 @@ API config persistence note:
 | `webhooks` | `WebhookConfig` | see below | Webhook HTTP server config |
 | `api` | `ApiConfig` | see below | Direct WebSocket API server config |
 | `cli_parameters` | `CLIParametersConfig` | see below | Provider-specific extra CLI flags |
+| `timeouts` | `TimeoutConfig` | see below | Path-specific timeout policy (`normal`, `background`, `subagent`) |
+| `tasks` | `TasksConfig` | see below | Delegated background task system (`TaskHub`) |
 
 ## `CLIParametersConfig`
 
@@ -78,6 +80,48 @@ Used by `CLIServiceConfig` for main-chat calls.
 Automation note:
 
 - cron/webhook `cron_task` runs use task-level `cli_parameters` from `cron_jobs.json` / `webhooks.json` (no merge with global `cli_parameters`).
+
+## `TimeoutConfig`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `normal` | `float` | `600.0` | Default timeout for foreground chat turns (`normal` / `normal_streaming`) |
+| `background` | `float` | `1800.0` | Timeout for named background sessions (`BackgroundObserver`) |
+| `subagent` | `float` | `3600.0` | Reserved timeout bucket for sub-agent-specific paths |
+| `warning_intervals` | `list[float]` | `[60.0, 10.0]` | Warning thresholds for `TimeoutController` |
+| `extend_on_activity` | `bool` | `true` | Enables deadline extension when subprocess output is active |
+| `activity_extension` | `float` | `120.0` | Seconds added per granted extension |
+| `max_extensions` | `int` | `3` | Maximum activity-based extensions |
+
+Runtime sync behavior:
+
+- `AgentConfig` keeps backward compatibility with `cli_timeout`.
+- If `cli_timeout != 600.0` and `timeouts.normal` is still default, runtime validation copies `cli_timeout` into `timeouts.normal`.
+- If `timeouts.normal` is explicitly set, it wins over `cli_timeout`.
+
+Current execution-path usage:
+
+- foreground chat turns: `resolve_timeout(config, "normal")` -> `timeouts.normal`
+- named background sessions (`/session`): `timeouts.background`
+- delegated background tasks (`TaskHub`): `tasks.timeout_seconds`
+- cron + webhook `cron_task`: still `config.cli_timeout`
+- inter-agent turns: still `config.cli_timeout`
+- stale-process cleanup threshold: `config.cli_timeout * 2`
+
+Implementation status note:
+
+- `cli/timeout_controller.py` and warning/extension config are implemented and tested.
+- provider wrappers and executor support `TimeoutController` in production paths.
+- normal/streaming/named-session/heartbeat flows create controllers via `flows._make_timeout_controller(...)`.
+- timeout warning/extension callbacks are not yet wired to Telegram/API system-status output, so user-visible timeout status labels are not emitted by default.
+
+## `TasksConfig`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `enabled` | `bool` | `true` | Enables shared delegated task system (`TaskHub`) |
+| `max_parallel` | `int` | `5` | Max concurrent running tasks per chat in `TaskHub` |
+| `timeout_seconds` | `float` | `3600.0` | Timeout per delegated task run |
 
 ## Task-Level Automation Overrides
 
@@ -223,6 +267,7 @@ Hot-reloadable top-level fields:
 - `idle_timeout_minutes`, `session_age_warning_hours`, `daily_reset_hour`, `daily_reset_enabled`
 - `permission_mode`, `file_access`, `user_timezone`
 - `streaming`, `heartbeat`, `cleanup`, `cli_parameters`
+- `timeouts` is currently restart-required (not in hot-reloadable set)
 
 Observer lifecycle caveat:
 
@@ -234,7 +279,7 @@ Restart-required top-level fields:
 
 - `telegram_token`, `allowed_user_ids`, `group_mention_only`
 - `docker`, `api`, `webhooks`
-- `ductor_home`, `log_level`, `gemini_api_key`
+- `ductor_home`, `log_level`, `gemini_api_key`, `timeouts`, `tasks`
 
 Restart classification is computed from `AgentConfig` top-level schema fields.
 
@@ -342,6 +387,13 @@ Managed via:
 | `user_timezone` | `str` | no | inherited | |
 
 "inherited" means the value comes from the main agent's `config.json` when omitted.
+
+Timeout nuance:
+
+- `SubAgentConfig` currently has no dedicated `timeouts` field.
+- `SubAgentConfig` currently has no dedicated `tasks` field.
+- sub-agents inherit the main agent `timeouts` block through merge base.
+- sub-agents inherit the main agent `tasks` block through merge base.
 
 Example:
 

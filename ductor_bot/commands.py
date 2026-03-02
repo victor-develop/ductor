@@ -18,6 +18,7 @@ BOT_COMMANDS: list[tuple[str, str]] = [
     ("memory", "Show main memory"),
     # Automation & multi-agent
     ("session", "Background sessions"),
+    ("tasks", "Background tasks"),
     ("cron", "Manage cron jobs"),
     ("agent_commands", "Multi-agent system"),
     # Browse & info

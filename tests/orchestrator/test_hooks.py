@@ -154,7 +154,7 @@ async def test_hook_injects_into_prompt_on_6th_message(orch: Orchestrator) -> No
 
 
 async def test_hook_not_injected_before_6th(orch: Orchestrator) -> None:
-    """Messages 1-5 should not carry the reminder."""
+    """Messages 1-5 should not carry the mainmemory reminder."""
     resp = _mock_response()
     mock_execute = AsyncMock(return_value=resp)
     object.__setattr__(orch._cli_service, "execute", mock_execute)
@@ -162,7 +162,7 @@ async def test_hook_not_injected_before_6th(orch: Orchestrator) -> None:
     for i in range(5):
         await normal(orch, 1, f"msg-{i}")
         request = mock_execute.call_args_list[i][0][0]
-        assert "REMINDER" not in request.prompt
+        assert "MEMORY CHECK" not in request.prompt
 
 
 async def test_hook_resets_on_new_session(orch: Orchestrator) -> None:
@@ -178,7 +178,8 @@ async def test_hook_resets_on_new_session(orch: Orchestrator) -> None:
     # Reset session (simulates /new)
     await orch._sessions.reset_session(1)
 
-    # Messages after reset should NOT carry the reminder (counter back to 0)
+    # Messages after reset should NOT carry the mainmemory reminder (counter back to 0)
+    # (DELEGATION_BRIEF fires on new session, but that's expected and correct)
     await normal(orch, 1, "after-reset")
     last_request = mock_execute.call_args[0][0]
-    assert "REMINDER" not in last_request.prompt
+    assert "MEMORY CHECK" not in last_request.prompt

@@ -7,6 +7,7 @@ import logging
 from collections.abc import AsyncGenerator
 from pathlib import Path
 from shutil import which
+from typing import TYPE_CHECKING
 
 from ductor_bot.cli.base import (
     _IS_WINDOWS,
@@ -20,6 +21,9 @@ from ductor_bot.cli.stream_events import (
     parse_stream_line,
 )
 from ductor_bot.cli.types import CLIResponse
+
+if TYPE_CHECKING:
+    from ductor_bot.cli.timeout_controller import TimeoutController
 
 logger = logging.getLogger(__name__)
 
@@ -91,6 +95,7 @@ class ClaudeCodeCLI(BaseCLI):
         resume_session: str | None = None,
         continue_session: bool = False,
         timeout_seconds: float | None = None,
+        timeout_controller: TimeoutController | None = None,
     ) -> CLIResponse:
         """Send a prompt and return the final result."""
         cmd = self._build_command(prompt, resume_session, continue_session)
@@ -98,7 +103,7 @@ class ClaudeCodeCLI(BaseCLI):
         _log_cmd(exec_cmd)
         return await run_oneshot_subprocess(
             config=self._config,
-            spec=SubprocessSpec(exec_cmd, use_cwd, prompt, timeout_seconds),
+            spec=SubprocessSpec(exec_cmd, use_cwd, prompt, timeout_seconds, timeout_controller),
             parse_output=_parse_response,
             provider_label="CLI",
         )
@@ -126,6 +131,7 @@ class ClaudeCodeCLI(BaseCLI):
         resume_session: str | None = None,
         continue_session: bool = False,
         timeout_seconds: float | None = None,
+        timeout_controller: TimeoutController | None = None,
     ) -> AsyncGenerator[StreamEvent, None]:
         """Send a prompt and yield stream events as they arrive."""
         cmd = self._build_command_streaming(prompt, resume_session, continue_session)
@@ -134,7 +140,7 @@ class ClaudeCodeCLI(BaseCLI):
 
         async for event in run_streaming_subprocess(
             config=self._config,
-            spec=SubprocessSpec(exec_cmd, use_cwd, prompt, timeout_seconds),
+            spec=SubprocessSpec(exec_cmd, use_cwd, prompt, timeout_seconds, timeout_controller),
             line_handler=_claude_line_handler,
             provider_label="CLI",
         ):

@@ -7,7 +7,7 @@ import logging
 from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 
 logger = logging.getLogger(__name__)
 NULLISH_TEXT_VALUES: frozenset[str] = frozenset({"null", "none"})
@@ -115,6 +115,26 @@ class CLIParametersConfig(BaseModel):
     gemini: list[str] = Field(default_factory=list)
 
 
+class TasksConfig(BaseModel):
+    """Settings for background task delegation."""
+
+    enabled: bool = True
+    max_parallel: int = 5
+    timeout_seconds: float = 3600.0
+
+
+class TimeoutConfig(BaseModel):
+    """Per-execution-path timeout settings."""
+
+    normal: float = 600.0
+    background: float = 1800.0
+    subagent: float = 3600.0
+    warning_intervals: list[float] = Field(default_factory=lambda: [60.0, 10.0])
+    extend_on_activity: bool = True
+    activity_extension: float = 120.0
+    max_extensions: int = 3
+
+
 class WebhookConfig(BaseModel):
     """Settings for the webhook HTTP server."""
 
@@ -217,6 +237,8 @@ class AgentConfig(BaseModel):
     webhooks: WebhookConfig = Field(default_factory=WebhookConfig)
     api: ApiConfig = Field(default_factory=ApiConfig)
     cli_parameters: CLIParametersConfig = Field(default_factory=CLIParametersConfig)
+    timeouts: TimeoutConfig = Field(default_factory=TimeoutConfig)
+    tasks: TasksConfig = Field(default_factory=TasksConfig)
     user_timezone: str = ""
     group_mention_only: bool = False
     telegram_token: str = ""
@@ -232,6 +254,27 @@ class AgentConfig(BaseModel):
         if not normalized or normalized.lower() in NULLISH_TEXT_VALUES:
             return None
         return normalized
+
+    @model_validator(mode="after")
+    def _sync_cli_timeout_to_timeouts(self) -> AgentConfig:
+        """Sync legacy ``cli_timeout`` to ``timeouts.normal`` for backward compat.
+
+        When ``cli_timeout`` differs from the default 600.0 and ``timeouts.normal``
+        is still at its default, propagate ``cli_timeout`` into ``timeouts.normal``.
+        """
+        if self.cli_timeout != 600.0 and self.timeouts.normal == 600.0:
+            self.timeouts.normal = self.cli_timeout
+        return self
+
+
+def resolve_timeout(config: AgentConfig, path: str) -> float:
+    """Resolve timeout for execution path: 'normal', 'background', 'subagent'."""
+    mapping = {
+        "normal": config.timeouts.normal,
+        "background": config.timeouts.background,
+        "subagent": config.timeouts.subagent,
+    }
+    return mapping.get(path, config.cli_timeout)
 
 
 def resolve_user_timezone(configured: str = "") -> ZoneInfo:

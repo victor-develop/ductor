@@ -1,0 +1,99 @@
+#!/usr/bin/env python3
+"""Create a background task that runs autonomously.
+
+The task runs in the background and delivers its result back to your chat
+when complete. You formulate the prompt with all necessary context — the
+task agent does NOT have access to the conversation history.
+
+Usage:
+    python3 create_task.py [options] "Your task description here"
+
+Options:
+    --name NAME        Human-readable task name (e.g. "Flugsuche Paris")
+    --provider PROV    Override provider (claude, codex, gemini)
+    --model MODEL      Override model (opus, sonnet, flash, etc.)
+    --thinking LEVEL   Reasoning effort for codex (low, medium, high)
+
+Environment variables DUCTOR_AGENT_NAME and DUCTOR_INTERAGENT_PORT are
+automatically set by the Ductor framework.
+"""
+
+from __future__ import annotations
+
+import os
+import sys
+
+
+def _load_shared() -> tuple[object, object]:
+    tools_dir = os.path.dirname(__file__)
+    if tools_dir not in sys.path:
+        sys.path.insert(0, tools_dir)
+    from _shared import get_api_url, post_json
+
+    return get_api_url, post_json
+
+
+def main() -> None:
+    get_api_url, post_json = _load_shared()
+    args = sys.argv[1:]
+    name = ""
+    provider = ""
+    model = ""
+    thinking = ""
+
+    # Parse named options
+    while args:
+        if args[0] == "--name" and len(args) >= 2:
+            name = args[1]
+            args = args[2:]
+        elif args[0] == "--provider" and len(args) >= 2:
+            provider = args[1]
+            args = args[2:]
+        elif args[0] == "--model" and len(args) >= 2:
+            model = args[1]
+            args = args[2:]
+        elif args[0] == "--thinking" and len(args) >= 2:
+            thinking = args[1]
+            args = args[2:]
+        else:
+            break
+
+    if not args:
+        print(
+            'Usage: python3 create_task.py [--name NAME] [--provider P] '
+            '[--model M] [--thinking L] "prompt"',
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+    prompt = args[0]
+    sender = os.environ.get("DUCTOR_AGENT_NAME", "main")
+
+    url = get_api_url("/tasks/create")
+    body: dict[str, object] = {"from": sender, "prompt": prompt}
+    if name:
+        body["name"] = name
+    if provider:
+        body["provider"] = provider
+    if model:
+        body["model"] = model
+    if thinking:
+        body["thinking"] = thinking
+
+    result = post_json(url, body, timeout=10)
+
+    if result.get("success"):
+        task_id = result.get("task_id", "unknown")
+        display = f"'{name}'" if name else task_id
+        print(
+            f"Background task {display} created (task_id: {task_id}). "
+            f"The result will be delivered back to your chat when ready."
+        )
+    else:
+        error = result.get("error", "Unknown error")
+        print(f"Error: {error}", file=sys.stderr)
+        sys.exit(1)
+
+
+if __name__ == "__main__":
+    main()

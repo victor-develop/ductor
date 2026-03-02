@@ -2,6 +2,8 @@
 
 Named background session execution for `/session` (persistent sessions with follow-ups).
 
+Scope note: this module covers `/session` named-session execution only. Delegated background tasks are handled by `TaskHub` in [`docs/modules/tasks.md`](tasks.md).
+
 ## Files
 
 - `background/observer.py`: `BackgroundObserver` task lifecycle, execution, cancel/shutdown, result callback
@@ -35,6 +37,11 @@ Two execution paths:
 - **Named session path** (`session_name` set): uses `CLIService.execute()` with `resume_session` for session persistence
 - **Legacy path** (no `session_name`): uses `run_oneshot_task()` for stateless one-shot execution
 
+Timeout source:
+
+- `BackgroundObserver` is constructed with `timeout_seconds=config.timeouts.background` in `Orchestrator.create(...)`.
+- named-session and legacy background executions both use this observer-level timeout.
+
 ## Status mapping
 
 Delivered `BackgroundResult.status` values include:
@@ -66,4 +73,5 @@ Bot integration (`bot/app.py`):
 
 - task registry is in-memory (lost on restart), but named sessions persist in JSON
 - named session metadata persistence is handled by `session/named.py` (`~/.ductor/named_sessions.json`)
+- startup auto-recovery can resume safe named sessions that were persisted as `running` before restart
 - no retry queue; each submission is a single execution

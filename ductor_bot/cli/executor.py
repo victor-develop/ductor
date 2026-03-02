@@ -20,6 +20,7 @@ from ductor_bot.cli.base import (
     _win_feed_stdin,
 )
 from ductor_bot.cli.stream_events import ResultEvent, StreamEvent
+from ductor_bot.cli.timeout_controller import TimeoutController
 from ductor_bot.cli.types import CLIResponse
 from ductor_bot.infra.process_tree import force_kill_process_tree
 
@@ -62,6 +63,7 @@ class SubprocessSpec:
     use_cwd: str | None
     prompt: str
     timeout_seconds: float | None = None
+    timeout_controller: TimeoutController | None = None
 
 
 @dataclass(slots=True)
@@ -139,15 +141,8 @@ async def run_streaming_subprocess(
     stderr_drain = asyncio.create_task(process.stderr.read())
 
     try:
-        async with asyncio.timeout(spec.timeout_seconds):
-            while True:
-                line_bytes = await process.stdout.readline()
-                if not line_bytes:
-                    break
-                line = line_bytes.decode(errors="replace").rstrip()
-                logger.debug("Stream line: %s", line[:120])
-                async for event in line_handler(line):
-                    yield event
+        async for event in _stream_with_timeout(process, spec, line_handler):
+            yield event
         stderr_bytes = await stderr_drain
     except TimeoutError:
         force_kill_process_tree(process.pid)
@@ -165,6 +160,77 @@ async def run_streaming_subprocess(
     handler = post_handler or _default_post_handler
     async for event in handler(SubprocessResult(process=process, stderr_bytes=stderr_bytes)):
         yield event
+
+
+# ---------------------------------------------------------------------------
+# Streaming timeout strategies
+# ---------------------------------------------------------------------------
+
+
+async def _stream_with_timeout(
+    process: asyncio.subprocess.Process,
+    spec: SubprocessSpec,
+    line_handler: LineHandler,
+) -> AsyncGenerator[StreamEvent, None]:
+    """Read stdout lines with either a plain timeout or a managed controller.
+
+    When ``spec.timeout_controller`` is set, the controller manages deadline
+    extensions triggered by output activity and fires warning callbacks.
+    Otherwise a plain ``asyncio.timeout`` is used (backward-compatible).
+    """
+    if spec.timeout_controller:
+        async for event in _stream_with_controller(process, spec.timeout_controller, line_handler):
+            yield event
+    else:
+        async with asyncio.timeout(spec.timeout_seconds):
+            while True:
+                line_bytes = await process.stdout.readline()  # type: ignore[union-attr]
+                if not line_bytes:
+                    break
+                line = line_bytes.decode(errors="replace").rstrip()
+                logger.debug("Stream line: %s", line[:120])
+                async for event in line_handler(line):
+                    yield event
+
+
+async def _stream_with_controller(
+    process: asyncio.subprocess.Process,
+    tc: TimeoutController,
+    line_handler: LineHandler,
+) -> AsyncGenerator[StreamEvent, None]:
+    """Streaming read loop managed by a :class:`TimeoutController`.
+
+    Uses ``asyncio.timeout`` with a retry-on-extend pattern:  when the timeout
+    fires but the controller grants an extension (recent activity + budget),
+    a new timeout context is entered to continue reading.
+    """
+    tc.begin()
+    warning_task = tc.start_warning_loop()
+
+    try:
+        timeout_secs = tc.timeout_seconds
+        while True:
+            try:
+                async with asyncio.timeout(timeout_secs):
+                    while True:
+                        line_bytes = await process.stdout.readline()  # type: ignore[union-attr]
+                        if not line_bytes:
+                            return  # EOF
+                        tc.record_activity()
+                        line = line_bytes.decode(errors="replace").rstrip()
+                        logger.debug("Stream line: %s", line[:120])
+                        async for event in line_handler(line):
+                            yield event
+            except TimeoutError:
+                if tc.try_extend():
+                    timeout_secs = tc.activity_extension_seconds
+                    continue
+                raise
+    finally:
+        if warning_task and not warning_task.done():
+            warning_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await warning_task
 
 
 # ---------------------------------------------------------------------------
@@ -204,8 +270,12 @@ async def run_oneshot_subprocess(
     tracked = reg.register(config.chat_id, process, config.process_label) if reg else None
     try:
         stdin_data = spec.prompt.encode() if _IS_WINDOWS else None
-        async with asyncio.timeout(spec.timeout_seconds):
-            stdout, stderr = await process.communicate(input=stdin_data)
+        if spec.timeout_controller:
+            communicate_coro = process.communicate(input=stdin_data)
+            stdout, stderr = await spec.timeout_controller.run_with_timeout(communicate_coro)
+        else:
+            async with asyncio.timeout(spec.timeout_seconds):
+                stdout, stderr = await process.communicate(input=stdin_data)
     except TimeoutError:
         force_kill_process_tree(process.pid)
         await process.wait()

@@ -46,6 +46,7 @@ from ductor_bot.errors import (
 from ductor_bot.files.allowed_roots import resolve_allowed_roots
 from ductor_bot.heartbeat import HeartbeatObserver
 from ductor_bot.infra.docker import DockerManager
+from ductor_bot.infra.inflight import InflightTracker
 from ductor_bot.orchestrator.commands import (
     cmd_cron,
     cmd_diagnose,
@@ -54,6 +55,7 @@ from ductor_bot.orchestrator.commands import (
     cmd_reset,
     cmd_sessions,
     cmd_status,
+    cmd_tasks,
     cmd_upgrade,
 )
 from ductor_bot.orchestrator.directives import parse_directives
@@ -65,7 +67,12 @@ from ductor_bot.orchestrator.flows import (
     normal,
     normal_streaming,
 )
-from ductor_bot.orchestrator.hooks import MAINMEMORY_REMINDER, MessageHookRegistry
+from ductor_bot.orchestrator.hooks import (
+    DELEGATION_BRIEF,
+    DELEGATION_REMINDER,
+    MAINMEMORY_REMINDER,
+    MessageHookRegistry,
+)
 from ductor_bot.orchestrator.registry import CommandRegistry, OrchestratorResult
 from ductor_bot.security import detect_suspicious_patterns
 from ductor_bot.session import SessionManager
@@ -89,6 +96,8 @@ if TYPE_CHECKING:
     from ductor_bot.cli.auth import AuthResult, AuthStatus
     from ductor_bot.multiagent.bus import AsyncInterAgentResult
     from ductor_bot.multiagent.supervisor import AgentSupervisor
+    from ductor_bot.tasks.hub import TaskHub
+    from ductor_bot.tasks.models import TaskResult
 
 logger = logging.getLogger(__name__)
 
@@ -197,9 +206,13 @@ class Orchestrator:
         self._rule_sync_task: asyncio.Task[None] | None = None
         self._skill_sync_task: asyncio.Task[None] | None = None
         self._gemini_api_key_mode: bool | None = None
+        self._inflight_tracker = InflightTracker(paths.inflight_turns_path)
         self._hook_registry = MessageHookRegistry()
         self._hook_registry.register(MAINMEMORY_REMINDER)
+        self._hook_registry.register(DELEGATION_BRIEF)
+        self._hook_registry.register(DELEGATION_REMINDER)
         self._supervisor: AgentSupervisor | None = None  # Set by AgentSupervisor after creation
+        self._task_hub: TaskHub | None = None  # Set by supervisor or __main__.py
         self._command_registry = CommandRegistry()
         self._register_commands()
         self._config_reloader: ConfigReloader | None = None
@@ -208,6 +221,16 @@ class Orchestrator:
     def paths(self) -> DuctorPaths:
         """Public access to resolved workspace paths."""
         return self._paths
+
+    @property
+    def task_hub(self) -> TaskHub | None:
+        """Public access to the task hub (None when tasks are disabled)."""
+        return self._task_hub
+
+    def set_task_hub(self, hub: TaskHub) -> None:
+        """Inject the task hub (called by supervisor or startup wiring)."""
+        self._task_hub = hub
+        hub.start_maintenance()
 
     @classmethod
     async def create(
@@ -265,7 +288,7 @@ class Orchestrator:
         safe_codex_cache = await orch._init_model_caches(paths)
         orch._codex_cache = safe_codex_cache
         orch._bg_observer = BackgroundObserver(
-            paths, timeout_seconds=config.cli_timeout, cli_service=orch._cli_service
+            paths, timeout_seconds=config.timeouts.background, cli_service=orch._cli_service
         )
         orch._cron_observer = CronObserver(
             paths,
@@ -523,6 +546,7 @@ class Orchestrator:
         reg.register_async("/diagnose", cmd_diagnose)
         reg.register_async("/upgrade", cmd_upgrade)
         reg.register_async("/sessions", cmd_sessions)
+        reg.register_async("/tasks", cmd_tasks)
 
     def register_multiagent_commands(self) -> None:
         """Register /agents, /agent_start, /agent_stop, /agent_restart commands.
@@ -704,7 +728,7 @@ class Orchestrator:
             msg = f"Session '{session_name}' is still processing"
             raise ValueError(msg)
 
-        ns.status = "running"
+        self._named_sessions.mark_running(chat_id, session_name, prompt)
         exec_config = resolve_cli_config(self._config, self._codex_cache)
         sub = BackgroundSubmit(
             chat_id=chat_id,
@@ -1121,6 +1145,133 @@ class Orchestrator:
                 recipient,
             )
             return f"Error processing async result from '{recipient}'"
+
+        if active and response:
+            await _update_session(self, active, response)
+
+        return response.result if response else ""
+
+    async def handle_task_result(
+        self,
+        result: TaskResult,
+        *,
+        chat_id: int = 0,
+    ) -> str:
+        """Inject a background task result into the current active session.
+
+        Follows the same pattern as ``handle_async_interagent_result``:
+        resumes the *current* active session so the agent has full context.
+        Works even after ``/new`` because the prompt is self-contained.
+
+        Caller must hold the per-chat lock.
+        """
+        from ductor_bot.cli.types import AgentRequest
+        from ductor_bot.orchestrator.flows import _update_session
+
+        task_id = result.task_id
+        is_error = result.status in ("failed", "timeout")
+
+        if is_error:
+            prompt = (
+                f"[BACKGROUND TASK FAILED: task_id='{task_id}' name='{result.name}']\n"
+                f"Error: {result.error}\n"
+                f"Provider: {result.provider}/{result.model} | "
+                f"Duration: {result.elapsed_seconds:.0f}s\n\n"
+                f"Original task: {result.original_prompt}\n\n"
+                f"Inform the user that the background task '{result.name}' failed "
+                f"and suggest next steps."
+            )
+        else:
+            prompt = (
+                f"[BACKGROUND TASK COMPLETED: task_id='{task_id}' name='{result.name}']\n"
+                f"Provider: {result.provider}/{result.model} | "
+                f"Duration: {result.elapsed_seconds:.0f}s\n\n"
+                f"{result.result_text}\n\n"
+                f"[END TASK RESULT]\n\n"
+                f"Original task: {result.original_prompt}\n\n"
+                f"Process this background task result and communicate the "
+                f"relevant findings to the user."
+            )
+
+        active = await self._sessions.get_active(chat_id)
+        resume_id = active.session_id if active else None
+
+        logger.debug(
+            "Injecting task result into session: task=%s name='%s' status=%s",
+            task_id,
+            result.name,
+            result.status,
+        )
+
+        request = AgentRequest(
+            prompt=prompt,
+            chat_id=chat_id,
+            process_label=f"task-result:{task_id}",
+            resume_session=resume_id,
+            timeout_seconds=self._config.cli_timeout,
+        )
+
+        try:
+            response = await self._cli_service.execute(request)
+        except Exception:
+            logger.exception("Task result handling failed (task=%s)", task_id)
+            return f"Error processing result from task '{result.name}'"
+
+        if active and response:
+            await _update_session(self, active, response)
+
+        return response.result if response else ""
+
+    async def handle_task_question(
+        self,
+        task_id: str,
+        question: str,
+        task_preview: str,
+        chat_id: int,
+    ) -> str:
+        """Inject a task worker's question into the main agent's session.
+
+        The main agent decides how to handle the question:
+        - Answer directly via resume_task.py if it knows the answer
+        - Ask the user first, then resume the task with the answer
+
+        Caller must hold the per-chat lock.
+        """
+        from ductor_bot.cli.types import AgentRequest
+        from ductor_bot.orchestrator.flows import _update_session
+
+        prompt = (
+            f"[TASK WORKER QUESTION]\n"
+            f"Task ID: {task_id}\n"
+            f"Task: {task_preview}\n\n"
+            f"Your background worker asks:\n"
+            f'"{question}"\n\n'
+            f"The worker has finished and is waiting for your answer.\n"
+            f"To answer, resume the task:\n"
+            f'  python3 tools/task_tools/resume_task.py {task_id} "your answer"\n\n'
+            f"If you know the answer → resume the task now and inform the user.\n"
+            f"If you need more info → ask the user first, then resume.\n"
+            f"[END TASK QUESTION]"
+        )
+
+        active = await self._sessions.get_active(chat_id)
+        resume_id = active.session_id if active else None
+
+        logger.debug("Answering task question: task=%s question='%s'", task_id, question[:60])
+
+        request = AgentRequest(
+            prompt=prompt,
+            chat_id=chat_id,
+            process_label=f"task-question:{task_id}",
+            resume_session=resume_id,
+            timeout_seconds=self._config.cli_timeout,
+        )
+
+        try:
+            response = await self._cli_service.execute(request)
+        except Exception:
+            logger.exception("Task question handling failed (task=%s)", task_id)
+            return ""
 
         if active and response:
             await _update_session(self, active, response)

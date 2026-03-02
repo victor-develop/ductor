@@ -48,6 +48,7 @@ _ZONE2_PY_DIRS = frozenset(
         "workspace/tools/cron_tools",
         "workspace/tools/webhook_tools",
         "workspace/tools/agent_tools",
+        "workspace/tools/task_tools",
     }
 )
 
@@ -282,6 +283,7 @@ _REQUIRED_DIRS = (
     "workspace/tools/webhook_tools",
     "workspace/tools/agent_tools",
     "workspace/output_to_user",
+    "workspace/tasks",
     "workspace/telegram_files",
     "workspace/skills",
     "config",

@@ -105,6 +105,8 @@ async def run_streaming_message(
             "thinking": "THINKING",
             "compacting": "COMPACTING",
             "recovering": "Please wait, recovering...",
+            "timeout_warning": "TIMEOUT APPROACHING",
+            "timeout_extended": "TIMEOUT EXTENDED",
         }
         label = system_map.get(status or "")
         if label is None:

@@ -105,8 +105,26 @@ class DuctorPaths:
         return self.home_defaults / "workspace" / "skills"
 
     @property
+    def tasks_dir(self) -> Path:
+        """Per-task metadata folders (TASKMEMORY.md etc.)."""
+        return self.workspace / "tasks"
+
+    @property
+    def tasks_registry_path(self) -> Path:
+        """Task registry persistence."""
+        return self.ductor_home / "tasks.json"
+
+    @property
     def named_sessions_path(self) -> Path:
         return self.ductor_home / "named_sessions.json"
+
+    @property
+    def startup_state_path(self) -> Path:
+        return self.ductor_home / "startup_state.json"
+
+    @property
+    def inflight_turns_path(self) -> Path:
+        return self.ductor_home / "inflight_turns.json"
 
     @property
     def mainmemory_path(self) -> Path:

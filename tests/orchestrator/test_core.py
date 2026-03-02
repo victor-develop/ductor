@@ -95,7 +95,7 @@ async def test_directive_with_text(orch: Orchestrator) -> None:
 
     request = mock_execute.call_args[0][0]
     assert request.model_override == "sonnet"
-    assert request.prompt == "Hello"
+    assert request.prompt.startswith("Hello")
 
 
 # -- streaming --

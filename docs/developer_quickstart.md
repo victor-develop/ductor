@@ -27,12 +27,16 @@ Primary runtime files/directories:
 
 - `~/.ductor/sessions.json`
 - `~/.ductor/named_sessions.json`
+- `~/.ductor/tasks.json`
 - `~/.ductor/cron_jobs.json`
 - `~/.ductor/webhooks.json`
+- `~/.ductor/startup_state.json`
+- `~/.ductor/inflight_turns.json`
 - `~/.ductor/SHAREDMEMORY.md`
 - `~/.ductor/agents.json`
 - `~/.ductor/agents/`
 - `~/.ductor/workspace/`
+- `~/.ductor/workspace/tasks/`
 - `~/.ductor/workspace/api_files/`
 - `~/.ductor/logs/agent.log`
 
@@ -60,6 +64,7 @@ Telegram update or API message
 Background systems run in-process:
 
 - named session runner (`/session`)
+- delegated background tasks (`TaskHub`, `/tasks`)
 - cron
 - heartbeat
 - webhook
@@ -88,6 +93,7 @@ Hot paths:
 - queue/lock behavior: `ductor_bot/bot/middleware.py`
 - message flows: `ductor_bot/orchestrator/flows.py`
 - command handling: `ductor_bot/orchestrator/commands.py`
+- delegated task system: `ductor_bot/tasks/hub.py`, `ductor_bot/tasks/registry.py`
 - shared response text: `ductor_bot/text/response_format.py`
 - provider execution: `ductor_bot/cli/service.py`
 - provider wrappers: `ductor_bot/cli/claude_provider.py`, `ductor_bot/cli/codex_provider.py`, `ductor_bot/cli/gemini_provider.py`
@@ -129,7 +135,12 @@ If rules/skills drift:
 - `/stop` is middleware-level abort handling before normal command routing.
 - `/stop_all` is middleware-level too; on the main agent it aborts active runs across all agents (sub-agent fallback is local-only).
 - `/new` resets only the active provider bucket in that chat.
+- foreground chat timeout path uses `config.timeouts.normal`; named background `/session` uses `config.timeouts.background`; delegated task runs use `config.tasks.timeout_seconds`.
 - cron/webhook `cron_task` runs support provider/model/reasoning/CLI-arg overrides.
+- cron/webhook/inter-agent timeout paths still use `config.cli_timeout`.
+- `/tasks` is quick-command routed (no queue wait) and opens task management UI.
+- startup classifies `first_start` / `service_restart` / `system_reboot` from `startup_state.json`.
+- interrupted foreground turns are tracked in `inflight_turns.json`; startup recovery can auto-resume safe named sessions and notifies users about interrupted foreground turns.
 - direct API upload writes to `workspace/api_files/YYYY-MM-DD/`.
 - rule sync updates existing `CLAUDE.md`, `AGENTS.md`, and `GEMINI.md` siblings by mtime.
 - Zone 2 overwrite in workspace init includes:
@@ -137,5 +148,6 @@ If rules/skills drift:
   - `workspace/tools/cron_tools/*.py`
   - `workspace/tools/webhook_tools/*.py`
   - `workspace/tools/agent_tools/*.py`
+  - `workspace/tools/task_tools/*.py`
 
 Continue with `docs/architecture.md` and `docs/modules/*.md` for subsystem details.

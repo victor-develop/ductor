@@ -40,7 +40,7 @@ QuickCommandHandler = Callable[[int, "Message"], Awaitable[bool]]
 """Async callback for read-only commands that bypass the per-chat lock."""
 
 QUICK_COMMANDS: frozenset[str] = frozenset(
-    {"/status", "/memory", "/cron", "/diagnose", "/model", "/showfiles", "/sessions"}
+    {"/status", "/memory", "/cron", "/diagnose", "/model", "/showfiles", "/sessions", "/tasks"}
 )
 
 MQ_PREFIX = "mq:"

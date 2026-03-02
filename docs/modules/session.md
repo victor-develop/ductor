@@ -100,6 +100,7 @@ Model:
 - `name`, `chat_id`, `provider`, `model`
 - `session_id` (CLI resume token)
 - `prompt_preview`, `status`, `created_at`, `message_count`
+- `last_prompt` (full last submitted prompt, truncated to 4000 chars)
 
 Status values:
 
@@ -113,12 +114,15 @@ Behavior:
 - max sessions per chat: `MAX_SESSIONS_PER_CHAT = 10` for user-created sessions via `create(...)`,
 - sessions persist across restarts,
 - on startup, persisted `running` sessions are downgraded to `idle`,
+- downgraded sessions are tracked in an internal recovered-running set for startup recovery orchestration,
 - updates are persisted after each response (`update_after_response`).
 
 Additional insertion API:
 
 - `add(session)` inserts a pre-built `NamedSession` and persists immediately.
 - used by inter-agent deterministic sessions (`ia-<sender>`) where caller controls full metadata.
+- `mark_running(chat_id, name, prompt)` sets status to `running` and stores `last_prompt`.
+- `pop_recovered_running(chat_id=None)` returns and clears sessions that were `running` at last shutdown (excluding `ia-*`).
 
 ## Persistence
 

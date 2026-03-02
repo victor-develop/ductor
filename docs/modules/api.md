@@ -341,12 +341,13 @@ Commands registered in the orchestrator's command registry work automatically:
 - `/cron` -- returns cron summary text (Telegram selector buttons are not available over API)
 - `/diagnose` -- diagnostics
 - `/sessions` -- returns session summary text (Telegram selector buttons are not available over API)
+- `/tasks` -- returns task summary text (Telegram selector buttons are not available over API)
 - `/upgrade` -- returns upgrade-check text, but upgrade action buttons are Telegram callback-based (`upg:*`)
 - `/agents`, `/agent_start`, `/agent_stop`, `/agent_restart` -- available when the multi-agent supervisor injects command hooks on the main agent
 
 These are sent as encrypted messages (`encrypted({"type": "message", "text": "/status"})`).
 
-Interactive selector keyboards are Telegram-specific callback flows (`ms:*`, `crn:*`, `nsc:*`), so API clients receive text only for those commands.
+Interactive selector keyboards are Telegram-specific callback flows (`ms:*`, `crn:*`, `nsc:*`, `tsc:*`), so API clients receive text only for those commands.
 
 Telegram-only slash commands are not specially handled by API routing. Except `/stop` (intercepted as abort), they fall through as normal model prompts.
 

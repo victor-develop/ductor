@@ -17,8 +17,9 @@ ductor routes chat input to official provider CLIs (`claude`, `codex`, `gemini`)
 11. `docs/modules/files.md` -- shared file parsing/storage/prompt helpers.
 12. `docs/modules/cli.md` -- provider wrappers, stream parsing, process control.
 13. `docs/modules/workspace.md` -- `~/.ductor` seeding, rule deployment/sync, runtime notices.
-14. `docs/modules/multiagent.md` -- multi-agent system, inter-agent communication, shared knowledge.
-15. Remaining module docs (`background`, `session`, `cron`, `webhook`, `heartbeat`, `cleanup`, `infra`, `supervisor`, `security`, `logging`, `skill_system`).
+14. `docs/modules/tasks.md` -- shared task system (`TaskHub`), `/tasks`, task tool/API flows.
+15. `docs/modules/multiagent.md` -- multi-agent system, inter-agent communication, shared knowledge.
+16. Remaining module docs (`background`, `session`, `cron`, `webhook`, `heartbeat`, `cleanup`, `infra`, `supervisor`, `security`, `logging`, `skill_system`).
 
 ## System in 60 Seconds
 
@@ -30,6 +31,7 @@ ductor routes chat input to official provider CLIs (`claude`, `codex`, `gemini`)
 - `ductor_bot/config_reload.py`: centralized hot-reload watcher for safe `config.json` fields.
 - `ductor_bot/cli/`: Claude/Codex/Gemini wrappers, stream-event normalization, process registry, auth detection, model caches.
 - `ductor_bot/background/`: named background sessions (`/session`) with follow-ups and result delivery.
+- `ductor_bot/tasks/`: shared background task delegation (`TaskHub`), persistent task registry, task-folder seeding.
 - `ductor_bot/session/`: per-chat provider-isolated session state (`sessions.json`) plus named-session registry (`named_sessions.json`).
 - `ductor_bot/cron/`: in-process scheduler for `cron_jobs.json` with task overrides, quiet hours, dependency queue.
 - `ductor_bot/webhook/`: HTTP ingress (`/hooks/{hook_id}`) with `bearer`/`hmac`, `wake`/`cron_task`, and shared dependency queue.
@@ -37,11 +39,12 @@ ductor routes chat input to official provider CLIs (`claude`, `codex`, `gemini`)
 - `ductor_bot/cleanup/`: daily recursive retention cleanup for `telegram_files`, `output_to_user`, and `api_files` (plus empty-dir pruning).
 - `ductor_bot/workspace/`: path resolution, home seeding from `_home_defaults`, RULES variant deployment, rule sync, skill sync.
 - `ductor_bot/multiagent/`: multi-agent supervisor, inter-agent bus, shared knowledge sync, health monitoring, agent tool scripts.
-- `ductor_bot/infra/`: PID lock, restart/update sentinels, Docker manager (incl. optional user mounts), service backends (Linux/macOS/Windows), updater/version checks.
+- `ductor_bot/infra/`: PID lock, restart/update sentinels, startup lifecycle state (`startup_state`), in-flight turn tracking (`inflight`), recovery planning, Docker manager, service backends, updater/version checks.
 
 Runtime behavior note:
 
 - Normal CLI errors do not auto-reset sessions. Session context is preserved; users can retry or run `/new`.
+- Startup can auto-recover interrupted foreground turns and resumable named sessions from persisted state files.
 
 ## Documentation Index
 
@@ -56,6 +59,7 @@ Runtime behavior note:
   - [config_reload](modules/config_reload.md)
   - [bot](modules/bot.md)
   - [background](modules/background.md)
+  - [tasks](modules/tasks.md)
   - [api](modules/api.md)
   - [text](modules/text.md)
   - [files](modules/files.md)

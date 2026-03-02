@@ -20,12 +20,13 @@ In-process multi-agent supervisor (`AgentSupervisor`) for main agent + optional 
 
 1. start `InterAgentBus`
 2. start `InternalAgentAPI` (`127.0.0.1:8799` in host mode, `0.0.0.0:8799` in Docker mode)
-3. create/start main `AgentStack`
-4. wait up to 120s for main startup readiness (`_main_ready`) before sub-agent startup
-5. load + start sub-agents from `agents.json`
-6. start `SharedKnowledgeSync` (`SHAREDMEMORY.md` -> agent memories)
-7. start `agents.json` watcher
-8. wait for main agent completion and return its exit code
+3. if `tasks.enabled=true`: create shared `TaskHub` (`~/.ductor/tasks.json` + `~/.ductor/workspace/tasks/`) and attach it to `InternalAgentAPI`
+4. create/start main `AgentStack`
+5. wait up to 120s for main startup readiness (`_main_ready`) before sub-agent startup
+6. load + start sub-agents from `agents.json`
+7. start `SharedKnowledgeSync` (`SHAREDMEMORY.md` -> agent memories)
+8. start `agents.json` watcher
+9. wait for main agent completion and return its exit code
 
 ## Supervision policy
 
@@ -53,6 +54,7 @@ During bot startup, supervisor injects hooks into each agent dispatcher.
 - sets `orch._supervisor`
 - on main agent: registers multi-agent commands (`/agents`, `/agent_start`, `/agent_stop`, `/agent_restart`)
 - on main agent: wires `/stop_all` callback (`TelegramBot.set_abort_all_callback(...)`) to `AgentSupervisor.abort_all_agents()`
+- when task hub is active: wires `TaskHub` into each orchestrator (per-agent CLI service, result/question callbacks, primary chat ID mapping)
 
 ## Cross-Agent Abort
 
@@ -61,6 +63,7 @@ During bot startup, supervisor injects hooks into each agent dispatcher.
 - iterates all agent stacks and kills active CLI processes
 - cancels chat-scoped background tasks on each stack
 - cancels in-flight async inter-agent tasks on the shared bus
+- cancels in-flight shared task-hub tasks across all agent chat IDs
 - returns aggregated kill/cancel count to the calling bot handler
 
 ## Shutdown
@@ -71,4 +74,5 @@ During bot startup, supervisor injects hooks into each agent dispatcher.
 2. cancel in-flight async inter-agent tasks
 3. stop sub-agents
 4. stop main agent
-5. stop internal API
+5. shutdown task hub (if enabled)
+6. stop internal API

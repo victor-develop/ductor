@@ -141,6 +141,7 @@ class NamedSession:
     status: str  # "running" | "idle" | "ended"
     created_at: float
     message_count: int = 0
+    last_prompt: str = ""
 
 
 def _session_from_dict(data: dict[str, Any]) -> NamedSession:
@@ -155,6 +156,7 @@ def _session_from_dict(data: dict[str, Any]) -> NamedSession:
         status=str(data.get("status", "ended")),
         created_at=float(data.get("created_at", 0.0)),
         message_count=int(data.get("message_count", 0)),
+        last_prompt=str(data.get("last_prompt", data.get("prompt_preview", ""))),
     )
 
 
@@ -170,6 +172,7 @@ class NamedSessionRegistry:
         self._path = path
         self._lock = asyncio.Lock()
         self._sessions: dict[tuple[int, str], NamedSession] = {}
+        self._recovered_running: dict[tuple[int, str], NamedSession] = {}
         self._load()
 
     def _load(self) -> None:
@@ -184,6 +187,18 @@ class NamedSessionRegistry:
                 continue
             # Downgrade stale "running" to "idle" after restart
             if ns.status == "running":
+                self._recovered_running[(ns.chat_id, ns.name)] = NamedSession(
+                    name=ns.name,
+                    chat_id=ns.chat_id,
+                    provider=ns.provider,
+                    model=ns.model,
+                    session_id=ns.session_id,
+                    prompt_preview=ns.prompt_preview,
+                    status="idle",
+                    created_at=ns.created_at,
+                    message_count=ns.message_count,
+                    last_prompt=ns.last_prompt,
+                )
                 ns.status = "idle"
             self._sessions[(ns.chat_id, ns.name)] = ns
         logger.info("Loaded %d named sessions from %s", len(self._sessions), self._path)
@@ -291,6 +306,34 @@ class NamedSessionRegistry:
         """
         self._sessions[(session.chat_id, session.name)] = session
         self._persist()
+
+    def mark_running(self, chat_id: int, name: str, prompt: str) -> None:
+        """Mark a session as running and store the prompt for recovery."""
+        ns = self._sessions.get((chat_id, name))
+        if ns is None:
+            return
+        ns.status = "running"
+        ns.last_prompt = prompt[:4000]
+        self._persist()
+
+    def pop_recovered_running(self, chat_id: int | None = None) -> list[NamedSession]:
+        """Return sessions that were running at last shutdown, then clear them.
+
+        If *chat_id* is given, only return sessions for that chat.
+        Excludes inter-agent sessions (``ia-`` prefix).
+        """
+        results: list[NamedSession] = []
+        to_remove: list[tuple[int, str]] = []
+        for key, ns in self._recovered_running.items():
+            if chat_id is not None and ns.chat_id != chat_id:
+                continue
+            if ns.name.startswith("ia-"):
+                continue
+            results.append(ns)
+            to_remove.append(key)
+        for key in to_remove:
+            del self._recovered_running[key]
+        return sorted(results, key=lambda s: s.created_at)
 
     def active_names(self, chat_id: int) -> set[str]:
         """Return the set of active session names for collision checks."""

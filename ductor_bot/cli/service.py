@@ -155,6 +155,7 @@ class CLIService:
             resume_session=request.resume_session,
             continue_session=request.continue_session,
             timeout_seconds=request.timeout_seconds,
+            timeout_controller=request.timeout_controller,
         )
         elapsed_ms = (time.monotonic() - t0) * 1000
 
@@ -189,6 +190,7 @@ class CLIService:
                 resume_session=request.resume_session,
                 continue_session=request.continue_session,
                 timeout_seconds=request.timeout_seconds,
+                timeout_controller=request.timeout_controller,
             ):
                 if self._process_registry.was_aborted(request.chat_id):
                     logger.info("Streaming aborted mid-stream chat=%d", request.chat_id)
@@ -276,15 +278,16 @@ class CLIService:
             stream_fallback=True,
         )
 
+    def resolve_provider(self, request: AgentRequest) -> tuple[str, str]:
+        """Return ``(provider, model)`` that would be used for *request*."""
+        if request.provider_override:
+            return request.provider_override, request.model_override or ""
+        model = request.model_override or self._config.default_model
+        return self._models.provider_for(model), model
+
     def _make_cli(self, request: AgentRequest) -> BaseCLI:
         """Create a BaseCLI instance for the given request."""
-        if request.provider_override:
-            # Cross-provider override: use explicit model or empty (let CLI default)
-            provider = request.provider_override
-            model = request.model_override or ""
-        else:
-            model = request.model_override or self._config.default_model
-            provider = self._models.provider_for(model)
+        provider, model = self.resolve_provider(request)
 
         return create_cli(
             CLIConfig(
@@ -334,6 +337,7 @@ def _cli_response_to_agent_response(
         cost_usd=resp.total_cost_usd or 0.0,
         total_tokens=resp.total_tokens,
         input_tokens=resp.input_tokens,
+        num_turns=resp.num_turns or 0,
         timed_out=resp.timed_out,
         duration_ms=resp.duration_ms,
         stream_fallback=stream_fallback,

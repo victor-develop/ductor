@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from collections.abc import Awaitable
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -293,6 +294,27 @@ class TestSend:
         assert not result.is_error
         assert not reg.has_active(42)
 
+    async def test_send_uses_timeout_controller(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        cli = _make_cli(monkeypatch)
+        response_data = json.dumps({"response": "Hello!", "session_id": "sid-1"})
+        proc = _make_process_mock(stdout=response_data.encode(), returncode=0)
+
+        timeout_controller = MagicMock()
+
+        async def _run_with_timeout(coro: Awaitable[tuple[bytes, bytes]]) -> tuple[bytes, bytes]:
+            return await coro
+
+        timeout_controller.run_with_timeout = AsyncMock(side_effect=_run_with_timeout)
+
+        with patch(
+            "ductor_bot.cli.gemini_provider.asyncio.create_subprocess_exec", return_value=proc
+        ):
+            result = await cli.send("Hi", timeout_controller=timeout_controller)
+
+        timeout_controller.run_with_timeout.assert_awaited_once()
+        assert result.result == "Hello!"
+        assert result.session_id == "sid-1"
+
 
 class TestSendStreaming:
     async def test_full_sequence(self, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -357,6 +379,32 @@ class TestSendStreaming:
         assert len(result_events) == 1
         assert result_events[0].is_error is True
         assert "boom" in result_events[0].result
+
+    async def test_streaming_uses_timeout_controller(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        cli = _make_cli(monkeypatch)
+        lines = [
+            json.dumps({"type": "message", "role": "model", "content": "one"}),
+            json.dumps({"type": "result", "result": "done"}),
+        ]
+        proc = _make_streaming_process(lines)
+        timeout_controller = MagicMock()
+        timeout_controller.timeout_seconds = 10.0
+        timeout_controller.activity_extension_seconds = 2.0
+        timeout_controller.start_warning_loop = MagicMock(return_value=None)
+        timeout_controller.try_extend = MagicMock(return_value=False)
+
+        with patch(
+            "ductor_bot.cli.gemini_provider.asyncio.create_subprocess_exec", return_value=proc
+        ):
+            events = [
+                event
+                async for event in cli.send_streaming("Hi", timeout_controller=timeout_controller)
+            ]
+
+        assert any(isinstance(e, ResultEvent) for e in events)
+        timeout_controller.begin.assert_called_once()
+        timeout_controller.start_warning_loop.assert_called_once()
+        assert timeout_controller.record_activity.call_count >= 1
 
 
 class TestParseResponse:

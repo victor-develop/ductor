@@ -10,6 +10,10 @@ Runtime infrastructure: process lifecycle, restart/update flow, Docker sandbox, 
 - `install.py`: install mode detection (`pipx` / `pip` / `dev`)
 - `platform.py`: shared platform helpers (`is_windows`)
 - `process_tree.py`: cross-platform process-tree terminate/kill helpers
+- `boot_id.py`: cross-platform boot-session fingerprinting
+- `startup_state.py`: startup classification (`first_start` / `service_restart` / `system_reboot`)
+- `inflight.py`: in-flight foreground turn tracker (`inflight_turns.json`)
+- `recovery.py`: safe recovery planner for interrupted foreground/named-session work
 - `service.py`: platform dispatch facade
 - `service_base.py`: shared console helper, NVM path collection
 - `service_logs.py`: shared log rendering (`print_recent_logs`, file/journal adapters)
@@ -18,6 +22,31 @@ Runtime infrastructure: process lifecycle, restart/update flow, Docker sandbox, 
 - `service_windows.py`: Windows Task Scheduler backend
 - `version.py`: PyPI version/changelog utilities
 - `updater.py`: `UpdateObserver`, upgrade helpers/sentinel
+
+## Startup lifecycle and recovery state
+
+Runtime state files under `~/.ductor/`:
+
+- `startup_state.json`: last known boot fingerprint + startup timestamp
+- `inflight_turns.json`: foreground turns that were in-flight when the process exited
+
+Behavior:
+
+- `startup_state.detect_startup_kind(...)` compares current boot ID vs stored state:
+  - no/invalid prior state -> `first_start`
+  - same boot ID -> `service_restart`
+  - different boot ID -> `system_reboot`
+- startup state is persisted atomically on each boot.
+- `InflightTracker` writes/removes per-chat in-flight foreground turns atomically.
+- `RecoveryPlanner` combines interrupted in-flight turns and recovered named sessions into safe recovery actions.
+
+Safety rules in recovery planning:
+
+- skip stale entries (`max_age_seconds`)
+- skip recovery-marked entries (`is_recovery=True`)
+- max one foreground recovery action per chat
+- skip inter-agent named sessions (`ia-*`)
+- only recover named sessions that are `idle` and have a resumable `session_id`
 
 ## Service management
 
