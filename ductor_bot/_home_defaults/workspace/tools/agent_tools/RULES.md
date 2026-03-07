@@ -41,7 +41,7 @@ to make a sub-agent reply directly in its own Telegram chat via these tools.
 
 When creating a sub-agent:
 
-1. The user **must provide** a Telegram bot token (created via @BotFather)
+1. The user **must provide** a Telegram bot token (created via Telegram BotFather)
 2. Choose a descriptive lowercase name (no spaces, e.g. `finanzius`, `researcher`)
 3. Use **specific model names**, not provider names:
    - Claude: `opus`, `sonnet`, `haiku`
