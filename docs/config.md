@@ -116,15 +116,16 @@ they stay consistent.
 | `homeserver` | `str` | `""` | Matrix homeserver URL (e.g. `https://matrix.org`) |
 | `user_id` | `str` | `""` | Bot user ID (e.g. `@ductor:matrix.org`) |
 | `password` | `str` | `""` | Password for initial login |
-| `access_token` | `str` | `""` | Persisted after first login (auto-managed) |
-| `device_id` | `str` | `""` | Persisted after first login (auto-managed) |
+| `access_token` | `str` | `""` | Optional manual restore source; runtime normally persists credentials in the Matrix store |
+| `device_id` | `str` | `""` | Optional manual restore source paired with `access_token` |
 | `allowed_rooms` | `list[str]` | `[]` | Room IDs or aliases the bot may operate in |
 | `allowed_users` | `list[str]` | `[]` | Matrix user IDs allowed to interact |
 | `store_path` | `str` | `"matrix_store"` | E2EE key store directory, relative to `ductor_home` |
 
 Notes:
 
-- `access_token` and `device_id` are auto-populated after first successful login and persisted back to `config.json`.
+- first successful login persists credentials to `~/.ductor/<store_path>/credentials.json` (mode `0o600`), not back into `config.json`
+- when `access_token` and `device_id` are explicitly present in `config.json`, runtime restores from them and also mirrors them into the credentials store
 - The bot supports end-to-end encrypted rooms via `matrix-nio[e2e]`.
 - `allowed_rooms` and `allowed_users` together form the Matrix auth model.
 
@@ -137,6 +138,10 @@ Notes:
 | `gemini` | `list[str]` | `[]` | Extra args appended to Gemini CLI command |
 
 Used by `CLIServiceConfig` for main-chat calls.
+
+Argument shape note:
+
+- each list element is passed as one CLI argument; do not combine multiple shell flags into one string such as `"--verbose --chrome"`
 
 Automation note:
 
@@ -252,6 +257,7 @@ Disabled by default because it exposes the host cache directory to the sandbox.
 User-defined directory mounts for project/data access inside Docker sandbox.
 
 - each entry is expanded (`~`, env vars), resolved, and validated as an existing directory
+- each entry is just a host directory path (for example `"/home/you/projects"`), not Docker `host:container[:mode]` syntax
 - invalid or missing entries are skipped with warnings
 - container target path is derived from host basename: `/mnt/<sanitized-name>`
 - duplicate target names are disambiguated as `/mnt/name_2`, `/mnt/name_3`, ...
@@ -448,7 +454,7 @@ Top-level JSON array of `SubAgentConfig` objects. Each entry defines a sub-agent
 
 Managed via:
 
-- `ductor agents add <name>` (interactive CLI)
+- `ductor agents add <name>` (interactive CLI, currently Telegram-focused)
 - `ductor agents remove <name>` (CLI)
 - `create_agent.py` / `remove_agent.py` tool scripts (from within a CLI session)
 - manual file editing (auto-detected by `FileWatcher`)

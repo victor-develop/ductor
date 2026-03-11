@@ -17,7 +17,8 @@ Periodic proactive check loop for active sessions.
 
 Helper:
 
-- `utils/quiet_hours.py::is_quiet_hour(...)`
+- `utils/quiet_hours.py::check_quiet_hour(...)` is the primary runtime helper used by the observer
+- `utils/quiet_hours.py::is_quiet_hour(...)` remains the lower-level predicate
 
 ## Runtime flow
 

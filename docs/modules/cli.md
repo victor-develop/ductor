@@ -8,8 +8,10 @@ Provider-agnostic CLI execution layer for Claude Code, Codex, and Gemini.
 - `base.py`: `BaseCLI`, `CLIConfig`, `docker_wrap()`, Windows helpers
 - `factory.py`: provider factory (`claude` / `codex` / `gemini`)
 - `service.py`: `CLIService` gateway for orchestrator
+- `init_wizard.py`: interactive onboarding and smart reset flow
 - `executor.py`: shared subprocess lifecycle helpers for provider wrappers
 - `timeout_controller.py`: configurable timeout warnings + activity-based extension controller
+- `model_cache.py`: shared base classes for provider model-cache persistence and refresh observers
 - `claude_provider.py`: Claude subprocess wrapper
 - `codex_provider.py`: Codex subprocess wrapper
 - `gemini_provider.py`: Gemini subprocess wrapper
@@ -109,7 +111,8 @@ Recovery triggers handled in orchestrator flows:
 
 ### Codex
 
-- uses `codex exec --json --color never --skip-git-repo-check`
+- fresh runs use `codex exec --json --color never --skip-git-repo-check`
+- resumed runs use `codex exec resume [--json] -- <session_id>` and do not go through the same `--color never --skip-git-repo-check` path
 - sandbox/approval flag selection from `permission_mode`
 - reasoning effort via `-c model_reasoning_effort=...`
 - `continue_session=True` is ignored for Codex

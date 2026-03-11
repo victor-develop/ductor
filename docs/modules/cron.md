@@ -64,7 +64,7 @@ When a job fires:
 6. build provider command (`build_cmd`)
 7. execute one-shot subprocess with timeout
 8. parse provider output
-9. invoke optional result callback
+9. invoke optional result callback when the execution path reaches callback emission
 10. update run status (`last_run_status`, `last_run_at`)
 11. schedule next occurrence
 
@@ -103,6 +103,11 @@ Quiet-hour skips are silent:
 
 - no `last_run_status` update
 - no result callback
+
+Folder-missing nuance:
+
+- `error:folder_missing` updates `last_run_status`
+- no result callback is emitted for that path
 
 ## Timezone resolution
 

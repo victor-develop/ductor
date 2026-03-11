@@ -12,8 +12,8 @@ from __future__ import annotations
 BOT_COMMANDS: list[tuple[str, str]] = [
     # Daily
     ("new", "Start new chat"),
-    ("stop", "Stop running agent"),
-    ("interrupt", "Soft interrupt (ESC)"),
+    ("stop", "Stop current + queued msgs"),
+    ("interrupt", "Interrupt current, keep queue"),
     ("model", "Show/switch model"),
     ("status", "Session info"),
     ("memory", "Show main memory"),
@@ -39,5 +39,5 @@ MULTIAGENT_SUB_COMMANDS: list[tuple[str, str]] = [
     ("agent_start", "Start a sub-agent"),
     ("agent_stop", "Stop a sub-agent"),
     ("agent_restart", "Restart a sub-agent"),
-    ("stop_all", "Stop all agents"),
+    ("stop_all", "Kill everything"),
 ]

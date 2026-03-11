@@ -78,7 +78,6 @@ Task/topic nuance:
 A single `LockPool` is shared by:
 
 - `SequentialMiddleware` (Telegram ingress)
-- `ApiServer` (WebSocket per-session locking)
 - `MessageBus` (observer/result routing)
 
-This prevents lock-scope drift across transports and background delivery paths.
+`ApiServer` currently creates its own `LockPool` for WebSocket session locking, so API locking is separate from the Telegram/message-bus lock domain.

@@ -12,11 +12,14 @@ For transport-specific details see [bot.md](bot.md) (Telegram) and
 
 | File | Purpose |
 |---|---|
-| `messenger/__init__.py` | Public re-exports: `BotProtocol`, `MessengerCapabilities`, `MultiBotAdapter`, `NotificationService`, `CompositeNotificationService`, `create_bot` |
+| `messenger/__init__.py` | Public re-exports for protocols, command classification, send options, multi-transport helpers, and bot factory |
+| `messenger/commands.py` | Shared direct/orchestrator/multi-agent command sets + `classify_command()` |
+| `messenger/callback_router.py` | Shared callback-data dispatch helpers for selector/button routing |
 | `messenger/protocol.py` | `BotProtocol` — runtime-checkable interface every transport implements |
 | `messenger/capabilities.py` | `MessengerCapabilities` dataclass + per-transport presets |
 | `messenger/registry.py` | `create_bot()` factory + `_TRANSPORT_FACTORIES` dispatch table |
 | `messenger/notifications.py` | `NotificationService` protocol + `CompositeNotificationService` fan-out |
+| `messenger/send_opts.py` | Base send-option model shared by transport senders |
 | `messenger/multi.py` | `MultiBotAdapter` — multi-transport facade behind `BotProtocol` |
 
 ## BotProtocol

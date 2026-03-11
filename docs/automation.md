@@ -34,7 +34,8 @@ Restart behavior:
 
 - active asyncio task objects are lost on restart,
 - persisted named sessions can still be resumed,
-- startup recovery automatically retries safe named sessions that were `running` before restart.
+- startup recovery automatically retries safe named sessions that were `running` before restart when Telegram is the primary transport
+- Matrix-primary startup currently has no equivalent auto-recovery pipeline
 
 Status values for named-session runs: `ok`, `error:timeout`, `error:cli`, `error:internal`, `aborted`.
 
@@ -91,7 +92,7 @@ Runtime behavior:
 5. build provider command (`claude`, `codex`, or `gemini`)
 6. execute with timeout (`cli_timeout`)
 7. parse output
-8. send result callback to chat
+8. send result callback to chat when the run actually executes and produces a callback path
 9. persist status (`last_run_status`, `last_run_at`)
 
 Per-job override fields in `cron_jobs.json`:
@@ -113,6 +114,7 @@ Notes:
 - `reasoning_effort` is only used for Codex models that support it.
 - task `cli_parameters` are task-level only (no merge with global provider args).
 - cron status includes `error:cli_not_found_<provider>` for missing provider binaries.
+- `error:folder_missing` updates `last_run_status` but does not emit a result callback.
 - quiet-hour skips do not emit result callbacks and do not update `last_run_status`.
 
 ## Webhooks
@@ -131,7 +133,7 @@ Validation order:
 
 Modes:
 
-- `wake`: inject rendered prompt into active chat flow
+- `wake`: inject rendered prompt into active Telegram chat flow
 - `cron_task`: run isolated one-shot execution in task folder
 
 Prompt payload is wrapped with safety markers before execution.
@@ -155,6 +157,12 @@ Typical status values:
 - `error:timeout`
 - `error:exit_<code>`
 - `skipped:quiet_hours`
+
+Current transport limitation:
+
+- webhook `wake` depends on a configured wake handler and is currently wired by Telegram startup only
+- Matrix-primary setups do not provide that handler right now, so `wake` returns `error:no_wake_handler`
+- for Matrix-only deployments, use `cron_task` mode instead of `wake`
 
 ## Heartbeat
 

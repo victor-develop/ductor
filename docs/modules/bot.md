@@ -146,6 +146,11 @@ Webhook wake path:
 - runs orchestrator message flow
 - submits final wake result envelope for delivery
 
+Current limitation:
+
+- Telegram startup wires the webhook wake handler
+- Matrix startup currently does not, so webhook `wake` is effectively Telegram-only right now
+
 ## Startup lifecycle (`messenger/telegram/startup.py`)
 
 Startup performs, in order:
