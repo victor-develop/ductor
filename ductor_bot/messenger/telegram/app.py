@@ -1337,6 +1337,7 @@ class TelegramBot:
                 streaming_cfg=self._config.streaming,
                 allowed_roots=self.file_roots(self._orch.paths),
                 thread_id=thread_id,
+                scene_config=self._config.scene,
             ),
         )
 
@@ -1358,8 +1359,8 @@ class TelegramBot:
                 allowed_roots=self.file_roots(self._orch.paths),
                 reply_to=reply_to,
                 thread_id=thread_id,
-            ),
                 scene_config=self._config.scene,
+            ),
         )
 
     # -- Background handlers ---------------------------------------------------

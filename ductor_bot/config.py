@@ -111,7 +111,6 @@ class CleanupConfig(BaseModel):
 
     enabled: bool = True
     media_files_days: int = 30
-    group_targets: list[HeartbeatTarget] = Field(default_factory=list)
     output_to_user_days: int = 30
     api_files_days: int = 30
     check_hour: int = 3
@@ -125,14 +124,6 @@ class CleanupConfig(BaseModel):
         super().__init__(**data)
 
 
-class CLIParametersConfig(BaseModel):
-    """CLI parameters for main agent."""
-
-    claude: list[str] = Field(default_factory=list)
-    codex: list[str] = Field(default_factory=list)
-    gemini: list[str] = Field(default_factory=list)
-
-
 class ImageConfig(BaseModel):
     """Settings for incoming image processing."""
 
@@ -140,13 +131,13 @@ class ImageConfig(BaseModel):
     output_format: str = "webp"
     quality: int = 85
 
+
 class CLIParametersConfig(BaseModel):
     """CLI parameters for main agent."""
 
     claude: list[str] = Field(default_factory=list)
     codex: list[str] = Field(default_factory=list)
     gemini: list[str] = Field(default_factory=list)
-
 
 
 class MatrixConfig(BaseModel):
@@ -191,6 +182,13 @@ class WebhookConfig(BaseModel):
     token: str = ""
     max_body_bytes: int = 262144
     rate_limit_per_minute: int = 30
+
+
+class SceneConfig(BaseModel):
+    """Settings for scene indicators and technical footer."""
+
+    seen_reaction: bool = False
+    technical_footer: bool = False
 
 
 class ApiConfig(BaseModel):
@@ -283,8 +281,10 @@ class AgentConfig(BaseModel):
     webhooks: WebhookConfig = Field(default_factory=WebhookConfig)
     api: ApiConfig = Field(default_factory=ApiConfig)
     cli_parameters: CLIParametersConfig = Field(default_factory=CLIParametersConfig)
+    image: ImageConfig = Field(default_factory=ImageConfig)
     timeouts: TimeoutConfig = Field(default_factory=TimeoutConfig)
     tasks: TasksConfig = Field(default_factory=TasksConfig)
+    scene: SceneConfig = Field(default_factory=SceneConfig)
     user_timezone: str = ""
     update_check: bool = True
     group_mention_only: bool = False
@@ -298,7 +298,6 @@ class AgentConfig(BaseModel):
 
     @field_validator("gemini_api_key", mode="before")
     @classmethod
-    image: ImageConfig = Field(default_factory=ImageConfig)
     def _normalize_gemini_api_key(cls, value: object) -> object:
         """Normalize null-like string values to ``None`` for optional key config."""
         if not isinstance(value, str):
