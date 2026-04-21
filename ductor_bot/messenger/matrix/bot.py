@@ -205,6 +205,32 @@ class MatrixBot:
                     exc_info=True,
                 )
 
+    async def notify_upgrade(self, text: str) -> None:
+        """Route Matrix upgrade-available notifications (#64).
+
+        ``topic_id`` is ignored — Matrix rooms have no topic-thread concept.
+        Mirrors ``notify_startup`` but reads ``notifications.upgrade_targets``
+        so users can silence/route upgrade events independently.
+        """
+        targets = [
+            tgt
+            for tgt in self._config.notifications.upgrade_targets
+            if tgt.enabled and tgt.chat_id is not None
+        ]
+        if not targets:
+            await self.broadcast(text)
+            return
+        for target in targets:
+            try:
+                assert target.chat_id is not None
+                await self._notification_service.notify(target.chat_id, text)
+            except Exception:
+                logger.warning(
+                    "notify_upgrade: delivery failed for chat_id=%s",
+                    target.chat_id,
+                    exc_info=True,
+                )
+
     def set_abort_all_callback(self, callback: Callable[[], Awaitable[int]]) -> None:
         self._abort_all_callback = callback
 

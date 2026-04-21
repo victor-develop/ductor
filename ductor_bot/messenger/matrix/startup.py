@@ -61,7 +61,7 @@ async def run_matrix_startup(bot: MatrixBot) -> None:
             if is_upgradeable() and bot._config.update_check and bot._agent_name == "main":
 
                 async def _on_update(info: VersionInfo) -> None:
-                    await bot.notify_startup(t("startup.matrix_update", version=info.latest))
+                    await bot.notify_upgrade(t("startup.matrix_update", version=info.latest))
 
                 bot._update_observer = UpdateObserver(notify=_on_update)
                 bot._update_observer.start()
