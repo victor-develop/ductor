@@ -864,3 +864,40 @@ class TestPerAgentDeliveryIsolation:
         assert delivered_result.parent_agent == "sub1"
 
         await hub.shutdown()
+
+
+class TestAppendTaskmemory:
+    """#91: _append_taskmemory must emit a WARNING log and include the original
+    length + full file path in the suffix when truncation occurs. Without this,
+    parent agents receive silently-truncated memory content."""
+
+    def test_warns_on_truncation(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        from ductor_bot.tasks.hub import _TASKMEMORY_MAX_LEN, _append_taskmemory
+
+        memory_file = tmp_path / "TASKMEMORY.md"
+        original_len = _TASKMEMORY_MAX_LEN + 1000
+        memory_file.write_text("X" * original_len, encoding="utf-8")
+
+        with caplog.at_level("WARNING", logger="ductor_bot.tasks.hub"):
+            result = _append_taskmemory("result_text", memory_file)
+
+        # WARNING log fired
+        assert any("TASKMEMORY truncated" in rec.message for rec in caplog.records)
+        # Suffix shows original length so the parent agent knows how much was cut
+        assert str(original_len) in result
+        # Suffix points to the full file path so the parent agent can read it
+        assert str(memory_file) in result
+        assert "truncated" in result.lower()
+
+    def test_no_warning_under_limit(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+        from ductor_bot.tasks.hub import _append_taskmemory
+
+        memory_file = tmp_path / "TASKMEMORY.md"
+        memory_file.write_text("short content", encoding="utf-8")
+
+        with caplog.at_level("WARNING", logger="ductor_bot.tasks.hub"):
+            result = _append_taskmemory("result_text", memory_file)
+
+        assert not any("TASKMEMORY truncated" in rec.message for rec in caplog.records)
+        assert "truncated" not in result.lower()
+        assert "short content" in result
