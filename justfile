@@ -10,9 +10,9 @@ fix:
     uv run ruff format .
     uv run ruff check --fix .
 
-# Run all linters, type checks, and tests (lanes run in parallel; tests stay sequential)
+# Run all linters, type checks, i18n completeness, and tests (lanes run in parallel; tests stay sequential)
 [parallel]
-check: _lint _format _types _test
+check: _lint _format _types _i18n _test
 
 # Run the test suite sequentially (safe default; see `test-parallel` for opt-in)
 test *args:
@@ -33,6 +33,10 @@ _format:
 [private]
 _types:
     uv run mypy ductor_bot
+
+[private]
+_i18n:
+    uv run python -m ductor_bot.i18n.check --quiet
 
 [private]
 _test:
