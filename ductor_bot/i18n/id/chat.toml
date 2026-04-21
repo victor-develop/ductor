@@ -25,6 +25,7 @@ age_warning = "[Sesi telah berjalan selama {age}. Gunakan /new untuk memulai ula
 empty_turn = "_(Agen memperbarui memori secara diam-diam — kirim pesan lain untuk melanjutkan.)_"
 
 recovered = "_Sesi sebelumnya tidak dapat dipulihkan. Sesi baru dimulai secara otomatis._"
+recovery_failed = "Could not recover your session after a fresh start. Please try again or use /new to start over."
 sigkill = "Eksekusi terganggu. Silakan kirim permintaan yang sama lagi."
 
 not_found = "Sesi '{name}' tidak ditemukan."

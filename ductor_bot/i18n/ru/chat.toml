@@ -26,6 +26,7 @@ age_warning = "[Сессии уже {age}. Используй /new для све
 empty_turn = "_(Агент молча обновил память — отправь ещё одно сообщение, чтобы продолжить.)_"
 
 recovered = "_Предыдущую сессию не удалось восстановить. Новая сессия запущена автоматически._"
+recovery_failed = "Could not recover your session after a fresh start. Please try again or use /new to start over."
 sigkill = "Выполнение было прервано. Пожалуйста, отправь тот же запрос ещё раз."
 
 not_found = "Сессия '{name}' не найдена."

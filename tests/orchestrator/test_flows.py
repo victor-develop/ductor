@@ -182,6 +182,35 @@ async def test_normal_sigkill_recovers_once_then_asks_user_retry(orch: Orchestra
     )
 
 
+async def test_normal_stale_session_recovery_failed_circuit_breaker(orch: Orchestrator) -> None:
+    """If the fresh-session retry is ALSO stale, stop cascading and surface
+    a clear user-facing error instead of the misleading 'recovered' notice.
+
+    Regression for v0.16.1 MED #8: cap recovery at one retry, log error,
+    and return session.recovery_failed rather than prepending recovery
+    notice onto another stale-session response.
+    """
+    stale_resp = _mock_response(
+        is_error=True, result="Invalid session ID: session not found", returncode=1
+    )
+    mock_execute = AsyncMock(side_effect=[stale_resp, stale_resp])
+    mock_reset_provider = AsyncMock()
+    object.__setattr__(orch._cli_service, "execute", mock_execute)
+    object.__setattr__(orch._process_registry, "kill_all", AsyncMock(return_value=0))
+    object.__setattr__(orch._sessions, "reset_provider_session", mock_reset_provider)
+
+    result = await normal(orch, SessionKey(chat_id=1), "Hello")
+    assert result.text == (
+        "Could not recover your session after a fresh start. "
+        "Please try again or use /new to start over."
+    )
+    # Hard cap: one retry. Must be exactly two calls, never cascade further.
+    assert mock_execute.call_count == 2
+    mock_reset_provider.assert_called_once_with(
+        SessionKey(chat_id=1), provider="claude", model="opus"
+    )
+
+
 async def test_normal_does_not_auto_fallback_provider(orch: Orchestrator) -> None:
     mock_execute = AsyncMock(return_value=_mock_response())
     object.__setattr__(orch._cli_service, "execute", mock_execute)
