@@ -44,9 +44,7 @@ async def run_matrix_startup(bot: MatrixBot) -> None:
         # Handle restart marker (restart-requested file)
         restart_reason = _consume_restart_marker(bot)
         if restart_reason and sentinel is None:
-            await bot.notification_service.notify_all(
-                t("startup.matrix_restart", reason=restart_reason)
-            )
+            await bot.notify_startup(t("startup.matrix_restart", reason=restart_reason))
 
         # Startup kind detection + notification (first_start, reboot)
         await _handle_startup_lifecycle(bot, sentinel)
@@ -63,9 +61,7 @@ async def run_matrix_startup(bot: MatrixBot) -> None:
             if is_upgradeable() and bot._config.update_check and bot._agent_name == "main":
 
                 async def _on_update(info: VersionInfo) -> None:
-                    await bot.notification_service.notify_all(
-                        t("startup.matrix_update", version=info.latest)
-                    )
+                    await bot.notify_startup(t("startup.matrix_update", version=info.latest))
 
                 bot._update_observer = UpdateObserver(notify=_on_update)
                 bot._update_observer.start()
@@ -121,7 +117,7 @@ async def _handle_startup_lifecycle(bot: MatrixBot, sentinel: dict[str, object] 
     if sentinel is None and startup_info.kind.value != "service_restart":
         note = startup_notification_text(startup_info.kind.value)
         if note:
-            await bot.notification_service.notify_all(note)
+            await bot.notify_startup(note)
 
 
 async def _handle_recovery(bot: MatrixBot) -> None:

@@ -180,6 +180,31 @@ class MatrixBot:
     def register_startup_hook(self, hook: Callable[[], Awaitable[None]]) -> None:
         self._startup_hooks.append(hook)
 
+    async def notify_startup(self, text: str) -> None:
+        """Route Matrix startup-lifecycle notifications (#64).
+
+        ``topic_id`` is ignored — Matrix rooms have no topic-thread concept.
+        Targets without a resolvable room fall back to ``notify_all``.
+        """
+        targets = [
+            tgt
+            for tgt in self._config.notifications.startup_targets
+            if tgt.enabled and tgt.chat_id is not None
+        ]
+        if not targets:
+            await self._notification_service.notify_all(text)
+            return
+        for target in targets:
+            try:
+                assert target.chat_id is not None
+                await self._notification_service.notify(target.chat_id, text)
+            except Exception:
+                logger.warning(
+                    "notify_startup: delivery failed for chat_id=%s",
+                    target.chat_id,
+                    exc_info=True,
+                )
+
     def set_abort_all_callback(self, callback: Callable[[], Awaitable[int]]) -> None:
         self._abort_all_callback = callback
 

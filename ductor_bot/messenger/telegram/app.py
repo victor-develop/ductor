@@ -307,6 +307,74 @@ class TelegramBot:
         for uid in self._config.allowed_user_ids:
             await send_rich(self._bot, uid, text, opts)
 
+    async def notify_startup(self, text: str) -> None:
+        """Route startup-lifecycle notifications (#64).
+
+        When `notifications.startup_targets` has at least one enabled
+        target with a valid `chat_id`, send only to those targets.
+        Otherwise fall back to `notify_all` (current behaviour). Per-target
+        failures are swallowed at warning level so a single bad target
+        does not mask the rest.
+        """
+        targets = [
+            t
+            for t in self._config.notifications.startup_targets
+            if t.enabled and t.chat_id is not None
+        ]
+        if not targets:
+            await self._notification_service.notify_all(text)
+            return
+        for target in targets:
+            try:
+                assert target.chat_id is not None
+                await send_rich(
+                    self._bot,
+                    target.chat_id,
+                    text,
+                    SendRichOpts(thread_id=target.topic_id),
+                )
+            except Exception:
+                logger.warning(
+                    "notify_startup: delivery failed for chat_id=%s topic_id=%s",
+                    target.chat_id,
+                    target.topic_id,
+                    exc_info=True,
+                )
+
+    async def notify_upgrade(self, text: str, opts: SendRichOpts | None = None) -> None:
+        """Route upgrade-available notifications (#64).
+
+        When `notifications.upgrade_targets` has at least one enabled
+        target with a valid `chat_id`, send only to those targets
+        (preserving ``opts`` such as the upgrade inline keyboard).
+        Otherwise fall back to `broadcast` (current behaviour).
+        """
+        targets = [
+            t
+            for t in self._config.notifications.upgrade_targets
+            if t.enabled and t.chat_id is not None
+        ]
+        if not targets:
+            await self.broadcast(text, opts)
+            return
+        for target in targets:
+            try:
+                assert target.chat_id is not None
+                target_opts = SendRichOpts(
+                    reply_markup=opts.reply_markup if opts else None,
+                    allowed_roots=opts.allowed_roots if opts else None,
+                    thread_id=target.topic_id,
+                    reply_to_message_id=opts.reply_to_message_id if opts else None,
+                )
+                await send_rich(self._bot, target.chat_id, text, target_opts)
+            except Exception:
+                logger.warning(
+                    "notify_upgrade: delivery failed for chat_id=%s topic_id=%s",
+                    target.chat_id,
+                    target.topic_id,
+                    exc_info=True,
+                )
+
     async def _on_startup(self) -> None:
         from ductor_bot.messenger.telegram.startup import run_startup
 
