@@ -45,10 +45,10 @@ The onboarding wizard handles CLI checks, transport setup, timezone, optional Do
 
 - a Telegram Bot Token from [@BotFather](https://t.me/BotFather), or
 - a Matrix account on a homeserver (homeserver URL, user ID, password/access token), or
-- a Slack bot token + Socket Mode app token
+- a Slack bot token + Socket Mode app token (plus the Slack app scopes/events listed in [`docs/installation.md#slack-setup`](docs/installation.md#slack-setup))
 
 For Matrix support: `ductor install matrix` — see [Matrix setup guide](docs/matrix-setup.md).
-For Slack support: `pip install "ductor[slack]"` and configure `slack.bot_token` + `slack.app_token`.
+For Slack support: `pip install "ductor[slack]"`, then follow [`docs/installation.md#slack-setup`](docs/installation.md#slack-setup) and configure `slack.bot_token` + `slack.app_token`.
 
 Detailed setup: [`docs/installation.md`](docs/installation.md)
 
@@ -295,6 +295,64 @@ Matrix auth uses room and user allowlists in the `matrix` config block:
 - Room-level filtering (`allowed_rooms`) still applies.
 
 The bot logs in with password on first start, then persists `access_token` and `device_id` for subsequent runs. E2EE is supported via `matrix-nio[e2e]`.
+
+### Slack
+
+Slack runs through **Socket Mode**, so ductor does not need a public webhook URL.
+
+Create a Slack app, then configure these permissions before installing it to your workspace.
+
+**Bot token scopes**
+
+| Scope | Why ductor needs it |
+|---|---|
+| `chat:write` | send replies as the bot |
+| `app_mentions:read` | detect `@bot` in channels |
+| `channels:history` | read public-channel messages and thread history |
+| `channels:read` | resolve public channel metadata |
+| `groups:history` | read private-channel messages and thread history |
+| `im:history` | read direct messages |
+| `im:read` | access DM metadata |
+| `im:write` | open/manage DMs |
+| `users:read` | resolve user display names for thread backfill/context |
+| `files:read` | download attached files |
+| `files:write` | upload generated files |
+
+**Optional bot token scope**
+
+| Scope | When to add it |
+|---|---|
+| `groups:read` | if you want private-channel metadata lookups beyond history access |
+
+**App-level token scope**
+
+| Scope | Why ductor needs it |
+|---|---|
+| `connections:write` | required for Socket Mode (`xapp-...`) |
+
+**Event subscriptions**
+
+| Event | Required | Purpose |
+|---|---|---|
+| `message.im` | yes | direct messages |
+| `message.channels` | yes | public-channel messages |
+| `message.groups` | recommended | private-channel messages |
+| `app_mention` | yes | mention handling in channels |
+
+Also enable **App Home → Messages Tab** so users can DM the bot, then **Install App to Workspace** and copy:
+
+- **Bot User OAuth Token** → `slack.bot_token` (`xoxb-...`)
+- **App-Level Token** → `slack.app_token` (`xapp-...`)
+
+If you change scopes or subscribed events later, **reinstall the Slack app** so the new permissions take effect.
+
+ductor's Slack allowlist lives in the `slack` config block:
+
+- **`allowed_users`** — Slack member IDs allowed to use the bot
+- **`allowed_channels`** — Slack channel IDs where the bot may respond
+- **`group_mention_only`** — when `true`, channel conversations start on `@bot` and continue in the activated thread
+
+After setup, invite the app into each target channel. Full step-by-step setup is in [`docs/installation.md#slack-setup`](docs/installation.md#slack-setup).
 
 ## Language
 
