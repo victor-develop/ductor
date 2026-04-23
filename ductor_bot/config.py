@@ -240,6 +240,15 @@ class MatrixConfig(BaseModel):
     store_path: str = "matrix_store"  # relative to ductor_home
 
 
+class SlackConfig(BaseModel):
+    """Slack Socket Mode settings."""
+
+    bot_token: str = ""
+    app_token: str = ""
+    allowed_channels: list[str] = Field(default_factory=list)
+    allowed_users: list[str] = Field(default_factory=list)
+
+
 class TasksConfig(BaseModel):
     """Settings for background task delegation."""
 
@@ -427,13 +436,14 @@ class AgentConfig(BaseModel):
     update_check: bool = True
     group_mention_only: bool = False
     interagent_port: int = 8799
-    transport: str = "telegram"  # "telegram" | "matrix"
+    transport: str = "telegram"  # "telegram" | "matrix" | "slack"
     transports: list[str] = Field(default_factory=list)
     telegram_token: str = ""
     allowed_user_ids: list[int] = Field(default_factory=list)
     allowed_group_ids: list[int] = Field(default_factory=list)
     allowed_channel_ids: list[int] = Field(default_factory=list)
     matrix: MatrixConfig = Field(default_factory=MatrixConfig)
+    slack: SlackConfig = Field(default_factory=SlackConfig)
 
     @field_validator("gemini_api_key", mode="before")
     @classmethod

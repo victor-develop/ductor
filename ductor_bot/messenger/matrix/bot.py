@@ -1206,12 +1206,16 @@ class MatrixBot:
             text = result.result_text or f"Inter-agent result from {result.recipient}"
             await self._notification_service.notify_all(text)
             return
-        await self._bus.submit(from_interagent_result(result, chat_id))
+        env = from_interagent_result(result, chat_id)
+        env.transport = "mx"
+        await self._bus.submit(env)
 
     async def on_task_result(self, result: TaskResult) -> None:
         from ductor_bot.bus.adapters import from_task_result
 
-        await self._bus.submit(from_task_result(result))
+        env = from_task_result(result)
+        env.transport = "mx"
+        await self._bus.submit(env)
 
     async def on_task_question(
         self,
@@ -1225,7 +1229,9 @@ class MatrixBot:
 
         if not chat_id:
             chat_id = self._default_chat_id()
-        await self._bus.submit(from_task_question(task_id, question, prompt_preview, chat_id))
+        env = from_task_question(task_id, question, prompt_preview, chat_id, topic_id=thread_id)
+        env.transport = "mx"
+        await self._bus.submit(env)
 
     def _default_chat_id(self) -> int:
         """Default delivery target: first allowed room, or last active room."""

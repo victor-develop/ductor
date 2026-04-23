@@ -428,9 +428,24 @@ inline buttons. Keep labels short and distinctive.
 Do not place button markers inside code blocks.
 """
 
+_TRANSPORT_SLACK = """
+
+---
+
+## Messenger Rules
+
+- Replies are Slack messages.
+- Prefer `/` commands (for example `/help`, `/status`, `/model`).
+- In channels, keep long conversations inside the existing thread when one exists.
+- To send files, use `<file:/absolute/path>`.
+- Save generated deliverables in `output_to_user/`.
+- Do not suggest GUI-only actions like opening Finder or clicking app-only menus.
+"""
+
 _TRANSPORT_RULES: dict[str, str] = {
     "telegram": _TRANSPORT_TELEGRAM,
     "matrix": _TRANSPORT_MATRIX,
+    "slack": _TRANSPORT_SLACK,
 }
 
 # ---------------------------------------------------------------------------

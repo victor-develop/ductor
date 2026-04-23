@@ -3,7 +3,7 @@
 </p>
 
 <p align="center">
-  <strong>Claude Code, Codex CLI, and Gemini CLI as your coding assistant — on Telegram and Matrix.</strong><br>
+  <strong>Claude Code, Codex CLI, and Gemini CLI as your coding assistant — on Telegram, Matrix, and Slack.</strong><br>
   Uses only official CLIs. Nothing spoofed, nothing proxied. Multi-transport, automation, and sub-agents in one runtime.
 </p>
 
@@ -23,7 +23,7 @@
 
 ---
 
-If you want to control Claude Code, Google's Gemini CLI, or OpenAI's Codex CLI via Telegram or Matrix, build automations, or manage multiple agents easily — ductor is the right tool for you. The messaging layer is modular: Telegram and Matrix ship today, and new transports plug into the same transport-agnostic core.
+If you want to control Claude Code, Google's Gemini CLI, or OpenAI's Codex CLI via Telegram, Matrix, or Slack, build automations, or manage multiple agents easily — ductor is the right tool for you. The messaging layer is modular and transports plug into the same transport-agnostic core.
 
 ductor runs on your machine and sends simple console commands as if you were typing them yourself, so you can use your active subscriptions (Claude Max, etc.) directly. No API proxying, no SDK patching, no spoofed headers. Just the official CLIs, executed as subprocesses, with all state kept in plain JSON and Markdown under `~/.ductor/`.
 
@@ -39,14 +39,16 @@ pipx install ductor    # or: uv tool install ductor
 ductor
 ```
 
-The onboarding wizard handles CLI checks, transport setup (Telegram or Matrix), timezone, optional Docker, and optional background service install.
+The onboarding wizard handles CLI checks, transport setup, timezone, optional Docker, and optional background service install.
 
 **Requirements:** Python 3.11+, at least one CLI installed (`claude`, `codex`, or `gemini`), and either:
 
 - a Telegram Bot Token from [@BotFather](https://t.me/BotFather), or
-- a Matrix account on a homeserver (homeserver URL, user ID, password/access token)
+- a Matrix account on a homeserver (homeserver URL, user ID, password/access token), or
+- a Slack bot token + Socket Mode app token
 
 For Matrix support: `ductor install matrix` — see [Matrix setup guide](docs/matrix-setup.md).
+For Slack support: `pip install "ductor[slack]"` and configure `slack.bot_token` + `slack.app_token`.
 
 Detailed setup: [`docs/installation.md`](docs/installation.md)
 
@@ -201,7 +203,7 @@ Main chat:  "Ask codex-agent to write tests for the API"
 
 ## Features
 
-- **Multi-transport** — run Telegram and Matrix simultaneously, or pick one
+- **Multi-transport** — run Telegram, Matrix, and Slack simultaneously, or pick any one
 - **Multi-language** — UI in English, Deutsch, Nederlands, Français, Русский, Español, Português
 - **Real-time streaming** — live message edits (Telegram) or segment-based output (Matrix)
 - **Provider switching** — `/model` to change provider/model (never blocks, even during active processes)
@@ -228,13 +230,15 @@ Telegram is the primary transport — full feature set, battle-tested, zero extr
 |---|---|---|---|---|
 | **Telegram** | primary | Live message edits | Inline keyboards | `pip install ductor` |
 | **Matrix** | supported | Segment-based (new messages) | Emoji reactions | `ductor install matrix` |
+| **Slack** | supported | Non-streaming | Native threads | `pip install "ductor[slack]"` |
 
 Both transports can run **in parallel** on the same agent:
 
 ```json
 {"transport": "telegram"}
 {"transport": "matrix"}
-{"transports": ["telegram", "matrix"]}
+{"transport": "slack"}
+{"transports": ["telegram", "slack"]}
 ```
 
 ### Modular transport architecture
