@@ -128,6 +128,8 @@ In **App Home**:
 
 Without this, users cannot DM the bot even if the tokens and scopes are correct.
 
+ductor does not register native Slack slash commands. Instead, its command keywords work in Slack as normal messages (for example `help`, `status`, or `model`) and also accept a leading `/`.
+
 ### 7. Install or reinstall the app to the workspace
 
 In **Install App**, click **Install to Workspace** and authorize the app. Copy the **Bot User OAuth Token** (`xoxb-...`) into `slack.bot_token`.

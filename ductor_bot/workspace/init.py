@@ -435,7 +435,8 @@ _TRANSPORT_SLACK = """
 ## Messenger Rules
 
 - Replies are Slack messages.
-- Prefer `/` commands (for example `/help`, `/status`, `/model`).
+- Slack command keywords work as normal messages or slash-prefixed messages
+  (for example `help` or `/help`).
 - In channels, keep long conversations inside the existing thread when one exists.
 - To send files, use `<file:/absolute/path>`.
 - Save generated deliverables in `output_to_user/`.

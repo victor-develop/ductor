@@ -8,6 +8,7 @@ import logging
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -48,6 +49,13 @@ except ImportError:  # pragma: no cover - import fallback
 
 logger = logging.getLogger(__name__)
 
+_DEFAULT_MENTIONED_THREAD_TTL_SECONDS = 3600.0
+_DEFAULT_MENTIONED_THREAD_MAX_SIZE = 200
+_DEFAULT_THREAD_CONTEXT_CACHE_MAX_SIZE = 200
+_MESSAGE_COMMANDS_WITH_ARGS = frozenset(
+    {"agent_restart", "agent_start", "agent_stop", "model", "session", "showfiles"}
+)
+
 
 @dataclass(slots=True)
 class _ThreadContextCache:
@@ -61,6 +69,14 @@ class _ThreadContextCache:
 def _restart_marker_path(ductor_home: str) -> Path:
     """Return the restart marker path."""
     return Path(ductor_home).expanduser() / "restart-requested"
+
+
+def _slack_ts_is_at_or_after(candidate_ts: str, current_ts: str) -> bool:
+    """Return whether *candidate_ts* is the current Slack message or later."""
+    try:
+        return Decimal(candidate_ts) >= Decimal(current_ts)
+    except (InvalidOperation, ValueError):
+        return candidate_ts >= current_ts
 
 
 class SlackNotificationService:
@@ -123,11 +139,13 @@ class SlackBot:
         self._bot_user_id = ""
         self._bot_name = "slack-bot"
         self._last_active_channel: str | None = None
-        self._mentioned_threads: set[tuple[str, str]] = set()
-        self._sent_messages: set[tuple[str, str]] = set()
+        self._mentioned_threads: dict[tuple[str, str], float] = {}
         self._user_name_cache: dict[str, str] = {}
         self._thread_context_cache: dict[str, _ThreadContextCache] = {}
+        self._MENTIONED_THREAD_TTL = _DEFAULT_MENTIONED_THREAD_TTL_SECONDS
+        self._MENTIONED_THREAD_MAX_SIZE = _DEFAULT_MENTIONED_THREAD_MAX_SIZE
         self._THREAD_CACHE_TTL = 60.0
+        self._THREAD_CONTEXT_CACHE_MAX_SIZE = _DEFAULT_THREAD_CONTEXT_CACHE_MAX_SIZE
 
         self._register_handlers()
 
@@ -248,13 +266,25 @@ class SlackBot:
         if not is_dm and self._config.group_mention_only:
             is_mentioned = bool(self._bot_user_id and f"<@{self._bot_user_id}>" in text)
             in_mentioned_thread = bool(
-                is_thread_reply and reply_thread_ts and (channel_id, reply_thread_ts) in self._mentioned_threads
+                is_thread_reply
+                and reply_thread_ts
+                and self._has_recent_mentioned_thread(channel_id, reply_thread_ts)
             )
             if not is_mentioned and not in_mentioned_thread and not has_thread_session:
                 return
             text = self._strip_mention(text)
             if is_mentioned and reply_thread_ts:
-                self._mentioned_threads.add((channel_id, reply_thread_ts))
+                self._mark_mentioned_thread(channel_id, reply_thread_ts)
+
+        chat_id = self._id_map.channel_to_int(channel_id)
+        topic_id = self._id_map.thread_to_int(channel_id, reply_thread_ts) if reply_thread_ts else None
+        key = SessionKey.for_transport("sl", chat_id, topic_id)
+        self._last_active_channel = channel_id
+
+        command_text = self._normalize_command_text(text)
+        if command_text is not None:
+            await self._handle_command(command_text, channel_id, key, reply_thread_ts or None)
+            return
 
         if is_thread_reply and reply_thread_ts and not has_thread_session:
             thread_context = await self._fetch_thread_context(
@@ -264,15 +294,6 @@ class SlackBot:
             )
             if thread_context:
                 text = thread_context + text
-
-        chat_id = self._id_map.channel_to_int(channel_id)
-        topic_id = self._id_map.thread_to_int(channel_id, reply_thread_ts) if reply_thread_ts else None
-        key = SessionKey.for_transport("sl", chat_id, topic_id)
-        self._last_active_channel = channel_id
-
-        if text.startswith("/"):
-            await self._handle_command(text, channel_id, key, reply_thread_ts or None)
-            return
 
         await self._dispatch_with_lock(key, text, channel_id, reply_thread_ts or None)
 
@@ -468,7 +489,7 @@ class SlackBot:
             t("info.header"),
             t("info.version", version=get_current_version()),
             SEP,
-            t("info.matrix_description").replace("Matrix", "Slack"),
+            t("info.slack_description"),
         )
         await self._send_rich(channel_id, text_out, thread_ts=thread_ts)
 
@@ -599,7 +620,7 @@ class SlackBot:
             f"**{t('help.cat_browse')}**\n{_line('showfiles')}\n{_line('info')}\n{_line('help')}",
             f"**{t('help.cat_maintenance')}**\n{_line('diagnose')}\n{_line('upgrade')}\n{_line('restart')}",
             SEP,
-            t("help.matrix_footer").replace("`!` or `/`", "`/`"),
+            t("help.slack_footer"),
         )
 
     def _is_authorized(self, channel_id: str, user_id: str, *, is_dm: bool) -> bool:
@@ -613,7 +634,54 @@ class SlackBot:
     def _is_message_addressed(self, channel_id: str, thread_ts: str, text: str) -> bool:
         if self._bot_user_id and f"<@{self._bot_user_id}>" in text:
             return True
-        return bool(thread_ts and (channel_id, thread_ts) in self._mentioned_threads)
+        return self._has_recent_mentioned_thread(channel_id, thread_ts)
+
+    def _normalize_command_text(self, text: str) -> str | None:
+        stripped = text.strip()
+        if not stripped:
+            return None
+        parts = stripped.split(None, 1)
+        raw_cmd = parts[0]
+        cmd = raw_cmd.lower().lstrip("/")
+        if classify_command(cmd) == "unknown":
+            return None
+        has_args = len(parts) > 1 and bool(parts[1].strip())
+        if not raw_cmd.startswith("/") and has_args and cmd not in _MESSAGE_COMMANDS_WITH_ARGS:
+            return None
+        suffix = f" {parts[1].strip()}" if has_args else ""
+        return f"/{cmd}{suffix}"
+
+    def _prune_mentioned_threads(self, now: float) -> None:
+        if self._MENTIONED_THREAD_TTL > 0:
+            cutoff = now - self._MENTIONED_THREAD_TTL
+            expired = [key for key, seen_at in self._mentioned_threads.items() if seen_at < cutoff]
+            for key in expired:
+                del self._mentioned_threads[key]
+        max_size = max(1, self._MENTIONED_THREAD_MAX_SIZE)
+        while len(self._mentioned_threads) > max_size:
+            oldest = next(iter(self._mentioned_threads))
+            del self._mentioned_threads[oldest]
+
+    def _mark_mentioned_thread(self, channel_id: str, thread_ts: str) -> None:
+        now = time.monotonic()
+        key = (channel_id, thread_ts)
+        self._mentioned_threads.pop(key, None)
+        self._mentioned_threads[key] = now
+        self._prune_mentioned_threads(now)
+
+    def _has_recent_mentioned_thread(self, channel_id: str, thread_ts: str) -> bool:
+        if not thread_ts:
+            return False
+        now = time.monotonic()
+        self._prune_mentioned_threads(now)
+        key = (channel_id, thread_ts)
+        seen_at = self._mentioned_threads.get(key)
+        if seen_at is None:
+            return False
+        if self._MENTIONED_THREAD_TTL > 0 and now - seen_at >= self._MENTIONED_THREAD_TTL:
+            del self._mentioned_threads[key]
+            return False
+        return True
 
     async def _has_active_session_for_thread(self, channel_id: str, thread_ts: str) -> bool:
         """Return whether this Slack thread already has a fresh persisted session."""
@@ -664,8 +732,9 @@ class SlackBot:
         """Fetch earlier Slack thread messages for the first message in a fresh session."""
         cache_key = f"{channel_id}:{thread_ts}"
         now = time.monotonic()
+        self._prune_thread_context_cache(now)
         cached = self._thread_context_cache.get(cache_key)
-        if cached and (now - cached.fetched_at) < self._THREAD_CACHE_TTL:
+        if cached:
             return cached.content
 
         try:
@@ -714,7 +783,7 @@ class SlackBot:
             if not isinstance(msg, dict):
                 continue
             msg_ts = str(msg.get("ts", "") or "")
-            if msg_ts == current_ts:
+            if not msg_ts or _slack_ts_is_at_or_after(msg_ts, current_ts):
                 continue
             if msg.get("bot_id") or msg.get("subtype") == "bot_message":
                 continue
@@ -739,8 +808,14 @@ class SlackBot:
         fetched_at: float,
     ) -> str:
         """Persist thread-context cache entry and return the formatted content."""
+        self._prune_thread_context_cache(fetched_at)
         if not content_parts:
-            self._thread_context_cache[cache_key] = _ThreadContextCache(content="", fetched_at=fetched_at)
+            self._thread_context_cache.pop(cache_key, None)
+            self._thread_context_cache[cache_key] = _ThreadContextCache(
+                content="",
+                fetched_at=fetched_at,
+            )
+            self._prune_thread_context_cache(fetched_at)
             return ""
 
         content = (
@@ -748,12 +823,29 @@ class SlackBot:
             + "\n".join(content_parts)
             + "\n[End of thread context]\n\n"
         )
+        self._thread_context_cache.pop(cache_key, None)
         self._thread_context_cache[cache_key] = _ThreadContextCache(
             content=content,
             fetched_at=fetched_at,
             message_count=len(content_parts),
         )
+        self._prune_thread_context_cache(fetched_at)
         return content
+
+    def _prune_thread_context_cache(self, now: float) -> None:
+        if self._THREAD_CACHE_TTL > 0:
+            cutoff = now - self._THREAD_CACHE_TTL
+            expired = [
+                key
+                for key, entry in self._thread_context_cache.items()
+                if entry.fetched_at < cutoff
+            ]
+            for key in expired:
+                del self._thread_context_cache[key]
+        max_size = max(1, self._THREAD_CONTEXT_CACHE_MAX_SIZE)
+        while len(self._thread_context_cache) > max_size:
+            oldest = next(iter(self._thread_context_cache))
+            del self._thread_context_cache[oldest]
 
     def _strip_mention(self, text: str) -> str:
         if not self._bot_user_id:
@@ -785,10 +877,7 @@ class SlackBot:
         *,
         thread_ts: str | None = None,
     ) -> str | None:
-        event_ts = await send_rich(self.client, channel_id, text, SlackSendOpts(thread_ts=thread_ts))
-        if event_ts:
-            self._sent_messages.add((channel_id, event_ts))
-        return event_ts
+        return await send_rich(self.client, channel_id, text, SlackSendOpts(thread_ts=thread_ts))
 
     def _broadcast_channels(self) -> list[str]:
         channels = list(self._config.slack.allowed_channels)

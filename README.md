@@ -402,6 +402,8 @@ This is **hot-reloadable** — change the language without restarting the bot.
 
 `/new` is intentionally a factory reset for the current `SessionKey`: it clears the bucket tied to the configured default model/provider for that chat or topic, not whichever provider you last switched to temporarily via `/model`.
 
+On Slack, these same commands also work as normal message commands (for example `help`, `status`, or `model`) even though ductor does not register native Slack slash commands.
+
 ## Common CLI commands
 
 ```bash
