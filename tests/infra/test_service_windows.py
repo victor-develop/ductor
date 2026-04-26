@@ -31,23 +31,23 @@ class TestGenerateTaskXml:
         assert "-m ductor_bot" in xml
 
     def test_no_arguments_element_when_empty(self) -> None:
-        xml = _generate_task_xml(r"C:\Users\test\.local\bin\ductor.exe")
+        xml = _generate_task_xml(r"C:\Users\test\.local\bin\ductor-slack.exe")
         assert "<Arguments>" not in xml
 
     def test_contains_logon_trigger(self) -> None:
-        xml = _generate_task_xml("ductor")
+        xml = _generate_task_xml("ductor-slack")
         assert "LogonTrigger" in xml
 
     def test_delay_is_10_seconds(self) -> None:
-        xml = _generate_task_xml("ductor")
+        xml = _generate_task_xml("ductor-slack")
         assert "PT10S" in xml
 
     def test_contains_restart_on_failure(self) -> None:
-        xml = _generate_task_xml("ductor")
+        xml = _generate_task_xml("ductor-slack")
         assert "RestartOnFailure" in xml
 
     def test_valid_xml_declaration_and_root(self) -> None:
-        xml = _generate_task_xml("ductor")
+        xml = _generate_task_xml("ductor-slack")
         assert xml.startswith('<?xml version="1.0" encoding="UTF-16"?>')
         assert "<Task " in xml
         assert "</Task>" in xml
@@ -78,7 +78,7 @@ class TestIsAccessDenied:
 class TestIsServiceInstalled:
     @patch("ductor_bot.infra.service_windows._run_schtasks")
     def test_installed_when_query_succeeds(self, mock_run: MagicMock) -> None:
-        mock_run.return_value = make_completed(0, stdout="TaskName: ductor")
+        mock_run.return_value = make_completed(0, stdout="TaskName: ductor-slack")
         assert is_service_installed() is True
         mock_run.assert_called_once_with("/Query", "/TN", _TASK_NAME, "/FO", "LIST")
 
@@ -98,7 +98,7 @@ class TestIsServiceRunning:
     def test_running_when_status_contains_running(
         self, _installed: MagicMock, mock_run: MagicMock
     ) -> None:
-        mock_run.return_value = make_completed(0, stdout='"ductor","Running","Interactive"')
+        mock_run.return_value = make_completed(0, stdout='"ductor-slack","Running","Interactive"')
         assert is_service_running() is True
 
     @patch("ductor_bot.infra.service_windows._run_schtasks")
@@ -106,7 +106,7 @@ class TestIsServiceRunning:
     def test_not_running_when_status_says_ready(
         self, _installed: MagicMock, mock_run: MagicMock
     ) -> None:
-        mock_run.return_value = make_completed(0, stdout='"ductor","Ready","Interactive"')
+        mock_run.return_value = make_completed(0, stdout='"ductor-slack","Ready","Interactive"')
         assert is_service_running() is False
 
 
@@ -140,7 +140,7 @@ class TestInstallService:
     @patch("ductor_bot.infra.service_windows.is_service_installed", return_value=False)
     @patch("ductor_bot.infra.service_windows.is_service_available", return_value=True)
     @patch("ductor_bot.infra.service_windows._find_pythonw", return_value=None)
-    @patch("ductor_bot.infra.service_windows.find_ductor_binary", return_value="ductor.exe")
+    @patch("ductor_bot.infra.service_windows.find_ductor_binary", return_value="ductor-slack.exe")
     @patch("ductor_bot.infra.service_windows._task_xml_path")
     def test_install_fallback_to_binary(
         self,

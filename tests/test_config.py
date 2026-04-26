@@ -54,7 +54,7 @@ def test_agent_config_streaming_defaults() -> None:
 def test_agent_config_docker_defaults() -> None:
     cfg = AgentConfig()
     assert cfg.docker.enabled is False
-    assert cfg.docker.image_name == "ductor-sandbox"
+    assert cfg.docker.image_name == "ductor-slack-sandbox"
 
 
 def test_agent_config_rejects_invalid_types() -> None:

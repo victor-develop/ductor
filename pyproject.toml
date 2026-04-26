@@ -3,7 +3,7 @@ requires = ["hatchling>=1.28.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "ductor"
+name = "ductor-slack"
 version = "0.16.0"
 description = "Control Claude Code and Codex CLI from Telegram. Live streaming, sessions, cron jobs, webhooks, Docker sandboxing."
 readme = "README.md"
@@ -67,7 +67,7 @@ slack = [
     "slack-bolt>=1.23.0,<2.0.0",
     "slack-sdk>=3.37.0,<4.0.0",
 ]
-dev = ["ductor[test,lint,api,matrix,slack]"]
+dev = ["ductor-slack[test,lint,api,matrix,slack]"]
 
 [project.urls]
 Homepage = "https://ductor.dev"
@@ -77,7 +77,7 @@ Issues = "https://github.com/PleasePrompto/ductor/issues"
 Changelog = "https://github.com/PleasePrompto/ductor/releases"
 
 [project.scripts]
-ductor = "ductor_bot.__main__:main"
+ductor-slack = "ductor_bot.__main__:main"
 
 [tool.hatch.build.targets.wheel]
 packages = ["ductor_bot"]

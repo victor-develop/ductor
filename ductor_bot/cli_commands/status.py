@@ -13,6 +13,7 @@ from rich.panel import Panel
 from rich.table import Table
 from rich.text import Text
 
+from ductor_bot.app_identity import CLI_COMMAND, DEFAULT_DOCKER_CONTAINER
 from ductor_bot.i18n import t_rich
 from ductor_bot.infra.platform import is_windows
 from ductor_bot.workspace.paths import DuctorPaths, resolve_paths
@@ -95,7 +96,7 @@ def print_status() -> None:
     docker_enabled = isinstance(docker_cfg, dict) and bool(docker_cfg.get("enabled"))
     docker_name: str | None = None
     if docker_enabled and isinstance(docker_cfg, dict):
-        docker_name = str(docker_cfg.get("container_name", "ductor-sandbox"))
+        docker_name = str(docker_cfg.get("container_name", DEFAULT_DOCKER_CONTAINER))
 
     # Running state
     pid_file = paths.ductor_home / "bot.pid"
@@ -171,23 +172,23 @@ def print_usage() -> None:
     table = Table(show_header=False, box=None, padding=(0, 2))
     table.add_column(style="bold green", min_width=24)
     table.add_column()
-    table.add_row("ductor", t_rich("help.ductor"))
-    table.add_row("ductor onboarding", t_rich("help.onboarding"))
-    table.add_row("ductor stop", t_rich("help.stop"))
-    table.add_row("ductor restart", t_rich("help.restart"))
-    table.add_row("ductor reset", t_rich("help.reset"))
-    table.add_row("ductor upgrade", t_rich("help.upgrade"))
-    table.add_row("ductor uninstall", t_rich("help.uninstall"))
+    table.add_row(CLI_COMMAND, t_rich("help.ductor"))
+    table.add_row(f"{CLI_COMMAND} onboarding", t_rich("help.onboarding"))
+    table.add_row(f"{CLI_COMMAND} stop", t_rich("help.stop"))
+    table.add_row(f"{CLI_COMMAND} restart", t_rich("help.restart"))
+    table.add_row(f"{CLI_COMMAND} reset", t_rich("help.reset"))
+    table.add_row(f"{CLI_COMMAND} upgrade", t_rich("help.upgrade"))
+    table.add_row(f"{CLI_COMMAND} uninstall", t_rich("help.uninstall"))
     is_macos = sys.platform == "darwin"
     svc_hint = "Task Scheduler" if is_windows() else ("launchd" if is_macos else "systemd")
-    table.add_row("ductor service install", t_rich("help.service_install", hint=svc_hint))
-    table.add_row("ductor service", t_rich("help.service"))
-    table.add_row("ductor agents", t_rich("help.agents"))
-    table.add_row("ductor docker", t_rich("help.docker"))
-    table.add_row("ductor api", t_rich("help.api"))
-    table.add_row("ductor install <extra>", t_rich("help.install"))
-    table.add_row("ductor status", t_rich("help.status"))
-    table.add_row("ductor help", t_rich("help.help"))
+    table.add_row(f"{CLI_COMMAND} service install", t_rich("help.service_install", hint=svc_hint))
+    table.add_row(f"{CLI_COMMAND} service", t_rich("help.service"))
+    table.add_row(f"{CLI_COMMAND} agents", t_rich("help.agents"))
+    table.add_row(f"{CLI_COMMAND} docker", t_rich("help.docker"))
+    table.add_row(f"{CLI_COMMAND} api", t_rich("help.api"))
+    table.add_row(f"{CLI_COMMAND} install <extra>", t_rich("help.install"))
+    table.add_row(f"{CLI_COMMAND} status", t_rich("help.status"))
+    table.add_row(f"{CLI_COMMAND} help", t_rich("help.help"))
     table.add_row("-v, --verbose", t_rich("help.verbose"))
 
     _console.print(

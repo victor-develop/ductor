@@ -14,6 +14,11 @@ from typing import NoReturn
 from rich.console import Console
 from rich.panel import Panel
 
+from ductor_bot.app_identity import (
+    DEFAULT_DOCKER_CONTAINER,
+    DEFAULT_DOCKER_IMAGE,
+    PACKAGE_NAME,
+)
 from ductor_bot.i18n import t_rich
 from ductor_bot.infra.fs import robust_rmtree
 from ductor_bot.infra.platform import is_windows
@@ -117,7 +122,7 @@ def stop_bot() -> None:
             data = json.loads(config_path.read_text(encoding="utf-8"))
             docker = data.get("docker", {})
             if isinstance(docker, dict) and docker.get("enabled"):
-                container = str(docker.get("container_name", "ductor-sandbox"))
+                container = str(docker.get("container_name", DEFAULT_DOCKER_CONTAINER))
                 _stop_docker_container(container)
         except (json.JSONDecodeError, OSError):
             pass
@@ -190,7 +195,7 @@ def uninstall() -> None:
             data = json.loads(paths.config_path.read_text(encoding="utf-8"))
             docker = data.get("docker", {})
             if isinstance(docker, dict) and docker.get("enabled") and shutil.which("docker"):
-                image = str(docker.get("image_name", "ductor-sandbox"))
+                image = str(docker.get("image_name", DEFAULT_DOCKER_IMAGE))
                 _console.print(t_rich("lifecycle.uninstall.removing_image", image=image))
                 subprocess.run(
                     ["docker", "rmi", image],
@@ -214,13 +219,13 @@ def uninstall() -> None:
     _console.print(t_rich("lifecycle.uninstall.uninstalling"))
     if shutil.which("pipx"):
         subprocess.run(
-            ["pipx", "uninstall", "ductor"],
+            ["pipx", "uninstall", PACKAGE_NAME],
             capture_output=True,
             check=False,
         )
     else:
         subprocess.run(
-            [sys.executable, "-m", "pip", "uninstall", "-y", "ductor"],
+            [sys.executable, "-m", "pip", "uninstall", "-y", PACKAGE_NAME],
             capture_output=True,
             check=False,
         )

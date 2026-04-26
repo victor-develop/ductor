@@ -8,6 +8,7 @@ from typing import TYPE_CHECKING
 
 from rich.panel import Panel
 
+from ductor_bot.app_identity import CLI_COMMAND
 from ductor_bot.i18n import t_rich
 
 if TYPE_CHECKING:
@@ -35,7 +36,7 @@ def ensure_console(console: Console | None) -> Console:
 
 def find_ductor_binary() -> str | None:
     """Find the ductor binary in PATH. Shared across all backends."""
-    return shutil.which("ductor")
+    return shutil.which(CLI_COMMAND)
 
 
 # ---------------------------------------------------------------------------

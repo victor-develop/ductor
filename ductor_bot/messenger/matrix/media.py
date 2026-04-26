@@ -20,6 +20,16 @@ from ductor_bot.files.tags import guess_mime
 if TYPE_CHECKING:
     from nio import AsyncClient
 
+try:
+    from nio import DownloadError as MatrixDownloadError
+except ImportError:  # pragma: no cover - optional dependency
+
+    class _MatrixDownloadError:
+        message: str = ""
+
+    MatrixDownloadError = _MatrixDownloadError
+
+
 logger = logging.getLogger(__name__)
 
 
@@ -80,8 +90,6 @@ async def download_matrix_media(
 
     Returns ``None`` when the event has no downloadable URL.
     """
-    from nio import DownloadError
-
     mxc_url: str | None = getattr(event, "url", None)
     if not mxc_url:
         return None
@@ -113,7 +121,7 @@ async def download_matrix_media(
     dest = await asyncio.to_thread(_prepare_destination, base_dir, file_name)
     resp = await client.download(mxc=mxc_url, save_to=dest)
 
-    if isinstance(resp, DownloadError):
+    if isinstance(resp, MatrixDownloadError):
         logger.error("Matrix download failed for %s: %s", mxc_url, resp.message)
         return None
 

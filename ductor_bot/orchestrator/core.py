@@ -8,6 +8,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
+from ductor_bot.app_identity import DEFAULT_INTERAGENT_PORT
 from ductor_bot.background import (
     BackgroundSubmit,
     BackgroundTask,
@@ -121,7 +122,7 @@ class Orchestrator:
         *,
         docker_container: str = "",
         agent_name: str = "main",
-        interagent_port: int = 8799,
+        interagent_port: int = DEFAULT_INTERAGENT_PORT,
     ) -> None:
         self._config = config
         self._paths: DuctorPaths = paths

@@ -9,6 +9,8 @@ import signal
 import subprocess
 import sys
 
+from ductor_bot.app_identity import CLI_COMMAND
+
 logger = logging.getLogger(__name__)
 
 _IS_WINDOWS = sys.platform == "win32"
@@ -162,7 +164,7 @@ def _kill_ductor_exe_windows(current_pid: int) -> int:
         if len(parts) < 2:
             continue
         name = parts[0].lower()
-        if name not in ("ductor.exe", "ductor"):
+        if name not in (f"{CLI_COMMAND}.exe", CLI_COMMAND):
             continue
         with contextlib.suppress(ValueError):
             pid = int(parts[1])
@@ -189,7 +191,7 @@ def _kill_venv_python_windows(current_pid: int) -> int:
                 "-Command",
                 (
                     "Get-Process python,pythonw -ErrorAction SilentlyContinue"
-                    " | Where-Object { $_.Path -like '*pipx*ductor*' }"
+                    f" | Where-Object {{ $_.Path -like '*pipx*{CLI_COMMAND}*' }}"
                     " | Select-Object -ExpandProperty Id"
                 ),
             ],

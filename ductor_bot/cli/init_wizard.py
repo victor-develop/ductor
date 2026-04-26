@@ -18,6 +18,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.text import Text
 
+from ductor_bot.app_identity import DEFAULT_DOCKER_CONTAINER, DEFAULT_DOCKER_IMAGE
 from ductor_bot.cli.auth import (
     AuthResult,
     AuthStatus,
@@ -760,8 +761,8 @@ def run_smart_reset(ductor_home: Path) -> None:
             data = json.loads(config_path.read_text(encoding="utf-8"))
             docker = data.get("docker", {})
             if isinstance(docker, dict) and docker.get("enabled"):
-                docker_container = str(docker.get("container_name", "ductor-sandbox"))
-                docker_image = str(docker.get("image_name", "ductor-sandbox"))
+                docker_container = str(docker.get("container_name", DEFAULT_DOCKER_CONTAINER))
+                docker_image = str(docker.get("image_name", DEFAULT_DOCKER_IMAGE))
         except (json.JSONDecodeError, OSError):
             pass
 

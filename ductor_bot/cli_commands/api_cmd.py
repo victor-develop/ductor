@@ -9,6 +9,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from ductor_bot.app_identity import CLI_COMMAND, DEFAULT_API_PORT, PACKAGE_NAME
 from ductor_bot.config import _BIND_ALL_INTERFACES
 from ductor_bot.i18n import t_rich
 from ductor_bot.workspace.paths import resolve_paths
@@ -38,8 +39,8 @@ def print_api_help() -> None:
     table = Table(show_header=False, box=None, padding=(0, 2))
     table.add_column(style="bold green", min_width=30)
     table.add_column()
-    table.add_row("ductor api enable", "Enable the WebSocket API server")
-    table.add_row("ductor api disable", "Disable the WebSocket API server")
+    table.add_row(f"{CLI_COMMAND} api enable", "Enable the WebSocket API server")
+    table.add_row(f"{CLI_COMMAND} api disable", "Disable the WebSocket API server")
 
     # Show current status
     paths = resolve_paths()
@@ -49,7 +50,7 @@ def print_api_help() -> None:
             data = json.loads(paths.config_path.read_text(encoding="utf-8"))
             api_cfg = data.get("api", {})
             if isinstance(api_cfg, dict) and api_cfg.get("enabled"):
-                port = api_cfg.get("port", 8741)
+                port = api_cfg.get("port", DEFAULT_API_PORT)
                 status = t_rich("api.status_enabled", port=port)
             elif isinstance(api_cfg, dict):
                 status = t_rich("api.status_disabled")
@@ -81,8 +82,8 @@ def api_install_hint() -> str:
 
     mode = detect_install_mode()
     if mode == "pipx":
-        return "pipx inject ductor PyNaCl"
-    return "pip install ductor[api]"
+        return f"pipx inject {PACKAGE_NAME} PyNaCl"
+    return f"pip install {PACKAGE_NAME}[api]"
 
 
 def api_enable() -> None:
@@ -115,7 +116,7 @@ def api_enable() -> None:
     if not api.get("token"):
         api["token"] = _secrets.token_urlsafe(32)
     api.setdefault("host", _BIND_ALL_INTERFACES)
-    api.setdefault("port", 8741)
+    api.setdefault("port", DEFAULT_API_PORT)
     api.setdefault("chat_id", 0)
     api.setdefault("allow_public", False)
     from ductor_bot.infra.json_store import atomic_json_save

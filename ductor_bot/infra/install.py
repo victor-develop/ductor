@@ -8,19 +8,21 @@ import sys
 from importlib.metadata import distribution
 from typing import Literal
 
+from ductor_bot.app_identity import PACKAGE_NAME
+
 logger = logging.getLogger(__name__)
 
 InstallMode = Literal["pipx", "pip", "dev"]
 
-_PACKAGE_NAME = "ductor"
+_PACKAGE_NAME = PACKAGE_NAME
 
 
 def detect_install_mode() -> InstallMode:
     """Detect installation method at runtime.
 
     Returns:
-        ``"pipx"`` -- installed via ``pipx install ductor``
-        ``"pip"``  -- installed via ``pip install ductor`` (from PyPI)
+        ``"pipx"`` -- installed via ``pipx install ductor-slack``
+        ``"pip"``  -- installed via ``pip install ductor-slack`` (from PyPI)
         ``"dev"``  -- editable install (``pip install -e .``) or running from source
     """
     if "pipx" in sys.prefix:

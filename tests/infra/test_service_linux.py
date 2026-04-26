@@ -20,15 +20,15 @@ from tests.infra.conftest import make_completed
 
 class TestGenerateServiceUnit:
     def test_contains_binary_path(self) -> None:
-        unit = _generate_service_unit("/usr/local/bin/ductor")
-        assert "ExecStart=/usr/local/bin/ductor" in unit
+        unit = _generate_service_unit("/usr/local/bin/ductor-slack")
+        assert "ExecStart=/usr/local/bin/ductor-slack" in unit
 
     def test_has_restart_policy(self) -> None:
-        unit = _generate_service_unit("ductor")
+        unit = _generate_service_unit("ductor-slack")
         assert "Restart=on-failure" in unit
 
     def test_has_service_section(self) -> None:
-        unit = _generate_service_unit("ductor")
+        unit = _generate_service_unit("ductor-slack")
         assert "[Service]" in unit
         assert "[Unit]" in unit
         assert "[Install]" in unit
@@ -38,7 +38,7 @@ class TestGenerateServiceUnit:
         (tmp_path / ".nvm" / "versions" / "node" / "v22.0.0" / "bin").mkdir(parents=True)
 
         with patch("ductor_bot.infra.service_linux.Path.home", return_value=tmp_path):
-            unit = _generate_service_unit("ductor")
+            unit = _generate_service_unit("ductor-slack")
 
         assert f"{tmp_path}/.nvm/versions/node/v24.0.0/bin" in unit
         assert f"{tmp_path}/.nvm/versions/node/v22.0.0/bin" in unit
@@ -92,7 +92,7 @@ class TestStartService:
         start_service(console)
         mock_run.assert_not_called()
         console.print.assert_called_with(
-            "[dim]Service not installed. Run [bold]ductor service install[/bold].[/dim]"
+            "[dim]Service not installed. Run [bold]ductor-slack service install[/bold].[/dim]"
         )
 
     @patch("ductor_bot.infra.service_linux._run_systemctl")

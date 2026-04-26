@@ -10,8 +10,8 @@
    - Gemini CLI: `npm install -g @google/gemini-cli` and authenticate in `gemini`
 4. One of these messaging transports:
     - **Telegram**: Bot token from [@BotFather](https://t.me/BotFather) + user ID from [@userinfobot](https://t.me/userinfobot)
-    - **Matrix**: install Matrix support first (`ductor install matrix` or `pip install \"ductor[matrix]\"`), then provide homeserver URL, user ID, and password/access token
-    - **Slack**: install Slack support first (`pip install "ductor[slack]"`), then create a Slack app with Socket Mode, the bot/app scopes below, and provide bot/app tokens plus Slack member/channel IDs for the allowlist
+    - **Matrix**: install Matrix support first (`ductor-slack install matrix` or `pip install "ductor-slack[matrix]"`), then provide homeserver URL, user ID, and password/access token
+    - **Slack**: install Slack support first (`pip install "ductor-slack[slack]"`), then create a Slack app with Socket Mode, the bot/app scopes below, and provide bot/app tokens plus Slack member/channel IDs for the allowlist
 5. Docker optional (recommended for sandboxing)
 
 ## Install
@@ -19,13 +19,13 @@
 ### pipx (recommended)
 
 ```bash
-pipx install ductor
+pipx install ductor-slack
 ```
 
 ### pip
 
 ```bash
-pip install ductor
+pip install ductor-slack
 ```
 
 ### from source
@@ -40,7 +40,7 @@ pip install -e ".[dev]"
 ## First run
 
 ```bash
-ductor
+ductor-slack
 ```
 
 On first run, onboarding does:
@@ -51,7 +51,7 @@ On first run, onboarding does:
 - asks timezone,
 - offers Docker sandboxing (with optional AI/ML package selection),
 - offers service install,
-- writes config and seeds `~/.ductor/`.
+- writes config and seeds `~/.ductor-slack/`.
 
 Multiple transports can run in parallel (e.g. Telegram + Slack
 simultaneously). After initial setup, configure the `transports` array
@@ -66,7 +66,7 @@ ductor's Slack transport follows the same modern pattern Hermes uses: **Slack Bo
 ### 1. Install the Slack extra
 
 ```bash
-pip install "ductor[slack]"
+pip install "ductor-slack[slack]"
 ```
 
 ### 2. Create a Slack app
@@ -143,7 +143,7 @@ If you change scopes or event subscriptions later, reinstall the app so Slack ap
 
 You can get them from Slack's profile/channel details UI.
 
-### 9. Configure ductor
+### 9. Configure ductor-slack
 
 ```json
 {
@@ -178,8 +178,8 @@ Behavior summary:
 sudo apt update && sudo apt install python3 python3-pip python3-venv nodejs npm
 pip install pipx
 pipx ensurepath
-pipx install ductor
-ductor
+pipx install ductor-slack
+ductor-slack
 ```
 
 Optional Docker:
@@ -194,8 +194,8 @@ sudo usermod -aG docker $USER
 ```bash
 brew install python@3.11 node pipx
 pipx ensurepath
-pipx install ductor
-ductor
+pipx install ductor-slack
+ductor-slack
 ```
 
 ### Windows (native)
@@ -205,8 +205,8 @@ winget install Python.Python.3.11
 winget install OpenJS.NodeJS
 pip install pipx
 pipx ensurepath
-pipx install ductor
-ductor
+pipx install ductor-slack
+ductor-slack
 ```
 
 Native Windows is fully supported, including service management via Task Scheduler.
@@ -219,8 +219,8 @@ WSL works too. Install like Linux inside WSL.
 sudo apt update && sudo apt install python3 python3-pip python3-venv nodejs npm
 pip install pipx
 pipx ensurepath
-pipx install ductor
-ductor
+pipx install ductor-slack
+ductor-slack
 ```
 
 ## Docker sandboxing
@@ -245,44 +245,44 @@ Notes:
 Docker CLI shortcuts:
 
 ```bash
-ductor docker enable
-ductor docker disable
-ductor docker rebuild
-ductor docker mount /path/to/project
-ductor docker unmount /path/to/project
-ductor docker mounts
-ductor docker extras
-ductor docker extras-add <id>
-ductor docker extras-remove <id>
+ductor-slack docker enable
+ductor-slack docker disable
+ductor-slack docker rebuild
+ductor-slack docker mount /path/to/project
+ductor-slack docker unmount /path/to/project
+ductor-slack docker mounts
+ductor-slack docker extras
+ductor-slack docker extras-add <id>
+ductor-slack docker extras-remove <id>
 ```
 
 - `enable` / `disable` toggles `docker.enabled` in `config.json` (restart bot afterwards).
 - `rebuild` stops the bot, removes container + image, and forces fresh build on next start.
 - `mount` / `unmount` manage `docker.mounts` entries.
 - mounts are available in-container under `/mnt/<name>` (basename-based mapping with collision suffixes).
-- run `ductor docker mounts` to inspect effective mapping and broken paths.
+- run `ductor-slack docker mounts` to inspect effective mapping and broken paths.
 - `extras` lists all optional packages with their selection status.
 - `extras-add` / `extras-remove` manage optional AI/ML packages (Whisper, PyTorch, OpenCV, etc.) in `config.json`. Transitive dependencies are resolved automatically.
-- after changing extras, run `ductor docker rebuild` to apply. Build output is streamed live to the terminal.
+- after changing extras, run `ductor-slack docker rebuild` to apply. Build output is streamed live to the terminal.
 
 ## Direct API server (optional)
 
 Preferred enable path:
 
 ```bash
-ductor api enable
+ductor-slack api enable
 ```
 
 This writes/updates the `api` block in `config.json` and generates a token if missing.
 
-`ductor api enable` requires PyNaCl (used for E2E encryption against the direct API). PyNaCl is **only needed when the direct WebSocket API is enabled** — the core bot, Telegram, and Matrix transports run without it. If it is missing:
+`ductor-slack api enable` requires PyNaCl (used for E2E encryption against the direct API). PyNaCl is **only needed when the direct WebSocket API is enabled** — the core bot, Telegram, and Matrix transports run without it. If it is missing:
 
 ```bash
 # pipx install
-pipx inject ductor PyNaCl
+pipx inject ductor-slack PyNaCl
 
 # pip install
-pip install "ductor[api]"
+pip install "ductor-slack[api]"
 ```
 
 Manual config equivalent:
@@ -302,7 +302,7 @@ Manual config equivalent:
 
 Notes:
 
-- token is generated and persisted by `ductor api enable` (runtime also generates it on API start if still empty).
+- token is generated and persisted by `ductor-slack api enable` (runtime also generates it on API start if still empty).
 - WebSocket auth frame must include `type="auth"`, `token`, and `e2e_pk` (client ephemeral public key).
 - endpoints:
   - WebSocket: `ws://<host>:8741/ws`
@@ -317,17 +317,17 @@ Notes:
 Install:
 
 ```bash
-ductor service install
+ductor-slack service install
 ```
 
 Manage:
 
 ```bash
-ductor service status
-ductor service start
-ductor service stop
-ductor service logs
-ductor service uninstall
+ductor-slack service status
+ductor-slack service start
+ductor-slack service stop
+ductor-slack service logs
+ductor-slack service uninstall
 ```
 
 Backend details and platform quirks: [Service Management](modules/service_management.md)
@@ -336,7 +336,7 @@ Backends:
 
 - Linux: `systemd --user` service `~/.config/systemd/user/ductor.service`
 - macOS: Launch Agent `~/Library/LaunchAgents/dev.ductor.plist`
-- Windows: Task Scheduler task `ductor`
+- Windows: Task Scheduler task `ductor-slack`
 
 Linux note:
 
@@ -351,7 +351,7 @@ Windows note:
 Log command behavior:
 
 - Linux: live `journalctl --user -u ductor -f`
-- macOS/Windows: recent lines from `~/.ductor/logs/agent.log` (fallback newest `*.log`)
+- macOS/Windows: recent lines from `~/.ductor-slack/logs/agent.log` (fallback newest `*.log`)
 
 ## VPS notes
 
@@ -362,8 +362,8 @@ ssh user@host
 sudo apt update && sudo apt install python3 python3-pip python3-venv nodejs npm docker.io
 pip install pipx
 pipx ensurepath
-pipx install ductor
-ductor
+pipx install ductor-slack
+ductor-slack
 ```
 
 Security basics:
@@ -371,15 +371,15 @@ Security basics:
 - keep SSH key-only auth
 - enable Docker sandboxing for unattended automation
 - keep `allowed_user_ids` restricted
-- use `/upgrade` or `pipx upgrade ductor`
+- use `/upgrade` or `pipx upgrade ductor-slack`
 
 ## Troubleshooting
 
 ### Bot not responding
 
 1. check transport credentials (`telegram_token` / `matrix` block) + allowlists
-2. run `ductor status`
-3. inspect `~/.ductor/logs/agent.log`
+2. run `ductor-slack status`
+3. inspect `~/.ductor-slack/logs/agent.log`
 4. run `/diagnose` in chat
 
 ### CLI installed but not authenticated
@@ -413,12 +413,12 @@ Then validate `docker.enabled` + image/container names in config.
 Upgrade:
 
 ```bash
-pipx upgrade ductor
+pipx upgrade ductor-slack
 ```
 
 Uninstall:
 
 ```bash
-pipx uninstall ductor
-rm -rf ~/.ductor  # optional data removal
+pipx uninstall ductor-slack
+rm -rf ~/.ductor-slack  # optional data removal
 ```

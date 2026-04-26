@@ -6,7 +6,7 @@ import base64
 
 import pytest
 
-pytest.importorskip("nacl", reason="PyNaCl not installed (optional: pip install ductor[api])")
+pytest.importorskip("nacl", reason="PyNaCl not installed (optional: pip install ductor-slack[api])")
 
 from nacl.exceptions import CryptoError
 

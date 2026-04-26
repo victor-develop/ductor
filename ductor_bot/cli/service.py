@@ -12,6 +12,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, replace
 from typing import TYPE_CHECKING
 
+from ductor_bot.app_identity import DEFAULT_INTERAGENT_PORT
 from ductor_bot.cli.base import CLIConfig
 from ductor_bot.cli.factory import create_cli
 from ductor_bot.cli.stream_events import (
@@ -101,7 +102,7 @@ class CLIServiceConfig:
     codex_cli_parameters: tuple[str, ...] = ()
     gemini_cli_parameters: tuple[str, ...] = ()
     agent_name: str = "main"
-    interagent_port: int = 8799
+    interagent_port: int = DEFAULT_INTERAGENT_PORT
     # External transcription hooks (#66) — empty strings keep built-in strategies.
     transcribe_command: str = ""
     video_transcribe_command: str = ""

@@ -1,10 +1,10 @@
 {
-    "_comment": "Full example config showing all features. Copy to ~/.ductor/config/config.json and adjust.",
+    "_comment": "Full example config showing all features. Copy to ~/.ductor-slack/config/config.json and adjust.",
     "log_level": "INFO",
     "provider": "claude",
     "model": "sonnet",
     "language": "en",
-    "ductor_home": "~/.ductor",
+    "ductor_home": "~/.ductor-slack",
     "user_timezone": "Europe/Berlin",
     "update_check": true,
     "idle_timeout_minutes": 1440,
@@ -53,8 +53,8 @@
     },
     "docker": {
         "enabled": true,
-        "image_name": "ductor-sandbox",
-        "container_name": "ductor-sandbox",
+        "image_name": "ductor-slack-sandbox",
+        "container_name": "ductor-slack-sandbox",
         "auto_build": true,
         "mount_host_cache": false,
         "mounts": ["/home/you/projects"],
@@ -90,7 +90,7 @@
     "webhooks": {
         "enabled": true,
         "host": "127.0.0.1",
-        "port": 8742,
+        "port": 18742,
         "token": "YOUR_WEBHOOK_SECRET",
         "max_body_bytes": 262144,
         "rate_limit_per_minute": 30,
@@ -98,7 +98,7 @@
     "api": {
         "enabled": false,
         "host": "0.0.0.0",
-        "port": 8741,
+        "port": 18741,
         "token": "YOUR_API_TOKEN",
         "chat_id": 123456789,
         "allow_public": false,
@@ -121,5 +121,5 @@
         "max_extensions": 3,
     },
     "tasks": {"enabled": true, "max_parallel": 5, "timeout_seconds": 3600.0},
-    "interagent_port": 8799,
+    "interagent_port": 18799,
 }

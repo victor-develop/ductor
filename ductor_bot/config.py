@@ -9,6 +9,15 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
+from ductor_bot.app_identity import (
+    DEFAULT_API_PORT,
+    DEFAULT_DOCKER_CONTAINER,
+    DEFAULT_DOCKER_IMAGE,
+    DEFAULT_HOME,
+    DEFAULT_INTERAGENT_PORT,
+    DEFAULT_WEBHOOK_PORT,
+)
+
 logger = logging.getLogger(__name__)
 NULLISH_TEXT_VALUES: frozenset[str] = frozenset({"null", "none"})
 DEFAULT_EMPTY_GEMINI_API_KEY: str = "null"
@@ -62,8 +71,8 @@ class DockerConfig(BaseModel):
     """Settings for Docker-based CLI sandboxing."""
 
     enabled: bool = False
-    image_name: str = "ductor-sandbox"
-    container_name: str = "ductor-sandbox"
+    image_name: str = DEFAULT_DOCKER_IMAGE
+    container_name: str = DEFAULT_DOCKER_CONTAINER
     auto_build: bool = True
     mount_host_cache: bool = False
     mounts: list[str] = Field(default_factory=list)
@@ -274,7 +283,7 @@ class WebhookConfig(BaseModel):
 
     enabled: bool = False
     host: str = "127.0.0.1"
-    port: int = 8742
+    port: int = DEFAULT_WEBHOOK_PORT
     token: str = ""
     max_body_bytes: int = 262144
     rate_limit_per_minute: int = 30
@@ -345,7 +354,7 @@ class ApiConfig(BaseModel):
 
     enabled: bool = False
     host: str = _BIND_ALL_INTERFACES
-    port: int = 8741
+    port: int = DEFAULT_API_PORT
     token: str = ""
     chat_id: int = 0
     allow_public: bool = False
@@ -402,7 +411,7 @@ class AgentConfig(BaseModel):
     log_level: str = "INFO"
     provider: str = "claude"
     model: str = "opus"
-    ductor_home: str = "~/.ductor"
+    ductor_home: str = DEFAULT_HOME
     idle_timeout_minutes: int = 1440
     session_age_warning_hours: int = 12
     daily_reset_hour: int = 4
@@ -435,7 +444,7 @@ class AgentConfig(BaseModel):
     language: str = "en"
     update_check: bool = True
     group_mention_only: bool = False
-    interagent_port: int = 8799
+    interagent_port: int = DEFAULT_INTERAGENT_PORT
     transport: str = "telegram"  # "telegram" | "matrix" | "slack"
     transports: list[str] = Field(default_factory=list)
     telegram_token: str = ""

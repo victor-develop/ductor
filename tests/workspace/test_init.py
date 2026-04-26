@@ -16,7 +16,7 @@ if TYPE_CHECKING:
 def _setup_home_defaults(fw_root: Path) -> None:
     """Create a minimal home-defaults template for testing.
 
-    Mirrors the repo ``workspace/`` structure (1:1 copy of ~/.ductor/).
+    Mirrors the repo ``workspace/`` structure (1:1 copy of ~/.ductor-slack/).
     """
     ws = fw_root / "workspace"
 
@@ -394,10 +394,10 @@ def test_cleans_orphan_symlinks(tmp_path: Path) -> None:
 def test_inject_docker_notice(tmp_path: Path) -> None:
     paths = _make_paths(tmp_path)
     init_workspace(paths)
-    inject_runtime_environment(paths, docker_container="ductor-sandbox")
+    inject_runtime_environment(paths, docker_container="ductor-slack-sandbox")
     content = (paths.workspace / "CLAUDE.md").read_text()
     assert "DOCKER CONTAINER" in content
-    assert "ductor-sandbox" in content
+    assert "ductor-slack-sandbox" in content
     # AGENTS.md mirror should also have it
     agents = (paths.workspace / "AGENTS.md").read_text()
     assert "DOCKER CONTAINER" in agents

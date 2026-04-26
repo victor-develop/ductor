@@ -11,45 +11,45 @@ from ductor_bot.workspace.paths import DuctorPaths, resolve_paths
 
 def test_workspace_property() -> None:
     paths = DuctorPaths(
-        ductor_home=Path("/home/test/.ductor"),
+        ductor_home=Path("/home/test/.ductor-slack"),
         home_defaults=Path("/opt/ductor/workspace"),
-        framework_root=Path("/opt/ductor"),
+        framework_root=Path("/opt/ductor-slack"),
     )
-    assert paths.workspace == Path("/home/test/.ductor/workspace")
+    assert paths.workspace == Path("/home/test/.ductor-slack/workspace")
 
 
 def test_config_path() -> None:
     paths = DuctorPaths(
-        ductor_home=Path("/home/test/.ductor"),
+        ductor_home=Path("/home/test/.ductor-slack"),
         home_defaults=Path("/opt/ductor/workspace"),
-        framework_root=Path("/opt/ductor"),
+        framework_root=Path("/opt/ductor-slack"),
     )
-    assert paths.config_path == Path("/home/test/.ductor/config/config.json")
+    assert paths.config_path == Path("/home/test/.ductor-slack/config/config.json")
 
 
 def test_sessions_path() -> None:
     paths = DuctorPaths(
-        ductor_home=Path("/home/test/.ductor"),
+        ductor_home=Path("/home/test/.ductor-slack"),
         home_defaults=Path("/opt/ductor/workspace"),
-        framework_root=Path("/opt/ductor"),
+        framework_root=Path("/opt/ductor-slack"),
     )
-    assert paths.sessions_path == Path("/home/test/.ductor/sessions.json")
+    assert paths.sessions_path == Path("/home/test/.ductor-slack/sessions.json")
 
 
 def test_logs_dir() -> None:
     paths = DuctorPaths(
-        ductor_home=Path("/home/test/.ductor"),
+        ductor_home=Path("/home/test/.ductor-slack"),
         home_defaults=Path("/opt/ductor/workspace"),
-        framework_root=Path("/opt/ductor"),
+        framework_root=Path("/opt/ductor-slack"),
     )
-    assert paths.logs_dir == Path("/home/test/.ductor/logs")
+    assert paths.logs_dir == Path("/home/test/.ductor-slack/logs")
 
 
 def test_home_defaults() -> None:
     paths = DuctorPaths(
         ductor_home=Path("/x"),
         home_defaults=Path("/opt/ductor/workspace"),
-        framework_root=Path("/opt/ductor"),
+        framework_root=Path("/opt/ductor-slack"),
     )
     assert paths.home_defaults == Path("/opt/ductor/workspace")
 
@@ -76,4 +76,4 @@ def test_resolve_paths_defaults() -> None:
         }
         with patch.dict(os.environ, env_clean, clear=True):
             paths = resolve_paths()
-            assert paths.ductor_home == (Path.home() / ".ductor").resolve()
+            assert paths.ductor_home == (Path.home() / ".ductor-slack").resolve()

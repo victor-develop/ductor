@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 from typing import Any
 
+from ductor_bot.app_identity import DEFAULT_HOME
 from ductor_bot._home_defaults.workspace.tools._tool_shared import (
     available_ids,
     find_by_id,
@@ -19,7 +20,7 @@ from ductor_bot._home_defaults.workspace.tools._tool_shared import (
 # Re-export so existing tool scripts keep working with ``from _shared import sanitize_name``
 sanitize_name = sanitize_name
 
-DUCTOR_HOME = Path(os.environ.get("DUCTOR_HOME", "~/.ductor")).expanduser()
+DUCTOR_HOME = Path(os.environ.get("DUCTOR_HOME", DEFAULT_HOME)).expanduser()
 HOOKS_PATH = DUCTOR_HOME / "webhooks.json"
 CONFIG_PATH = DUCTOR_HOME / "config" / "config.json"
 CRON_TASKS_DIR = DUCTOR_HOME / "workspace" / "cron_tasks"

@@ -11,6 +11,7 @@ import sys
 from collections.abc import Awaitable, Callable
 from pathlib import Path
 
+from ductor_bot.app_identity import PACKAGE_NAME
 from ductor_bot.infra.version import VersionInfo, _parse_version, check_pypi
 
 logger = logging.getLogger(__name__)
@@ -84,18 +85,18 @@ def _build_upgrade_command(
     if mode == "pipx":
         # On non-Windows, prefer `pipx upgrade` for plain upgrades (no pin).
         if target_version is None and not force_reinstall and sys.platform != "win32":
-            return ["pipx", "upgrade", "--force", "ductor"]
+            return ["pipx", "upgrade", "--force", PACKAGE_NAME]
         # `pipx runpip` upgrades inside the venv.  On Windows this is
         # required because `pipx upgrade` tries to overwrite the global
         # ductor.exe which the running process holds locked.
-        spec = f"ductor=={target_version}" if target_version else "ductor"
-        cmd = ["pipx", "runpip", "ductor", "install", "--upgrade", "--no-cache-dir"]
+        spec = f"{PACKAGE_NAME}=={target_version}" if target_version else PACKAGE_NAME
+        cmd = ["pipx", "runpip", PACKAGE_NAME, "install", "--upgrade", "--no-cache-dir"]
         if force_reinstall:
             cmd.append("--force-reinstall")
         cmd.append(spec)
         return cmd
 
-    spec = f"ductor=={target_version}" if target_version else "ductor"
+    spec = f"{PACKAGE_NAME}=={target_version}" if target_version else PACKAGE_NAME
     cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "--no-cache-dir"]
     if force_reinstall:
         cmd.append("--force-reinstall")
@@ -152,7 +153,7 @@ async def _perform_upgrade_impl(
     # On Windows the fallback would hit the same PermissionError on the
     # locked exe, so skip it there.
     if mode == "pipx" and normalized_target is not None and sys.platform != "win32":
-        fallback_cmd = ["pipx", "upgrade", "--force", "ductor"]
+        fallback_cmd = ["pipx", "upgrade", "--force", PACKAGE_NAME]
         fb_ok, fb_output = await _run_upgrade_command(fallback_cmd, env=env)
         combined = "\n\n".join(part for part in (output.strip(), fb_output.strip()) if part)
         return fb_ok, combined
@@ -169,7 +170,7 @@ async def get_installed_version() -> str:
     proc = await asyncio.create_subprocess_exec(
         sys.executable,
         "-c",
-        "from importlib.metadata import version; print(version('ductor'))",
+        f"from importlib.metadata import version; print(version('{PACKAGE_NAME}'))",
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.DEVNULL,
     )

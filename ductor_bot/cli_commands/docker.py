@@ -13,6 +13,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from ductor_bot.app_identity import CLI_COMMAND, DEFAULT_DOCKER_CONTAINER, DEFAULT_DOCKER_IMAGE
 from ductor_bot.i18n import t_rich
 from ductor_bot.workspace.paths import resolve_paths
 
@@ -65,15 +66,17 @@ def print_docker_help() -> None:
     table = Table(show_header=False, box=None, padding=(0, 2))
     table.add_column(style="bold green", min_width=36)
     table.add_column()
-    table.add_row("ductor docker rebuild", "Remove container & image, rebuild on next start")
-    table.add_row("ductor docker enable", "Enable Docker sandboxing")
-    table.add_row("ductor docker disable", "Disable Docker sandboxing")
-    table.add_row("ductor docker mount <path>", "Mount a host directory into the sandbox")
-    table.add_row("ductor docker unmount <path>", "Remove a mounted directory")
-    table.add_row("ductor docker mounts", "List all mounted directories")
-    table.add_row("ductor docker extras", "List available and installed extras")
-    table.add_row("ductor docker extras-add <id>", "Add an extra package")
-    table.add_row("ductor docker extras-remove <id>", "Remove an extra package")
+    table.add_row(
+        f"{CLI_COMMAND} docker rebuild", "Remove container & image, rebuild on next start"
+    )
+    table.add_row(f"{CLI_COMMAND} docker enable", "Enable Docker sandboxing")
+    table.add_row(f"{CLI_COMMAND} docker disable", "Disable Docker sandboxing")
+    table.add_row(f"{CLI_COMMAND} docker mount <path>", "Mount a host directory into the sandbox")
+    table.add_row(f"{CLI_COMMAND} docker unmount <path>", "Remove a mounted directory")
+    table.add_row(f"{CLI_COMMAND} docker mounts", "List all mounted directories")
+    table.add_row(f"{CLI_COMMAND} docker extras", "List available and installed extras")
+    table.add_row(f"{CLI_COMMAND} docker extras-add <id>", "Add an extra package")
+    table.add_row(f"{CLI_COMMAND} docker extras-remove <id>", "Remove an extra package")
     _console.print(
         Panel(table, title="[bold]Docker Commands[/bold]", border_style="blue", padding=(1, 0)),
     )
@@ -129,7 +132,7 @@ def docker_set_enabled(*, enabled: bool) -> None:
     atomic_json_save(config_path, data)
 
     if not enabled:
-        container = str(docker.get("container_name", "ductor-sandbox"))
+        container = str(docker.get("container_name", DEFAULT_DOCKER_CONTAINER))
         _stop_docker_container(container)
 
     if enabled:
@@ -148,8 +151,8 @@ def docker_rebuild() -> None:
         return
 
     result = docker_read_config()
-    container = "ductor-sandbox"
-    image = "ductor-sandbox"
+    container = DEFAULT_DOCKER_CONTAINER
+    image = DEFAULT_DOCKER_IMAGE
     if result is not None:
         _, data = result
         docker = data.get("docker", {})

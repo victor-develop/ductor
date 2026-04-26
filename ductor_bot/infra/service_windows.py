@@ -12,6 +12,7 @@ from xml.etree.ElementTree import Element, SubElement, tostring
 
 from rich.panel import Panel
 
+from ductor_bot.app_identity import SERVICE_NAME
 from ductor_bot.i18n import t_rich
 from ductor_bot.infra.service_base import (
     ensure_console,
@@ -35,7 +36,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_TASK_NAME = "ductor"
+_TASK_NAME = SERVICE_NAME
 _CREATE_NO_WINDOW: int = getattr(subprocess, "CREATE_NO_WINDOW", 0)
 
 _ACCESS_DENIED_HINTS = ("access is denied", "zugriff verweigert", "zugriff wurde verweigert")

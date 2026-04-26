@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ductor_bot.app_identity import SERVICE_NAME
 from ductor_bot.i18n import t_rich
 from ductor_bot.infra.service_base import (
     collect_nvm_bin_dirs,
@@ -30,7 +31,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_SERVICE_NAME = "ductor"
+_SERVICE_NAME = SERVICE_NAME
 _SERVICE_FILE = f"{_SERVICE_NAME}.service"
 
 

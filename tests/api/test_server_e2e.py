@@ -16,7 +16,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-pytest.importorskip("nacl", reason="PyNaCl not installed (optional: pip install ductor[api])")
+pytest.importorskip("nacl", reason="PyNaCl not installed (optional: pip install ductor-slack[api])")
 
 from aiohttp import WSMsgType, web
 from aiohttp.test_utils import TestClient, TestServer

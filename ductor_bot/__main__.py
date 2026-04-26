@@ -103,7 +103,7 @@ def load_config() -> AgentConfig:
     """Load, auto-create, and smart-merge the bot config.
 
     Resolution order:
-    1. ``~/.ductor/config/config.json`` (canonical location)
+    1. ``~/.ductor-slack/config/config.json`` (canonical location)
     2. Copy from ``config.example.json`` in the framework root on first start
     3. Fall back to Pydantic defaults if example file is missing
 
@@ -125,7 +125,7 @@ def load_config() -> AgentConfig:
         else:
             defaults = AgentConfig().model_dump(mode="json")
             defaults["gemini_api_key"] = DEFAULT_EMPTY_GEMINI_API_KEY
-            defaults.pop("api", None)  # Beta: only written by `ductor api enable`
+            defaults.pop("api", None)  # Beta: only written by `ductor-slack api enable`
             atomic_json_save(config_path, defaults)
             logger.info("Created default config at %s", config_path)
 
@@ -142,7 +142,7 @@ def load_config() -> AgentConfig:
 
     defaults = AgentConfig().model_dump(mode="json")
     defaults["gemini_api_key"] = DEFAULT_EMPTY_GEMINI_API_KEY
-    defaults.pop("api", None)  # Beta: only written by `ductor api enable`
+    defaults.pop("api", None)  # Beta: only written by `ductor-slack api enable`
     merged, changed = deep_merge_config(user_data, defaults)
     changed = changed or normalized_existing
 

@@ -9,11 +9,13 @@ from dataclasses import dataclass
 
 import aiohttp
 
+from ductor_bot.app_identity import PACKAGE_NAME, UPSTREAM_REPOSITORY
+
 logger = logging.getLogger(__name__)
 
-_PYPI_URL = "https://pypi.org/pypi/ductor/json"
-_GITHUB_RELEASES_URL = "https://api.github.com/repos/PleasePrompto/ductor/releases"
-_PACKAGE_NAME = "ductor"
+_PYPI_URL = f"https://pypi.org/pypi/{PACKAGE_NAME}/json"
+_GITHUB_RELEASES_URL = f"https://api.github.com/repos/{UPSTREAM_REPOSITORY}/releases"
+_PACKAGE_NAME = PACKAGE_NAME
 _TIMEOUT = aiohttp.ClientTimeout(total=10)
 
 

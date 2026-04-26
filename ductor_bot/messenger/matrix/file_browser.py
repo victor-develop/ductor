@@ -96,7 +96,7 @@ def _format_subdir(paths: DuctorPaths, subdir: str) -> str:
 
     dirs, files = list_directory(target)
 
-    display_path = f"~/.ductor/{subdir}"
+    display_path = f"~/.ductor-slack/{subdir}"
     if not display_path.endswith("/"):
         display_path += "/"
 

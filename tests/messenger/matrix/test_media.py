@@ -95,15 +95,15 @@ class TestDownloadMatrixMedia:
         event.body = "test.txt"
         event.source = {"content": {"info": {"mimetype": "text/plain"}, "msgtype": "m.file"}}
 
-        # Create a class that nio.DownloadError isinstance checks will match
+        # Create a class that MatrixDownloadError isinstance checks will match
         class FakeDownloadError:
             message = "Not found"
 
         error_resp = FakeDownloadError()
         client.download.return_value = error_resp
 
-        # Patch DownloadError inside the module to match our fake class
-        with patch("nio.DownloadError", FakeDownloadError):
+        # Patch the module-local fallback/download error type to match our fake class
+        with patch("ductor_bot.messenger.matrix.media.MatrixDownloadError", FakeDownloadError):
             result = await download_matrix_media(client, event, tmp_path)
 
         assert result is None

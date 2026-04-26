@@ -41,6 +41,7 @@ try:
         AsyncSocketModeHandler as _SlackSocketModeHandler,
     )
     from slack_bolt.async_app import AsyncApp as _SlackAsyncApp
+
     _SLACK_AVAILABLE = True
 except ImportError:  # pragma: no cover - import fallback
     _SLACK_AVAILABLE = False
@@ -261,7 +262,8 @@ class SlackBot:
         reply_thread_ts = thread_ts or (ts if not is_dm else "")
         is_thread_reply = bool(reply_thread_ts and reply_thread_ts != ts)
         has_thread_session = bool(
-            reply_thread_ts and await self._has_active_session_for_thread(channel_id, reply_thread_ts)
+            reply_thread_ts
+            and await self._has_active_session_for_thread(channel_id, reply_thread_ts)
         )
         if not is_dm and self._config.group_mention_only:
             is_mentioned = bool(self._bot_user_id and f"<@{self._bot_user_id}>" in text)
@@ -277,7 +279,9 @@ class SlackBot:
                 self._mark_mentioned_thread(channel_id, reply_thread_ts)
 
         chat_id = self._id_map.channel_to_int(channel_id)
-        topic_id = self._id_map.thread_to_int(channel_id, reply_thread_ts) if reply_thread_ts else None
+        topic_id = (
+            self._id_map.thread_to_int(channel_id, reply_thread_ts) if reply_thread_ts else None
+        )
         key = SessionKey.for_transport("sl", chat_id, topic_id)
         self._last_active_channel = channel_id
 
@@ -318,7 +322,9 @@ class SlackBot:
                     thread_ts=thread_ts,
                 )
         elif classify_command(cmd) in ("orchestrator", "multiagent"):
-            await self._cmd_orchestrator(text=text, channel_id=channel_id, key=key, thread_ts=thread_ts)
+            await self._cmd_orchestrator(
+                text=text, channel_id=channel_id, key=key, thread_ts=thread_ts
+            )
         else:
             await self._dispatch_with_lock(key, text, channel_id, thread_ts)
 
@@ -715,7 +721,9 @@ class SlackBot:
                 or user_id
             )
         except Exception:
-            logger.debug("Failed to resolve Slack user name in channel %s", channel_id, exc_info=True)
+            logger.debug(
+                "Failed to resolve Slack user name in channel %s", channel_id, exc_info=True
+            )
             name = user_id
         resolved = str(name).strip() or user_id
         self._user_name_cache[user_id] = resolved

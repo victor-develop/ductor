@@ -10,6 +10,8 @@ import os
 from dataclasses import dataclass, field
 from pathlib import Path
 
+from ductor_bot.app_identity import DEFAULT_HOME_DIRNAME
+
 # ductor_bot/workspace/paths.py -> ductor_bot/workspace -> ductor_bot
 _PKG_DIR = Path(__file__).resolve().parent.parent
 
@@ -28,7 +30,7 @@ class DuctorPaths:
 
     All framework paths are derived from three roots:
 
-    - ``ductor_home``:    User data directory (default ``~/.ductor``).
+    - ``ductor_home``:    User data directory (default ``~/.ductor-slack``).
     - ``home_defaults``:  Bundled template that mirrors ``ductor_home`` (package-internal).
     - ``framework_root``: Repository root (for Dockerfile, config.example.json).
     """
@@ -171,7 +173,7 @@ def resolve_paths(
     """Build DuctorPaths from explicit values, env vars, or defaults.
 
     Args:
-        ductor_home: User data directory. Falls back to ``$DUCTOR_HOME`` or ``~/.ductor``.
+        ductor_home: User data directory. Falls back to ``$DUCTOR_HOME`` or ``~/.ductor-slack``.
         framework_root: Repository root. Falls back to ``$DUCTOR_FRAMEWORK_ROOT``.
         home_defaults: Template directory. Falls back to ``ductor_bot/_home_defaults/``.
     """
@@ -180,7 +182,7 @@ def resolve_paths(
     else:
         home = (
             Path(
-                os.environ.get("DUCTOR_HOME", str(Path.home() / ".ductor")),
+                os.environ.get("DUCTOR_HOME", str(Path.home() / DEFAULT_HOME_DIRNAME)),
             )
             .expanduser()
             .resolve()

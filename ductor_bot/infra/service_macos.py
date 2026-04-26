@@ -9,6 +9,7 @@ import subprocess
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
+from ductor_bot.app_identity import MACOS_LAUNCHD_LABEL
 from ductor_bot.i18n import t_rich
 from ductor_bot.infra.service_base import (
     collect_nvm_bin_dirs,
@@ -33,7 +34,7 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-_LABEL = "dev.ductor"
+_LABEL = MACOS_LAUNCHD_LABEL
 _PLIST_NAME = f"{_LABEL}.plist"
 
 

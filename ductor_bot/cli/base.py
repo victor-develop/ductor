@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import TYPE_CHECKING
 
+from ductor_bot.app_identity import DEFAULT_INTERAGENT_PORT
 from ductor_bot.cli.stream_events import StreamEvent
 from ductor_bot.cli.types import CLIResponse
 
@@ -101,7 +102,7 @@ class CLIConfig:
     transport: str = "tg"
     # Multi-agent identification:
     agent_name: str = "main"
-    interagent_port: int = 8799
+    interagent_port: int = DEFAULT_INTERAGENT_PORT
     # External transcription hooks (#66) — empty strings keep built-in strategies.
     transcribe_command: str = ""
     video_transcribe_command: str = ""

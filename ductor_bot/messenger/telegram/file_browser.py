@@ -1,4 +1,4 @@
-"""Interactive file browser for the ~/.ductor directory.
+"""Interactive file browser for the ~/.ductor-slack directory.
 
 Renders the ductor home directory as a navigable inline-keyboard tree.
 Folders are clickable buttons that edit the message in-place; files are
@@ -83,7 +83,7 @@ def _build_view(paths: DuctorPaths, rel: str) -> tuple[str, InlineKeyboardMarkup
 
     dirs, files = list_directory(target)
 
-    display_path = f"~/.ductor/{rel}" if rel else "~/.ductor/"
+    display_path = f"~/.ductor-slack/{rel}" if rel else "~/.ductor-slack/"
     if not display_path.endswith("/"):
         display_path += "/"
 

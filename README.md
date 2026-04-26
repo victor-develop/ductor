@@ -8,8 +8,8 @@
 </p>
 
 <p align="center">
-  <a href="https://pypi.org/project/ductor/"><img src="https://img.shields.io/pypi/v/ductor?color=blue" alt="PyPI" /></a>
-  <a href="https://pypi.org/project/ductor/"><img src="https://img.shields.io/pypi/pyversions/ductor?v=1" alt="Python" /></a>
+  <a href="https://pypi.org/project/ductor-slack/"><img src="https://img.shields.io/pypi/v/ductor-slack?color=blue" alt="PyPI" /></a>
+  <a href="https://pypi.org/project/ductor-slack/"><img src="https://img.shields.io/pypi/pyversions/ductor-slack?v=1" alt="Python" /></a>
   <a href="https://github.com/PleasePrompto/ductor/blob/main/LICENSE"><img src="https://img.shields.io/github/license/PleasePrompto/ductor" alt="License" /></a>
 </p>
 
@@ -25,7 +25,7 @@
 
 If you want to control Claude Code, Google's Gemini CLI, or OpenAI's Codex CLI via Telegram, Matrix, or Slack, build automations, or manage multiple agents easily — ductor is the right tool for you. The messaging layer is modular and transports plug into the same transport-agnostic core.
 
-ductor runs on your machine and sends simple console commands as if you were typing them yourself, so you can use your active subscriptions (Claude Max, etc.) directly. No API proxying, no SDK patching, no spoofed headers. Just the official CLIs, executed as subprocesses, with all state kept in plain JSON and Markdown under `~/.ductor/`.
+ductor runs on your machine and sends simple console commands as if you were typing them yourself, so you can use your active subscriptions (Claude Max, etc.) directly. No API proxying, no SDK patching, no spoofed headers. Just the official CLIs, executed as subprocesses, with all state kept in plain JSON and Markdown under `~/.ductor-slack/`.
 
 <p align="center">
   <img src="https://raw.githubusercontent.com/PleasePrompto/ductor/main/docs/images/ductor-start.jpeg" alt="ductor /start screen" width="49%" />
@@ -35,8 +35,8 @@ ductor runs on your machine and sends simple console commands as if you were typ
 ## Quick start
 
 ```bash
-pipx install ductor    # or: uv tool install ductor
-ductor
+pipx install ductor-slack    # or: uv tool install ductor-slack
+ductor-slack
 ```
 
 The onboarding wizard handles CLI checks, transport setup, timezone, optional Docker, and optional background service install.
@@ -47,8 +47,8 @@ The onboarding wizard handles CLI checks, transport setup, timezone, optional Do
 - a Matrix account on a homeserver (homeserver URL, user ID, password/access token), or
 - a Slack bot token + Socket Mode app token (plus the Slack app scopes/events listed in [`docs/installation.md#slack-setup`](docs/installation.md#slack-setup))
 
-For Matrix support: `ductor install matrix` — see [Matrix setup guide](docs/matrix-setup.md).
-For Slack support: `pip install "ductor[slack]"`, then follow [`docs/installation.md#slack-setup`](docs/installation.md#slack-setup) and configure `slack.bot_token` + `slack.app_token`.
+For Matrix support: `ductor-slack install matrix` — see [Matrix setup guide](docs/matrix-setup.md).
+For Slack support: `pip install "ductor-slack[slack]"`, then follow [`docs/installation.md#slack-setup`](docs/installation.md#slack-setup) and configure `slack.bot_token` + `slack.app_token`.
 
 Detailed setup: [`docs/installation.md`](docs/installation.md)
 
@@ -103,7 +103,7 @@ That's 5 independent conversations from a single group. Your private single chat
 
 Each topic can use a different model. Run `/model` inside a topic to change just that topic's provider.
 
-All chats share the same `~/.ductor/` workspace — same tools, same memory, same files. The only thing isolated is the conversation context.
+All chats share the same `~/.ductor-slack/` workspace — same tools, same memory, same files. The only thing isolated is the conversation context.
 
 > **Telegram note:** The Bot API has no method to list existing forum topics.
 > ductor learns topic names from `forum_topic_created` and `forum_topic_edited`
@@ -150,7 +150,7 @@ Each task gets its own memory file (`TASKMEMORY.md`) and can be resumed with fol
 Sub-agents are completely separate bots — own chat, own workspace, own memory, own CLI auth, own config settings (heartbeat, timeouts, model defaults, etc.). Each sub-agent can use a different transport (e.g. main on Telegram, sub-agent on Matrix).
 
 ```bash
-ductor agents add codex-agent    # creates a new bot (needs its own BotFather token)
+ductor-slack agents add codex-agent    # creates a new bot (needs its own BotFather token)
 ```
 
 ```text
@@ -158,7 +158,7 @@ Your main chat (Claude):        "Explain the auth flow"
 codex-agent chat (Codex):       "Refactor the parser module"
 ```
 
-Sub-agents live under `~/.ductor/agents/<name>/` with their own workspace, tools, and memory — fully isolated from the main agent.
+Sub-agents live under `~/.ductor-slack/agents/<name>/` with their own workspace, tools, and memory — fully isolated from the main agent.
 
 You can delegate tasks between agents:
 
@@ -175,14 +175,14 @@ Main chat:  "Ask codex-agent to write tests for the API"
 |---|---|---|---|---|---|
 | **What it is** | Your main 1:1 chat | One topic = one chat | Extra context in any chat | "Do this while I keep working" | Separate bot, own everything |
 | **Context** | One per provider | One per topic per provider | Own context per session | Own context, result flows back | Fully isolated |
-| **Workspace** | `~/.ductor/` | Shared with main | Shared with parent chat | Shared with parent agent | Own under `~/.ductor/agents/` |
+| **Workspace** | `~/.ductor-slack/` | Shared with main | Shared with parent chat | Shared with parent agent | Own under `~/.ductor-slack/agents/` |
 | **Config** | Main config | Shared with main | Shared with parent chat | Shared with parent agent | Own config (heartbeat, timeouts, model, ...) |
-| **Setup** | Automatic | Create group + enable topics | `/session <prompt>` | Automatic or "delegate this" | Telegram: `ductor agents add`; Matrix: `agents.json` / tool scripts |
+| **Setup** | Automatic | Create group + enable topics | `/session <prompt>` | Automatic or "delegate this" | Telegram: `ductor-slack agents add`; Matrix: `agents.json` / tool scripts |
 
 ### How it all fits together
 
 ```text
-~/.ductor/                          ← shared workspace (tools, memory, files)
+~/.ductor-slack/                          ← shared workspace (tools, memory, files)
   │
   ├── Single chat                   ← main agent, private 1:1
   │     ├── main context
@@ -228,9 +228,9 @@ Telegram is the primary transport — full feature set, battle-tested, zero extr
 
 | Messenger | Status | Streaming | Buttons | Install |
 |---|---|---|---|---|
-| **Telegram** | primary | Live message edits | Inline keyboards | `pip install ductor` |
-| **Matrix** | supported | Segment-based (new messages) | Emoji reactions | `ductor install matrix` |
-| **Slack** | supported | Non-streaming | Native threads | `pip install "ductor[slack]"` |
+| **Telegram** | primary | Live message edits | Inline keyboards | `pip install ductor-slack` |
+| **Matrix** | supported | Segment-based (new messages) | Emoji reactions | `ductor-slack install matrix` |
+| **Slack** | supported | Non-streaming | Native threads | `pip install "ductor-slack[slack]"` |
 
 Both transports can run **in parallel** on the same agent:
 
@@ -391,7 +391,7 @@ This is **hot-reloadable** — change the language without restarting the bot.
 | `/sessions` | View/manage active sessions |
 | `/tasks` | View/manage background tasks |
 | `/cron` | Interactive cron management |
-| `/showfiles` | Browse `~/.ductor/` |
+| `/showfiles` | Browse `~/.ductor-slack/` |
 | `/diagnose` | Runtime diagnostics |
 | `/upgrade` | Check/apply updates |
 | `/agents` | Multi-agent status |
@@ -407,47 +407,47 @@ On Slack, these same commands also work as normal message commands (for example 
 ## Common CLI commands
 
 ```bash
-ductor                  # Start bot (auto-onboarding if needed)
-ductor onboarding       # Re-run setup wizard
-ductor reset            # Full reset + onboarding
-ductor stop             # Stop bot
-ductor restart          # Restart bot
-ductor upgrade          # Upgrade and restart
-ductor status           # Runtime status
-ductor help             # CLI overview
-ductor uninstall        # Remove bot + workspace
+ductor-slack            # Start bot (auto-onboarding if needed)
+ductor-slack onboarding       # Re-run setup wizard
+ductor-slack reset            # Full reset + onboarding
+ductor-slack stop             # Stop bot
+ductor-slack restart          # Restart bot
+ductor-slack upgrade          # Upgrade and restart
+ductor-slack status           # Runtime status
+ductor-slack help             # CLI overview
+ductor-slack uninstall        # Remove bot + workspace
 
-ductor service install  # Install as background service
-ductor service status   # Show service status
-ductor service start    # Start service
-ductor service stop     # Stop service
-ductor service logs     # View service logs
-ductor service uninstall
+ductor-slack service install  # Install as background service
+ductor-slack service status   # Show service status
+ductor-slack service start    # Start service
+ductor-slack service stop     # Stop service
+ductor-slack service logs     # View service logs
+ductor-slack service uninstall
 
-ductor docker enable    # Enable Docker sandbox
-ductor docker rebuild   # Rebuild sandbox container
-ductor docker mount /p  # Add host mount
-ductor docker extras    # List optional sandbox packages
+ductor-slack docker enable    # Enable Docker sandbox
+ductor-slack docker rebuild   # Rebuild sandbox container
+ductor-slack docker mount /p  # Add host mount
+ductor-slack docker extras    # List optional sandbox packages
 
-ductor agents list      # List configured sub-agents
-ductor agents add NAME  # Add a sub-agent
-ductor agents remove NAME
+ductor-slack agents list      # List configured sub-agents
+ductor-slack agents add NAME  # Add a sub-agent
+ductor-slack agents remove NAME
 
-ductor api enable       # Enable WebSocket API (beta)
-ductor api disable      # Disable WebSocket API
+ductor-slack api enable       # Enable WebSocket API (beta)
+ductor-slack api disable      # Disable WebSocket API
 
-ductor install matrix   # Install Matrix transport extra
-ductor install api      # Install API/PyNaCl extra
+ductor-slack install matrix   # Install Matrix transport extra
+ductor-slack install api      # Install API/PyNaCl extra
 ```
 
-`ductor agents add` currently scaffolds Telegram sub-agents interactively. Matrix
+`ductor-slack agents add` currently scaffolds Telegram sub-agents interactively. Matrix
 sub-agents are supported at runtime, but you configure them via `agents.json` or
 the bundled agent tool scripts.
 
 ## Workspace layout
 
 ```text
-~/.ductor/
+~/.ductor-slack/
   config/config.json                 # Bot configuration
   sessions.json                      # Chat session state
   named_sessions.json                # Named background sessions

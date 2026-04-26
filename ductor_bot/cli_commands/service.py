@@ -8,6 +8,8 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from ductor_bot.app_identity import CLI_COMMAND
+
 _console = Console()
 
 _SERVICE_SUBCOMMANDS = frozenset({"install", "status", "stop", "start", "logs", "uninstall"})
@@ -33,12 +35,12 @@ def print_service_help() -> None:
     table = Table(show_header=False, box=None, padding=(0, 2))
     table.add_column(style="bold green", min_width=30)
     table.add_column()
-    table.add_row("ductor service install", "Install and start background service")
-    table.add_row("ductor service status", "Show service status")
-    table.add_row("ductor service start", "Start the service")
-    table.add_row("ductor service stop", "Stop the service")
-    table.add_row("ductor service logs", "View live logs")
-    table.add_row("ductor service uninstall", "Remove the service")
+    table.add_row(f"{CLI_COMMAND} service install", "Install and start background service")
+    table.add_row(f"{CLI_COMMAND} service status", "Show service status")
+    table.add_row(f"{CLI_COMMAND} service start", "Start the service")
+    table.add_row(f"{CLI_COMMAND} service stop", "Stop the service")
+    table.add_row(f"{CLI_COMMAND} service logs", "View live logs")
+    table.add_row(f"{CLI_COMMAND} service uninstall", "Remove the service")
     _console.print(
         Panel(table, title="[bold]Service Commands[/bold]", border_style="blue", padding=(1, 0)),
     )

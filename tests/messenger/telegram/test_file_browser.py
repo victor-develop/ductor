@@ -1,4 +1,4 @@
-"""Tests for the interactive ~/.ductor file browser."""
+"""Tests for the interactive ~/.ductor-slack file browser."""
 
 from __future__ import annotations
 
@@ -19,7 +19,7 @@ from ductor_bot.workspace.paths import DuctorPaths
 @pytest.fixture
 def paths(tmp_path: Path) -> DuctorPaths:
     """DuctorPaths with a temporary ductor_home populated with test dirs/files."""
-    home = tmp_path / "ductor"
+    home = tmp_path / "ductor-slack"
     home.mkdir()
 
     (home / "config").mkdir()
@@ -71,7 +71,7 @@ class TestFileBrowserStart:
         text, _keyboard = await file_browser_start(paths)
 
         assert "File Browser" in text
-        assert "~/.ductor/" in text
+        assert "~/.ductor-slack/" in text
         assert "config/" in text
         assert "logs/" in text
         assert "workspace/" in text
@@ -125,7 +125,7 @@ class TestDirectoryNavigation:
 
         assert prompt is None
         assert keyboard is not None
-        assert "~/.ductor/workspace/" in text
+        assert "~/.ductor-slack/workspace/" in text
         assert "skills/" in text
         assert "tools/" in text
         assert "CLAUDE.md" in text
@@ -143,7 +143,7 @@ class TestDirectoryNavigation:
     async def test_deep_navigation(self, paths: DuctorPaths) -> None:
         text, keyboard, _ = await handle_file_browser_callback(paths, "sf:workspace/tools")
 
-        assert "~/.ductor/workspace/tools/" in text
+        assert "~/.ductor-slack/workspace/tools/" in text
         assert "cron_tools/" in text
         assert keyboard is not None
 

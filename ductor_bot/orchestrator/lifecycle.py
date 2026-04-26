@@ -8,6 +8,7 @@ import os
 import secrets
 from typing import TYPE_CHECKING
 
+from ductor_bot.app_identity import PACKAGE_NAME
 from ductor_bot.files.allowed_roots import resolve_allowed_roots
 from ductor_bot.infra.docker import DockerManager
 from ductor_bot.workspace.init import inject_runtime_environment
@@ -130,7 +131,8 @@ async def start_api_server(
         from ductor_bot.api.server import ApiServer
     except ImportError:
         logger.warning(
-            "API server enabled but PyNaCl is not installed. Install with: pip install ductor[api]"
+            "API server enabled but PyNaCl is not installed. Install with: pip install %s[api]",
+            PACKAGE_NAME,
         )
         return
 
