@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
-from ductor_bot.multiagent.bus import AsyncSendOptions, InterAgentBus
+from ductor_slack.multiagent.bus import AsyncSendOptions, InterAgentBus
 
 
 def _make_stack(
@@ -332,7 +332,7 @@ class TestBusNotifyRecipient:
         stack.bot.notification_service = mock_ns
         bus.register("target", stack)
 
-        from ductor_bot.multiagent.bus import AsyncInterAgentTask
+        from ductor_slack.multiagent.bus import AsyncInterAgentTask
 
         task = AsyncInterAgentTask(
             task_id="abc123",
@@ -357,7 +357,7 @@ class TestBusNotifyRecipient:
         stack.bot.notification_service = mock_ns
         bus.register("target", stack)
 
-        from ductor_bot.multiagent.bus import AsyncInterAgentTask
+        from ductor_slack.multiagent.bus import AsyncInterAgentTask
 
         task = AsyncInterAgentTask(
             task_id="abc123",
@@ -378,7 +378,7 @@ class TestBusNotifyRecipient:
         stack.bot.notification_service = None
         bus.register("target", stack)
 
-        from ductor_bot.multiagent.bus import AsyncInterAgentTask
+        from ductor_slack.multiagent.bus import AsyncInterAgentTask
 
         task = AsyncInterAgentTask(
             task_id="abc123",
@@ -400,7 +400,7 @@ class TestBusNotifyRecipient:
         stack.bot.notification_service = mock_ns
         bus.register("target", stack)
 
-        from ductor_bot.multiagent.bus import AsyncInterAgentTask
+        from ductor_slack.multiagent.bus import AsyncInterAgentTask
 
         task = AsyncInterAgentTask(
             task_id="x",

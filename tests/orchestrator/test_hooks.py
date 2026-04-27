@@ -6,17 +6,17 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from ductor_bot.cli.types import AgentResponse
-from ductor_bot.orchestrator.core import Orchestrator
-from ductor_bot.orchestrator.flows import normal
-from ductor_bot.orchestrator.hooks import (
+from ductor_slack.cli.types import AgentResponse
+from ductor_slack.orchestrator.core import Orchestrator
+from ductor_slack.orchestrator.flows import normal
+from ductor_slack.orchestrator.hooks import (
     MAINMEMORY_REMINDER,
     HookContext,
     MessageHook,
     MessageHookRegistry,
     every_n_messages,
 )
-from ductor_bot.session.key import SessionKey
+from ductor_slack.session.key import SessionKey
 
 # ---------------------------------------------------------------------------
 # Unit tests: HookContext, conditions, registry
@@ -194,8 +194,8 @@ async def test_hook_resets_on_new_session(orch: Orchestrator) -> None:
 class TestMemoryReflectionHook:
     def test_build_memory_reflection_hook_uses_configured_cadence(self) -> None:
         """Factory honours every_n_messages from config."""
-        from ductor_bot.config import MemoryReflectionConfig
-        from ductor_bot.orchestrator.hooks import build_memory_reflection_hook
+        from ductor_slack.config import MemoryReflectionConfig
+        from ductor_slack.orchestrator.hooks import build_memory_reflection_hook
 
         hook = build_memory_reflection_hook(MemoryReflectionConfig(every_n_messages=4))
         assert hook.name == "memory_reflection"
@@ -205,8 +205,8 @@ class TestMemoryReflectionHook:
 
     def test_build_memory_reflection_hook_uses_configured_prompt(self) -> None:
         """Factory threads prompt content into hook.suffix verbatim."""
-        from ductor_bot.config import MemoryReflectionConfig
-        from ductor_bot.orchestrator.hooks import build_memory_reflection_hook
+        from ductor_slack.config import MemoryReflectionConfig
+        from ductor_slack.orchestrator.hooks import build_memory_reflection_hook
 
         hook = build_memory_reflection_hook(
             MemoryReflectionConfig(prompt="custom reflection prompt")
@@ -226,8 +226,8 @@ async def test_reflection_hook_registered_when_enabled(
     workspace: tuple[object, object],
 ) -> None:
     """When enabled, Orchestrator.__init__ registers the reflection hook."""
-    from ductor_bot.config import AgentConfig, MemoryReflectionConfig
-    from ductor_bot.orchestrator.core import Orchestrator
+    from ductor_slack.config import AgentConfig, MemoryReflectionConfig
+    from ductor_slack.orchestrator.core import Orchestrator
 
     paths, _base = workspace
     config = AgentConfig(memory_reflection=MemoryReflectionConfig(enabled=True, every_n_messages=7))

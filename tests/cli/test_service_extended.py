@@ -6,11 +6,11 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
-from ductor_bot.cli.base import CLIConfig
-from ductor_bot.cli.process_registry import ProcessRegistry
-from ductor_bot.cli.service import CLIService, CLIServiceConfig
-from ductor_bot.cli.types import AgentRequest
-from ductor_bot.config import ModelRegistry
+from ductor_slack.cli.base import CLIConfig
+from ductor_slack.cli.process_registry import ProcessRegistry
+from ductor_slack.cli.service import CLIService, CLIServiceConfig
+from ductor_slack.cli.types import AgentRequest
+from ductor_slack.config import ModelRegistry
 
 
 def _make_service(tmp_path: Path, **overrides: Any) -> CLIService:
@@ -33,7 +33,7 @@ def _make_service(tmp_path: Path, **overrides: Any) -> CLIService:
 
 def test_make_cli_default_provider(tmp_path: Path) -> None:
     svc = _make_service(tmp_path)
-    with patch("ductor_bot.cli.service.create_cli") as mock_create:
+    with patch("ductor_slack.cli.service.create_cli") as mock_create:
         mock_create.return_value = MagicMock()
         svc._make_cli(AgentRequest(prompt="test", chat_id=1))
 
@@ -45,7 +45,7 @@ def test_make_cli_default_provider(tmp_path: Path) -> None:
 
 def test_make_cli_with_model_override(tmp_path: Path) -> None:
     svc = _make_service(tmp_path)
-    with patch("ductor_bot.cli.service.create_cli") as mock_create:
+    with patch("ductor_slack.cli.service.create_cli") as mock_create:
         mock_create.return_value = MagicMock()
         svc._make_cli(AgentRequest(prompt="test", model_override="sonnet", chat_id=1))
 
@@ -56,7 +56,7 @@ def test_make_cli_with_model_override(tmp_path: Path) -> None:
 
 def test_make_cli_with_provider_override(tmp_path: Path) -> None:
     svc = _make_service(tmp_path)
-    with patch("ductor_bot.cli.service.create_cli") as mock_create:
+    with patch("ductor_slack.cli.service.create_cli") as mock_create:
         mock_create.return_value = MagicMock()
         svc._make_cli(AgentRequest(prompt="test", provider_override="codex", chat_id=1))
 
@@ -67,7 +67,7 @@ def test_make_cli_with_provider_override(tmp_path: Path) -> None:
 def test_make_cli_does_not_auto_fallback_provider(tmp_path: Path) -> None:
     """Native model/provider mapping should be preserved even if unavailable."""
     svc = _make_service(tmp_path, available_providers=frozenset({"codex"}))
-    with patch("ductor_bot.cli.service.create_cli") as mock_create:
+    with patch("ductor_slack.cli.service.create_cli") as mock_create:
         mock_create.return_value = MagicMock()
         svc._make_cli(AgentRequest(prompt="test", chat_id=1))
 
@@ -78,7 +78,7 @@ def test_make_cli_does_not_auto_fallback_provider(tmp_path: Path) -> None:
 
 def test_make_cli_passes_system_prompts(tmp_path: Path) -> None:
     svc = _make_service(tmp_path)
-    with patch("ductor_bot.cli.service.create_cli") as mock_create:
+    with patch("ductor_slack.cli.service.create_cli") as mock_create:
         mock_create.return_value = MagicMock()
         svc._make_cli(
             AgentRequest(
@@ -96,7 +96,7 @@ def test_make_cli_passes_system_prompts(tmp_path: Path) -> None:
 
 def test_make_cli_passes_process_label(tmp_path: Path) -> None:
     svc = _make_service(tmp_path)
-    with patch("ductor_bot.cli.service.create_cli") as mock_create:
+    with patch("ductor_slack.cli.service.create_cli") as mock_create:
         mock_create.return_value = MagicMock()
         svc._make_cli(AgentRequest(prompt="test", chat_id=42, process_label="worker"))
 
@@ -107,7 +107,7 @@ def test_make_cli_passes_process_label(tmp_path: Path) -> None:
 
 def test_make_cli_passes_gemini_api_key(tmp_path: Path) -> None:
     svc = _make_service(tmp_path, gemini_api_key="cfg-key-123")
-    with patch("ductor_bot.cli.service.create_cli") as mock_create:
+    with patch("ductor_slack.cli.service.create_cli") as mock_create:
         mock_create.return_value = MagicMock()
         svc._make_cli(AgentRequest(prompt="test", provider_override="gemini", chat_id=1))
 

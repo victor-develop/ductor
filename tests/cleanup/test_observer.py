@@ -7,9 +7,9 @@ from datetime import UTC
 from pathlib import Path
 from unittest.mock import patch
 
-from ductor_bot.cleanup.observer import CleanupObserver, _delete_old_files
-from ductor_bot.config import AgentConfig, CleanupConfig
-from ductor_bot.workspace.paths import DuctorPaths
+from ductor_slack.cleanup.observer import CleanupObserver, _delete_old_files
+from ductor_slack.config import AgentConfig, CleanupConfig
+from ductor_slack.workspace.paths import DuctorPaths
 
 # -- _delete_old_files (sync helper) --
 
@@ -148,7 +148,7 @@ async def test_maybe_run_skips_wrong_hour(tmp_path: Path) -> None:
     from datetime import datetime
 
     fake_now = datetime(2025, 6, 1, 10, 0, tzinfo=UTC)
-    with patch("ductor_bot.cleanup.observer.datetime") as mock_dt:
+    with patch("ductor_slack.cleanup.observer.datetime") as mock_dt:
         mock_dt.now.return_value = fake_now
         mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)  # noqa: DTZ001, PLW0108
         await observer._maybe_run()
@@ -166,7 +166,7 @@ async def test_maybe_run_skips_duplicate_same_day(tmp_path: Path) -> None:
     from datetime import datetime
 
     fake_now = datetime(2025, 6, 1, 3, 30, tzinfo=UTC)
-    with patch("ductor_bot.cleanup.observer.datetime") as mock_dt:
+    with patch("ductor_slack.cleanup.observer.datetime") as mock_dt:
         mock_dt.now.return_value = fake_now
         mock_dt.side_effect = lambda *a, **kw: datetime(*a, **kw)  # noqa: DTZ001, PLW0108
         await observer._maybe_run()

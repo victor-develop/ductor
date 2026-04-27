@@ -8,7 +8,7 @@ from types import SimpleNamespace
 from typing import TYPE_CHECKING
 from unittest.mock import MagicMock
 
-from ductor_bot.infra import service
+from ductor_slack.infra import service
 
 if TYPE_CHECKING:
     import pytest

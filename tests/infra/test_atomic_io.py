@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ductor_bot.infra.atomic_io import atomic_bytes_save, atomic_text_save
+from ductor_slack.infra.atomic_io import atomic_bytes_save, atomic_text_save
 
 
 class TestAtomicTextSave:

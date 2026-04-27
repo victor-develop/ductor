@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ductor_bot.messenger.telegram.chat_tracker import ChatRecord, ChatTracker
+from ductor_slack.messenger.telegram.chat_tracker import ChatRecord, ChatTracker
 
 
 class TestChatTracker:

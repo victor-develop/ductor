@@ -10,13 +10,13 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from ductor_bot.cli.base import CLIConfig
+from ductor_slack.cli.base import CLIConfig
 
 if TYPE_CHECKING:
     import pytest
-from ductor_bot.cli.gemini_provider import GeminiCLI, _log_cmd, _parse_response
-from ductor_bot.cli.process_registry import ProcessRegistry
-from ductor_bot.cli.stream_events import (
+from ductor_slack.cli.gemini_provider import GeminiCLI, _log_cmd, _parse_response
+from ductor_slack.cli.process_registry import ProcessRegistry
+from ductor_slack.cli.stream_events import (
     AssistantTextDelta,
     ResultEvent,
 )
@@ -27,8 +27,10 @@ from ductor_bot.cli.stream_events import (
 
 
 def _make_cli(monkeypatch: pytest.MonkeyPatch, **overrides: Any) -> GeminiCLI:
-    monkeypatch.setattr("ductor_bot.cli.gemini_provider.find_gemini_cli", lambda: "/usr/bin/gemini")
-    monkeypatch.setattr("ductor_bot.cli.gemini_provider.find_gemini_cli_js", lambda: None)
+    monkeypatch.setattr(
+        "ductor_slack.cli.gemini_provider.find_gemini_cli", lambda: "/usr/bin/gemini"
+    )
+    monkeypatch.setattr("ductor_slack.cli.gemini_provider.find_gemini_cli_js", lambda: None)
     return GeminiCLI(
         CLIConfig(
             provider="gemini",
@@ -143,11 +145,11 @@ class TestPrepareEnv:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         monkeypatch.setattr(
-            "ductor_bot.cli.gemini_provider.find_gemini_cli",
+            "ductor_slack.cli.gemini_provider.find_gemini_cli",
             lambda: "/opt/node/v22.0.0/bin/gemini",
         )
         monkeypatch.setattr(
-            "ductor_bot.cli.gemini_provider.find_gemini_cli_js",
+            "ductor_slack.cli.gemini_provider.find_gemini_cli_js",
             lambda: "/opt/node/v22.0.0/lib/node_modules/@google/gemini-cli/dist/index.js",
         )
         cli = GeminiCLI(CLIConfig(provider="gemini", model="gemini-2.5-pro"))
@@ -162,7 +164,7 @@ class TestPrepareEnv:
     ) -> None:
         fake_paths = type("P", (), {"ductor_home": Path(r"C:\Users\ZOZN109\.ductor")})()
         monkeypatch.setattr(
-            "ductor_bot.cli.gemini_provider.resolve_paths",
+            "ductor_slack.cli.gemini_provider.resolve_paths",
             lambda: fake_paths,
         )
 
@@ -272,7 +274,7 @@ class TestSend:
         proc = _make_process_mock(stdout=response_data.encode(), returncode=0)
 
         with patch(
-            "ductor_bot.cli.gemini_provider.asyncio.create_subprocess_exec", return_value=proc
+            "ductor_slack.cli.gemini_provider.asyncio.create_subprocess_exec", return_value=proc
         ):
             result = await cli.send("Hi")
 
@@ -287,7 +289,7 @@ class TestSend:
         proc.communicate.side_effect = [TimeoutError(), (b"", b"")]
 
         with patch(
-            "ductor_bot.cli.gemini_provider.asyncio.create_subprocess_exec", return_value=proc
+            "ductor_slack.cli.gemini_provider.asyncio.create_subprocess_exec", return_value=proc
         ):
             result = await cli.send("Hi", timeout_seconds=0.01)
 
@@ -301,7 +303,7 @@ class TestSend:
         proc = _make_process_mock(stdout=response_data.encode(), returncode=0)
 
         with patch(
-            "ductor_bot.cli.gemini_provider.asyncio.create_subprocess_exec", return_value=proc
+            "ductor_slack.cli.gemini_provider.asyncio.create_subprocess_exec", return_value=proc
         ):
             result = await cli.send("test")
 
@@ -321,7 +323,7 @@ class TestSend:
         timeout_controller.run_with_timeout = AsyncMock(side_effect=_run_with_timeout)
 
         with patch(
-            "ductor_bot.cli.gemini_provider.asyncio.create_subprocess_exec", return_value=proc
+            "ductor_slack.cli.gemini_provider.asyncio.create_subprocess_exec", return_value=proc
         ):
             result = await cli.send("Hi", timeout_controller=timeout_controller)
 
@@ -346,7 +348,7 @@ class TestSendStreaming:
         proc = _make_streaming_process(lines)
 
         with patch(
-            "ductor_bot.cli.gemini_provider.asyncio.create_subprocess_exec", return_value=proc
+            "ductor_slack.cli.gemini_provider.asyncio.create_subprocess_exec", return_value=proc
         ):
             events = [event async for event in cli.send_streaming("Hi")]
 
@@ -370,7 +372,7 @@ class TestSendStreaming:
         await reg.kill_all(99)
 
         with patch(
-            "ductor_bot.cli.gemini_provider.asyncio.create_subprocess_exec", return_value=proc
+            "ductor_slack.cli.gemini_provider.asyncio.create_subprocess_exec", return_value=proc
         ):
             events = [event async for event in cli.send_streaming("Hi")]
 
@@ -385,7 +387,7 @@ class TestSendStreaming:
         proc = _make_streaming_process(lines, stderr=b"boom", returncode=1)
 
         with patch(
-            "ductor_bot.cli.gemini_provider.asyncio.create_subprocess_exec", return_value=proc
+            "ductor_slack.cli.gemini_provider.asyncio.create_subprocess_exec", return_value=proc
         ):
             events = [event async for event in cli.send_streaming("Hi")]
 
@@ -408,7 +410,7 @@ class TestSendStreaming:
         timeout_controller.try_extend = MagicMock(return_value=False)
 
         with patch(
-            "ductor_bot.cli.gemini_provider.asyncio.create_subprocess_exec", return_value=proc
+            "ductor_slack.cli.gemini_provider.asyncio.create_subprocess_exec", return_value=proc
         ):
             events = [
                 event

@@ -35,7 +35,7 @@ class TestAuthMiddleware:
     """Test user ID filtering middleware."""
 
     async def test_allowed_user_passes(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import AuthMiddleware
+        from ductor_slack.messenger.telegram.middleware import AuthMiddleware
 
         mw = AuthMiddleware(allowed_user_ids={100, 200})
         handler = AsyncMock(return_value="ok")
@@ -46,7 +46,7 @@ class TestAuthMiddleware:
         assert result == "ok"
 
     async def test_blocked_user_dropped(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import AuthMiddleware
+        from ductor_slack.messenger.telegram.middleware import AuthMiddleware
 
         mw = AuthMiddleware(allowed_user_ids={100})
         handler = AsyncMock()
@@ -57,7 +57,7 @@ class TestAuthMiddleware:
         assert result is None
 
     async def test_no_from_user_dropped(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import AuthMiddleware
+        from ductor_slack.messenger.telegram.middleware import AuthMiddleware
 
         mw = AuthMiddleware(allowed_user_ids={100})
         handler = AsyncMock()
@@ -69,7 +69,7 @@ class TestAuthMiddleware:
         assert result is None
 
     async def test_non_message_event_passes(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import AuthMiddleware
+        from ductor_slack.messenger.telegram.middleware import AuthMiddleware
 
         mw = AuthMiddleware(allowed_user_ids={100})
         handler = AsyncMock(return_value="pass")
@@ -82,7 +82,7 @@ class TestAuthMiddleware:
 
     async def test_group_allowed_group_and_user_passes(self) -> None:
         """Message passes when both group and user are allowlisted."""
-        from ductor_bot.messenger.telegram.middleware import AuthMiddleware
+        from ductor_slack.messenger.telegram.middleware import AuthMiddleware
 
         mw = AuthMiddleware(allowed_user_ids={100}, allowed_group_ids={-1001})
         handler = AsyncMock(return_value="ok")
@@ -94,7 +94,7 @@ class TestAuthMiddleware:
 
     async def test_group_blocked_group(self) -> None:
         """Message dropped when group is not in allowed_group_ids."""
-        from ductor_bot.messenger.telegram.middleware import AuthMiddleware
+        from ductor_slack.messenger.telegram.middleware import AuthMiddleware
 
         mw = AuthMiddleware(allowed_user_ids={100}, allowed_group_ids={-1002})
         handler = AsyncMock()
@@ -106,7 +106,7 @@ class TestAuthMiddleware:
 
     async def test_group_blocked_user_in_allowed_group(self) -> None:
         """Message dropped when user is not allowed, even if group is."""
-        from ductor_bot.messenger.telegram.middleware import AuthMiddleware
+        from ductor_slack.messenger.telegram.middleware import AuthMiddleware
 
         mw = AuthMiddleware(allowed_user_ids={100}, allowed_group_ids={-1001})
         handler = AsyncMock()
@@ -118,7 +118,7 @@ class TestAuthMiddleware:
 
     async def test_group_empty_group_ids_blocks_all(self) -> None:
         """Empty allowed_group_ids means no groups are allowed (fail-closed)."""
-        from ductor_bot.messenger.telegram.middleware import AuthMiddleware
+        from ductor_slack.messenger.telegram.middleware import AuthMiddleware
 
         mw = AuthMiddleware(allowed_user_ids={100})
         handler = AsyncMock()
@@ -130,7 +130,7 @@ class TestAuthMiddleware:
 
     async def test_supergroup_uses_group_check(self) -> None:
         """Supergroups also go through group allowlist check."""
-        from ductor_bot.messenger.telegram.middleware import AuthMiddleware
+        from ductor_slack.messenger.telegram.middleware import AuthMiddleware
 
         mw = AuthMiddleware(allowed_user_ids={100}, allowed_group_ids={-1001})
         handler = AsyncMock(return_value="ok")
@@ -142,7 +142,7 @@ class TestAuthMiddleware:
 
     async def test_private_message_ignores_group_ids(self) -> None:
         """Private messages only check allowed_user_ids, not group IDs."""
-        from ductor_bot.messenger.telegram.middleware import AuthMiddleware
+        from ductor_slack.messenger.telegram.middleware import AuthMiddleware
 
         mw = AuthMiddleware(allowed_user_ids={100}, allowed_group_ids=set())
         handler = AsyncMock(return_value="ok")
@@ -156,7 +156,7 @@ class TestAuthMiddleware:
         """CallbackQuery from a group enforces both group and user checks."""
         from aiogram.types import CallbackQuery
 
-        from ductor_bot.messenger.telegram.middleware import AuthMiddleware
+        from ductor_slack.messenger.telegram.middleware import AuthMiddleware
 
         mw = AuthMiddleware(allowed_user_ids={100}, allowed_group_ids={-1001})
         handler = AsyncMock(return_value="ok")
@@ -177,7 +177,7 @@ class TestAuthMiddleware:
         """CallbackQuery from an unauthorized group is dropped."""
         from aiogram.types import CallbackQuery
 
-        from ductor_bot.messenger.telegram.middleware import AuthMiddleware
+        from ductor_slack.messenger.telegram.middleware import AuthMiddleware
 
         mw = AuthMiddleware(allowed_user_ids={100}, allowed_group_ids={-1002})
         handler = AsyncMock()
@@ -196,7 +196,7 @@ class TestAuthMiddleware:
 
     async def test_on_rejected_fires_for_blocked_group(self) -> None:
         """on_rejected callback fires when a group message is rejected."""
-        from ductor_bot.messenger.telegram.middleware import AuthMiddleware
+        from ductor_slack.messenger.telegram.middleware import AuthMiddleware
 
         calls: list[tuple[int, str, str]] = []
         mw = AuthMiddleware(
@@ -214,7 +214,7 @@ class TestAuthMiddleware:
 
     async def test_on_rejected_not_fired_for_allowed_group(self) -> None:
         """on_rejected does NOT fire when the group is allowed."""
-        from ductor_bot.messenger.telegram.middleware import AuthMiddleware
+        from ductor_slack.messenger.telegram.middleware import AuthMiddleware
 
         calls: list[tuple[int, str, str]] = []
         mw = AuthMiddleware(
@@ -231,7 +231,7 @@ class TestAuthMiddleware:
 
     async def test_on_rejected_not_fired_for_private_chat(self) -> None:
         """on_rejected does NOT fire for rejected private messages."""
-        from ductor_bot.messenger.telegram.middleware import AuthMiddleware
+        from ductor_slack.messenger.telegram.middleware import AuthMiddleware
 
         calls: list[tuple[int, str, str]] = []
         mw = AuthMiddleware(
@@ -249,7 +249,7 @@ class TestSequentialMiddleware:
     """Test dedup + per-chat sequential lock."""
 
     async def test_sequential_processing(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         call_order: list[int] = []
@@ -264,7 +264,7 @@ class TestSequentialMiddleware:
         assert call_order == [1, 2]
 
     async def test_duplicate_message_dropped(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         handler = AsyncMock()
@@ -280,7 +280,7 @@ class TestSequentialMiddleware:
         assert handler.call_count == 1
 
     async def test_abort_trigger_bypasses_lock(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         abort_handler = AsyncMock(return_value=True)
@@ -295,7 +295,7 @@ class TestSequentialMiddleware:
         assert result is None
 
     async def test_non_abort_reaches_handler(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         abort_handler = AsyncMock(return_value=False)
@@ -308,7 +308,7 @@ class TestSequentialMiddleware:
         handler.assert_called_once()
 
     async def test_abort_all_trigger_bypasses_lock(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         abort_all_handler = AsyncMock(return_value=True)
@@ -324,7 +324,7 @@ class TestSequentialMiddleware:
 
     async def test_abort_all_checked_before_abort(self) -> None:
         """'stop all' should trigger abort_all, NOT single abort."""
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         abort_handler = AsyncMock(return_value=True)
@@ -341,7 +341,7 @@ class TestSequentialMiddleware:
 
     async def test_single_stop_uses_abort_not_abort_all(self) -> None:
         """'stop' should trigger abort, NOT abort_all."""
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         abort_handler = AsyncMock(return_value=True)
@@ -357,7 +357,7 @@ class TestSequentialMiddleware:
         abort_all_handler.assert_not_called()
 
     async def test_quick_command_bypasses_lock(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         quick_handler = AsyncMock(return_value=True)
@@ -373,7 +373,7 @@ class TestSequentialMiddleware:
 
     async def test_quick_command_while_lock_held(self) -> None:
         """Quick command responds immediately even while a CLI call holds the lock."""
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         results: list[str] = []
@@ -407,7 +407,7 @@ class TestSequentialMiddleware:
         assert results == ["quick", "slow"]
 
     async def test_non_quick_command_blocks_normally(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         quick_handler = AsyncMock(return_value=True)
@@ -425,7 +425,7 @@ class TestGetLock:
     """Tests for SequentialMiddleware.get_lock()."""
 
     def test_same_chat_returns_same_lock(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         lock_a = mw.get_lock(1)
@@ -433,7 +433,7 @@ class TestGetLock:
         assert lock_a is lock_b
 
     def test_different_chats_return_different_locks(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         lock_a = mw.get_lock(1)
@@ -441,7 +441,7 @@ class TestGetLock:
         assert lock_a is not lock_b
 
     def test_returns_asyncio_lock(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         lock = mw.get_lock(42)
@@ -449,7 +449,7 @@ class TestGetLock:
 
     async def test_lock_shared_with_middleware(self) -> None:
         """Lock returned by get_lock is the same one used by __call__."""
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         lock = mw.get_lock(1)
@@ -499,7 +499,7 @@ class TestIsQuickCommand:
         ],
     )
     def test_is_quick_command(self, text: str, expected: bool) -> None:
-        from ductor_bot.messenger.telegram.middleware import is_quick_command
+        from ductor_slack.messenger.telegram.middleware import is_quick_command
 
         assert is_quick_command(text) == expected
 
@@ -508,7 +508,7 @@ class TestQueueManagement:
     """Tests for queue entry tracking and cancellation."""
 
     async def test_is_busy_when_lock_held(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         lock = mw.get_lock(1)
@@ -532,13 +532,13 @@ class TestQueueManagement:
         assert not mw.is_busy(1)
 
     async def test_has_pending_empty(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         assert not mw.has_pending(1)
 
     async def test_cancel_entry_marks_cancelled(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware, _QueueEntry
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware, _QueueEntry
 
         mw = SequentialMiddleware()
         entry = _QueueEntry(entry_id=1, chat_id=10, message_id=100, text_preview="test")
@@ -550,14 +550,14 @@ class TestQueueManagement:
         assert entry.cancelled
 
     async def test_cancel_entry_unknown_returns_false(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         result = await mw.cancel_entry(10, 999)
         assert result is False
 
     async def test_drain_pending_cancels_all(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware, _QueueEntry
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware, _QueueEntry
 
         mw = SequentialMiddleware()
         entries = [
@@ -571,7 +571,7 @@ class TestQueueManagement:
         assert all(e.cancelled for e in entries)
 
     async def test_drain_pending_skips_already_cancelled(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware, _QueueEntry
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware, _QueueEntry
 
         mw = SequentialMiddleware()
         e1 = _QueueEntry(entry_id=1, chat_id=10, message_id=101, text_preview="a")
@@ -583,7 +583,7 @@ class TestQueueManagement:
 
     async def test_cancelled_entry_skips_handler(self) -> None:
         """When a queued message is cancelled, the handler is not invoked."""
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         bot = AsyncMock()
@@ -626,7 +626,7 @@ class TestQueueManagement:
 
     async def test_abort_drains_pending(self) -> None:
         """Abort trigger drains the pending queue."""
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         bot = AsyncMock()
@@ -673,8 +673,8 @@ class TestQueueManagement:
 
     async def test_stop_kills_active_cli_process(self) -> None:
         """End-to-end style: /stop kills the active CLI process via process tree."""
-        from ductor_bot.cli.process_registry import ProcessRegistry
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.cli.process_registry import ProcessRegistry
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         registry = ProcessRegistry()
@@ -711,7 +711,7 @@ class TestQueueManagement:
         stop_msg = _make_message(chat_id=1, text="/stop")
         stop_msg.message_id = 2
 
-        with patch("ductor_bot.cli.process_registry.asyncio.sleep", new_callable=AsyncMock):
+        with patch("ductor_slack.cli.process_registry.asyncio.sleep", new_callable=AsyncMock):
             await mw(AsyncMock(), stop_msg, {})
 
         assert process.stdin.close.called
@@ -726,7 +726,7 @@ class TestForumTopicIndicator:
     """Tests for queue indicator message_thread_id propagation."""
 
     async def test_indicator_includes_thread_id_for_topic_message(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         bot = AsyncMock()
@@ -763,7 +763,7 @@ class TestForumTopicIndicator:
         await task2
 
     async def test_indicator_none_thread_id_for_normal_message(self) -> None:
-        from ductor_bot.messenger.telegram.middleware import SequentialMiddleware
+        from ductor_slack.messenger.telegram.middleware import SequentialMiddleware
 
         mw = SequentialMiddleware()
         bot = AsyncMock()

@@ -7,21 +7,21 @@ from unittest.mock import AsyncMock, MagicMock, PropertyMock
 from aiogram.enums import ParseMode
 from aiogram.types import Message
 
-from ductor_bot.messenger.telegram.streaming import StreamEditor
+from ductor_slack.messenger.telegram.streaming import StreamEditor
 
 
 class TestStreamEditor:
     """Test append-mode streaming: chunks sent as new messages, no edits."""
 
     async def test_has_content_initially_false(self) -> None:
-        from ductor_bot.messenger.telegram.streaming import StreamEditor
+        from ductor_slack.messenger.telegram.streaming import StreamEditor
 
         bot = MagicMock()
         editor = StreamEditor(bot, chat_id=1)
         assert editor.has_content is False
 
     async def test_append_text_sends_new_message(self) -> None:
-        from ductor_bot.messenger.telegram.streaming import StreamEditor
+        from ductor_slack.messenger.telegram.streaming import StreamEditor
 
         bot = MagicMock()
         sent_msg = MagicMock(spec=Message)
@@ -36,7 +36,7 @@ class TestStreamEditor:
         assert "<b>world</b>" in call_kwargs["text"]
 
     async def test_reply_to_first_message_only(self) -> None:
-        from ductor_bot.messenger.telegram.streaming import StreamEditor
+        from ductor_slack.messenger.telegram.streaming import StreamEditor
 
         bot = MagicMock()
         reply_msg = MagicMock(spec=Message)
@@ -54,7 +54,7 @@ class TestStreamEditor:
         assert reply_msg.answer.call_count == 1
 
     async def test_multiple_chunks_each_new_message(self) -> None:
-        from ductor_bot.messenger.telegram.streaming import StreamEditor
+        from ductor_slack.messenger.telegram.streaming import StreamEditor
 
         bot = MagicMock()
         sent_msg = MagicMock(spec=Message)
@@ -67,7 +67,7 @@ class TestStreamEditor:
         assert bot.send_message.call_count == 3
 
     async def test_no_edit_message_text_called(self) -> None:
-        from ductor_bot.messenger.telegram.streaming import StreamEditor
+        from ductor_slack.messenger.telegram.streaming import StreamEditor
 
         bot = MagicMock()
         sent_msg = MagicMock(spec=Message)
@@ -80,7 +80,7 @@ class TestStreamEditor:
         bot.edit_message_text.assert_not_called()
 
     async def test_append_tool_sends_indicator_message(self) -> None:
-        from ductor_bot.messenger.telegram.streaming import StreamEditor
+        from ductor_slack.messenger.telegram.streaming import StreamEditor
 
         bot = MagicMock()
         sent_msg = MagicMock(spec=Message)
@@ -93,7 +93,7 @@ class TestStreamEditor:
         assert "SearchTool" in call_text
 
     async def test_empty_text_not_sent(self) -> None:
-        from ductor_bot.messenger.telegram.streaming import StreamEditor
+        from ductor_slack.messenger.telegram.streaming import StreamEditor
 
         bot = MagicMock()
         bot.send_message = AsyncMock()
@@ -105,7 +105,7 @@ class TestStreamEditor:
         assert editor.has_content is False
 
     async def test_finalize_is_noop(self) -> None:
-        from ductor_bot.messenger.telegram.streaming import StreamEditor
+        from ductor_slack.messenger.telegram.streaming import StreamEditor
 
         bot = MagicMock()
         sent_msg = MagicMock(spec=Message)
@@ -121,7 +121,7 @@ class TestStreamEditor:
         bot.edit_message_text.assert_not_called()
 
     async def test_finalize_no_messages_is_noop(self) -> None:
-        from ductor_bot.messenger.telegram.streaming import StreamEditor
+        from ductor_slack.messenger.telegram.streaming import StreamEditor
 
         bot = MagicMock()
         bot.send_message = AsyncMock()
@@ -135,7 +135,7 @@ class TestStreamEditor:
     async def test_html_fallback_on_bad_request(self) -> None:
         from aiogram.exceptions import TelegramBadRequest
 
-        from ductor_bot.messenger.telegram.streaming import StreamEditor
+        from ductor_slack.messenger.telegram.streaming import StreamEditor
 
         bot = MagicMock()
         sent_msg = MagicMock(spec=Message)
@@ -152,7 +152,7 @@ class TestStreamEditor:
         assert second_call.kwargs.get("parse_mode") is None
 
     async def test_markdown_formatting_applied(self) -> None:
-        from ductor_bot.messenger.telegram.streaming import StreamEditor
+        from ductor_slack.messenger.telegram.streaming import StreamEditor
 
         bot = MagicMock()
         sent_msg = MagicMock(spec=Message)
@@ -170,7 +170,7 @@ class TestStreamEditorButtons:
     """Test button keyboard attachment in append-mode finalize."""
 
     async def test_finalize_with_buttons_attaches_keyboard(self) -> None:
-        from ductor_bot.messenger.telegram.streaming import StreamEditor
+        from ductor_slack.messenger.telegram.streaming import StreamEditor
 
         bot = MagicMock()
         sent_msg = MagicMock(spec=Message)
@@ -194,7 +194,7 @@ class TestStreamEditorButtons:
         assert markup.inline_keyboard[0][1].text == "No"
 
     async def test_finalize_without_buttons_no_keyboard(self) -> None:
-        from ductor_bot.messenger.telegram.streaming import StreamEditor
+        from ductor_slack.messenger.telegram.streaming import StreamEditor
 
         bot = MagicMock()
         sent_msg = MagicMock(spec=Message)
@@ -207,7 +207,7 @@ class TestStreamEditorButtons:
         bot.edit_message_reply_markup.assert_not_called()
 
     async def test_finalize_no_messages_sent_no_keyboard(self) -> None:
-        from ductor_bot.messenger.telegram.streaming import StreamEditor
+        from ductor_slack.messenger.telegram.streaming import StreamEditor
 
         bot = MagicMock()
         bot.send_message = AsyncMock()
@@ -218,7 +218,7 @@ class TestStreamEditorButtons:
         bot.edit_message_reply_markup.assert_not_called()
 
     async def test_keyboard_on_last_message_after_multiple_chunks(self) -> None:
-        from ductor_bot.messenger.telegram.streaming import StreamEditor
+        from ductor_slack.messenger.telegram.streaming import StreamEditor
 
         bot = MagicMock()
         msg1 = MagicMock(spec=Message)
@@ -237,7 +237,7 @@ class TestStreamEditorButtons:
         assert call_kwargs["message_id"] == 20
 
     async def test_finalize_buttons_with_reply_to(self) -> None:
-        from ductor_bot.messenger.telegram.streaming import StreamEditor
+        from ductor_slack.messenger.telegram.streaming import StreamEditor
 
         bot = MagicMock()
         sent_msg = MagicMock(spec=Message)

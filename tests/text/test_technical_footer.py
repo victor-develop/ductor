@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ductor_bot.text.response_format import format_technical_footer
+from ductor_slack.text.response_format import format_technical_footer
 
 
 class TestFormatTechnicalFooter:

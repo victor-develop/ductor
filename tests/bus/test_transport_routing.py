@@ -10,8 +10,8 @@ from __future__ import annotations
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock
 
-from ductor_bot.bus.bus import MessageBus
-from ductor_bot.bus.envelope import DeliveryMode, Envelope, Origin
+from ductor_slack.bus.bus import MessageBus
+from ductor_slack.bus.envelope import DeliveryMode, Envelope, Origin
 
 if TYPE_CHECKING:
     import pytest
@@ -131,7 +131,7 @@ class TestCascadingFallback:
         bus.register_transport(tg)
 
         env = _env(transport="mx", delivery=DeliveryMode.UNICAST)
-        with caplog.at_level("WARNING", logger="ductor_bot.bus.bus"):
+        with caplog.at_level("WARNING", logger="ductor_slack.bus.bus"):
             await bus.submit(env)
 
         assert "mx" in caplog.text
@@ -197,7 +197,7 @@ class TestCascadingFallback:
         bus.register_transport(tg)
 
         env = _env(transport="mx", delivery=DeliveryMode.UNICAST)
-        with caplog.at_level("ERROR", logger="ductor_bot.bus.bus"):
+        with caplog.at_level("ERROR", logger="ductor_slack.bus.bus"):
             await bus.submit(env)
 
         assert "Fallback delivery also failed" in caplog.text
@@ -211,7 +211,7 @@ class TestTransportName:
         """TelegramTransport.transport_name returns 'tg'."""
         from unittest.mock import MagicMock
 
-        from ductor_bot.messenger.telegram.transport import TelegramTransport
+        from ductor_slack.messenger.telegram.transport import TelegramTransport
 
         bot = MagicMock()
         t = TelegramTransport(bot)
@@ -221,7 +221,7 @@ class TestTransportName:
         """MatrixTransport.transport_name returns 'mx'."""
         from unittest.mock import MagicMock
 
-        from ductor_bot.messenger.matrix.transport import MatrixTransport
+        from ductor_slack.messenger.matrix.transport import MatrixTransport
 
         bot = MagicMock()
         t = MatrixTransport(bot)
@@ -231,7 +231,7 @@ class TestTransportName:
         """SlackTransport.transport_name returns 'sl'."""
         from unittest.mock import MagicMock
 
-        from ductor_bot.messenger.slack.transport import SlackTransport
+        from ductor_slack.messenger.slack.transport import SlackTransport
 
         bot = MagicMock()
         t = SlackTransport(bot)
@@ -244,21 +244,21 @@ class TestTransportName:
 class TestAdapterTransportParam:
     def test_from_cron_result_includes_transport(self) -> None:
         """from_cron_result passes transport to Envelope."""
-        from ductor_bot.bus.adapters import from_cron_result
+        from ductor_slack.bus.adapters import from_cron_result
 
         env = from_cron_result("Title", "Result", "success", chat_id=123, transport="mx")
         assert env.transport == "mx"
 
     def test_from_cron_result_default_transport(self) -> None:
         """from_cron_result defaults to 'tg' transport."""
-        from ductor_bot.bus.adapters import from_cron_result
+        from ductor_slack.bus.adapters import from_cron_result
 
         env = from_cron_result("Title", "Result", "success", chat_id=123)
         assert env.transport == "tg"
 
     def test_from_cron_result_broadcast_includes_transport(self) -> None:
         """Broadcast cron (chat_id=0) also accepts transport."""
-        from ductor_bot.bus.adapters import from_cron_result
+        from ductor_slack.bus.adapters import from_cron_result
 
         env = from_cron_result("Title", "Result", "success", transport="mx")
         assert env.transport == "mx"
@@ -266,14 +266,14 @@ class TestAdapterTransportParam:
 
     def test_from_heartbeat_includes_transport(self) -> None:
         """from_heartbeat passes transport to Envelope."""
-        from ductor_bot.bus.adapters import from_heartbeat
+        from ductor_slack.bus.adapters import from_heartbeat
 
         env = from_heartbeat(200, "alert text", transport="mx")
         assert env.transport == "mx"
 
     def test_from_heartbeat_default_transport(self) -> None:
         """from_heartbeat defaults to 'tg' transport."""
-        from ductor_bot.bus.adapters import from_heartbeat
+        from ductor_slack.bus.adapters import from_heartbeat
 
         env = from_heartbeat(200, "alert text")
         assert env.transport == "tg"
@@ -285,7 +285,7 @@ class TestAdapterTransportParam:
 class TestCronJobTransport:
     def test_cron_job_has_transport_field(self) -> None:
         """CronJob has a transport field defaulting to 'tg'."""
-        from ductor_bot.cron.manager import CronJob
+        from ductor_slack.cron.manager import CronJob
 
         job = CronJob(
             id="test",
@@ -299,7 +299,7 @@ class TestCronJobTransport:
 
     def test_cron_job_transport_roundtrip(self) -> None:
         """CronJob transport survives to_dict/from_dict roundtrip."""
-        from ductor_bot.cron.manager import CronJob
+        from ductor_slack.cron.manager import CronJob
 
         job = CronJob(
             id="test",
@@ -317,7 +317,7 @@ class TestCronJobTransport:
 
     def test_cron_job_from_dict_default_transport(self) -> None:
         """CronJob.from_dict defaults transport to 'tg' for legacy data."""
-        from ductor_bot.cron.manager import CronJob
+        from ductor_slack.cron.manager import CronJob
 
         data = {
             "id": "old",
@@ -336,8 +336,8 @@ class TestCronJobTransport:
 class TestExecutorTransportEnv:
     def test_build_subprocess_env_includes_transport(self) -> None:
         """_build_subprocess_env sets DUCTOR_TRANSPORT from CLIConfig."""
-        from ductor_bot.cli.base import CLIConfig
-        from ductor_bot.cli.executor import _build_subprocess_env
+        from ductor_slack.cli.base import CLIConfig
+        from ductor_slack.cli.executor import _build_subprocess_env
 
         config = CLIConfig(
             working_dir="/tmp",
@@ -350,8 +350,8 @@ class TestExecutorTransportEnv:
 
     def test_build_subprocess_env_default_transport(self) -> None:
         """_build_subprocess_env defaults DUCTOR_TRANSPORT to 'tg'."""
-        from ductor_bot.cli.base import CLIConfig
-        from ductor_bot.cli.executor import _build_subprocess_env
+        from ductor_slack.cli.base import CLIConfig
+        from ductor_slack.cli.executor import _build_subprocess_env
 
         config = CLIConfig(working_dir="/tmp", chat_id=123)
         env = _build_subprocess_env(config)

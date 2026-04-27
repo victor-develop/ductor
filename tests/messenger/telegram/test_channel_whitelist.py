@@ -17,7 +17,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 from aiogram.exceptions import TelegramAPIError
 from aiogram.types import ChatMemberUpdated
 
-from ductor_bot.config import AgentConfig, StreamingConfig
+from ductor_slack.config import AgentConfig, StreamingConfig
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -40,7 +40,7 @@ def _make_config(
 
 def _make_tg_bot(config: AgentConfig) -> tuple[MagicMock, MagicMock]:
     """Return (tg_bot, mock_bot_instance)."""
-    from ductor_bot.messenger.telegram.app import TelegramBot
+    from ductor_slack.messenger.telegram.app import TelegramBot
 
     bot_instance = MagicMock()
     bot_instance.send_message = AsyncMock()
@@ -51,7 +51,7 @@ def _make_tg_bot(config: AgentConfig) -> tuple[MagicMock, MagicMock]:
     bot_instance.send_chat_action = AsyncMock()
     bot_instance.delete_webhook = AsyncMock()
 
-    with patch("ductor_bot.messenger.telegram.app.Bot", return_value=bot_instance):
+    with patch("ductor_slack.messenger.telegram.app.Bot", return_value=bot_instance):
         tg_bot = TelegramBot(config)
 
     return tg_bot, bot_instance
@@ -113,7 +113,7 @@ class TestOnBotAddedChannel:
 
     async def test_non_whitelisted_channel_leave_message_exact(self) -> None:
         """The exact i18n string must be used."""
-        from ductor_bot.i18n import t
+        from ductor_slack.i18n import t
 
         cfg = _make_config(channel_ids=[])
         tg_bot, bot = _make_tg_bot(cfg)
@@ -168,7 +168,7 @@ class TestOnBotAddedChannel:
 
 class TestOnBotAddedGroupUnchanged:
     async def test_non_whitelisted_group_still_uses_group_message(self) -> None:
-        from ductor_bot.i18n import t
+        from ductor_slack.i18n import t
 
         cfg = _make_config(group_ids=[], channel_ids=[])
         tg_bot, bot = _make_tg_bot(cfg)

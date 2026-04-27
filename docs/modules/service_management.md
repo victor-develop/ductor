@@ -4,7 +4,7 @@ Platform-specific background service management for `ductor service ...`.
 
 ## Dispatch model
 
-`ductor_bot/infra/service.py` is the single dispatcher:
+`ductor_slack/infra/service.py` is the single dispatcher:
 
 - Linux -> `service_linux.py`
 - macOS -> `service_macos.py`
@@ -33,7 +33,7 @@ This keeps `cli_commands/service.py` platform-agnostic.
 
 ## Linux backend
 
-Implementation: `ductor_bot/infra/service_linux.py`
+Implementation: `ductor_slack/infra/service_linux.py`
 
 Mechanism:
 
@@ -57,7 +57,7 @@ Operational notes:
 
 ## macOS backend
 
-Implementation: `ductor_bot/infra/service_macos.py`
+Implementation: `ductor_slack/infra/service_macos.py`
 
 Mechanism:
 
@@ -82,7 +82,7 @@ Operational notes:
 
 ## Windows backend
 
-Implementation: `ductor_bot/infra/service_windows.py`
+Implementation: `ductor_slack/infra/service_windows.py`
 
 Mechanism:
 
@@ -94,7 +94,7 @@ Task details:
 - starts 10 seconds after user logon
 - restart-on-failure enabled: 3 retries, 1 minute apart
 - runs with `InteractiveToken` and `LeastPrivilege`
-- prefers `pythonw.exe -m ductor_bot` for windowless execution
+- prefers `pythonw.exe -m ductor_slack` for windowless execution
 - falls back to the `ductor` binary when `pythonw.exe` is unavailable
 
 Operational notes:

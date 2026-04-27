@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ductor_bot.workspace.cron_tasks import render_cron_task_claude_md, render_task_description_md
+from ductor_slack.workspace.cron_tasks import render_cron_task_claude_md, render_task_description_md
 
 
 def test_render_cron_task_claude_md_contains_name() -> None:

@@ -4,11 +4,11 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from ductor_bot.cli.base import CLIConfig
-from ductor_bot.cli.claude_provider import ClaudeCodeCLI
-from ductor_bot.cli.codex_provider import CodexCLI
-from ductor_bot.cli.factory import create_cli
-from ductor_bot.cli.gemini_provider import GeminiCLI
+from ductor_slack.cli.base import CLIConfig
+from ductor_slack.cli.claude_provider import ClaudeCodeCLI
+from ductor_slack.cli.codex_provider import CodexCLI
+from ductor_slack.cli.factory import create_cli
+from ductor_slack.cli.gemini_provider import GeminiCLI
 
 
 def test_create_cli_returns_claude_by_default() -> None:
@@ -23,8 +23,8 @@ def test_create_cli_returns_codex() -> None:
 
 def test_create_cli_returns_gemini() -> None:
     with (
-        patch("ductor_bot.cli.gemini_provider.find_gemini_cli", return_value="/usr/bin/gemini"),
-        patch("ductor_bot.cli.gemini_provider.find_gemini_cli_js", return_value=None),
+        patch("ductor_slack.cli.gemini_provider.find_gemini_cli", return_value="/usr/bin/gemini"),
+        patch("ductor_slack.cli.gemini_provider.find_gemini_cli_js", return_value=None),
     ):
         cli = create_cli(CLIConfig(provider="gemini"))
     assert isinstance(cli, GeminiCLI)

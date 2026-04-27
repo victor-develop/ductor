@@ -4,7 +4,7 @@ In-process multi-agent supervisor (`AgentSupervisor`) for main agent + optional 
 
 ## File
 
-- `ductor_bot/multiagent/supervisor.py`
+- `ductor_slack/multiagent/supervisor.py`
 
 ## Purpose
 

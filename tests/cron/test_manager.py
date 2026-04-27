@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from ductor_bot.cron.manager import CronJob, CronManager
+from ductor_slack.cron.manager import CronJob, CronManager
 
 
 def _make_manager(tmp_path: Path) -> CronManager:

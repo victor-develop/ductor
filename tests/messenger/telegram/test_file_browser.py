@@ -6,14 +6,14 @@ from pathlib import Path
 
 import pytest
 
-from ductor_bot.messenger.telegram.file_browser import (
+from ductor_slack.messenger.telegram.file_browser import (
     SF_FILE_PREFIX,
     SF_PREFIX,
     file_browser_start,
     handle_file_browser_callback,
     is_file_browser_callback,
 )
-from ductor_bot.workspace.paths import DuctorPaths
+from ductor_slack.workspace.paths import DuctorPaths
 
 
 @pytest.fixture

@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from ductor_bot.infra.startup_state import (
+from ductor_slack.infra.startup_state import (
     StartupInfo,
     StartupKind,
     detect_startup_kind,
@@ -17,7 +17,7 @@ from ductor_bot.infra.startup_state import (
 class TestDetectStartupKind:
     def test_no_file_is_first_start(self, tmp_path: Path) -> None:
         state_path = tmp_path / "startup_state.json"
-        with patch("ductor_bot.infra.startup_state.get_boot_id", return_value="boot-1"):
+        with patch("ductor_slack.infra.startup_state.get_boot_id", return_value="boot-1"):
             info = detect_startup_kind(state_path)
         assert info.kind == StartupKind.FIRST_START
         assert info.boot_id == "boot-1"
@@ -27,7 +27,7 @@ class TestDetectStartupKind:
         state_path.write_text(
             json.dumps({"boot_id": "boot-1", "started_at": "2026-01-01T00:00:00"})
         )
-        with patch("ductor_bot.infra.startup_state.get_boot_id", return_value="boot-1"):
+        with patch("ductor_slack.infra.startup_state.get_boot_id", return_value="boot-1"):
             info = detect_startup_kind(state_path)
         assert info.kind == StartupKind.SERVICE_RESTART
 
@@ -36,7 +36,7 @@ class TestDetectStartupKind:
         state_path.write_text(
             json.dumps({"boot_id": "boot-1", "started_at": "2026-01-01T00:00:00"})
         )
-        with patch("ductor_bot.infra.startup_state.get_boot_id", return_value="boot-2"):
+        with patch("ductor_slack.infra.startup_state.get_boot_id", return_value="boot-2"):
             info = detect_startup_kind(state_path)
         assert info.kind == StartupKind.SYSTEM_REBOOT
         assert info.boot_id == "boot-2"
@@ -44,14 +44,14 @@ class TestDetectStartupKind:
     def test_corrupt_file_is_first_start(self, tmp_path: Path) -> None:
         state_path = tmp_path / "startup_state.json"
         state_path.write_text("not valid json {{{")
-        with patch("ductor_bot.infra.startup_state.get_boot_id", return_value="boot-1"):
+        with patch("ductor_slack.infra.startup_state.get_boot_id", return_value="boot-1"):
             info = detect_startup_kind(state_path)
         assert info.kind == StartupKind.FIRST_START
 
     def test_empty_stored_boot_id_is_first_start(self, tmp_path: Path) -> None:
         state_path = tmp_path / "startup_state.json"
         state_path.write_text(json.dumps({"boot_id": "", "started_at": "2026-01-01T00:00:00"}))
-        with patch("ductor_bot.infra.startup_state.get_boot_id", return_value="boot-1"):
+        with patch("ductor_slack.infra.startup_state.get_boot_id", return_value="boot-1"):
             info = detect_startup_kind(state_path)
         assert info.kind == StartupKind.FIRST_START
 
@@ -61,7 +61,7 @@ class TestDetectStartupKind:
         state_path.write_text(
             json.dumps({"boot_id": "boot-1", "started_at": "2026-01-01T00:00:00"})
         )
-        with patch("ductor_bot.infra.startup_state.get_boot_id", return_value=""):
+        with patch("ductor_slack.infra.startup_state.get_boot_id", return_value=""):
             info = detect_startup_kind(state_path)
         assert info.kind == StartupKind.SERVICE_RESTART
 

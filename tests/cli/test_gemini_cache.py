@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from ductor_bot.cli.gemini_cache import _FALLBACK_GEMINI_MODELS, GeminiModelCache
+from ductor_slack.cli.gemini_cache import _FALLBACK_GEMINI_MODELS, GeminiModelCache
 
 
 @pytest.fixture
@@ -45,7 +45,7 @@ async def test_load_from_disk(tmp_path: Path) -> None:
         f'{{"last_updated": "{now}", "models": ["gemini-2.5-flash", "gemini-2.5-pro"]}}'
     )
 
-    with patch("ductor_bot.cli.gemini_cache.discover_gemini_models") as mock_discover:
+    with patch("ductor_slack.cli.gemini_cache.discover_gemini_models") as mock_discover:
         result = await GeminiModelCache.load_or_refresh(cache_path)
 
         assert len(result.models) == 2
@@ -60,7 +60,7 @@ async def test_refresh_on_stale(tmp_path: Path, sample_models: tuple[str, ...]) 
     cache_path.write_text(f'{{"last_updated": "{old_time}", "models": []}}')
 
     with patch(
-        "ductor_bot.cli.gemini_cache.discover_gemini_models",
+        "ductor_slack.cli.gemini_cache.discover_gemini_models",
         return_value=frozenset(sample_models),
     ) as mock_discover:
         result = await GeminiModelCache.load_or_refresh(cache_path)
@@ -76,7 +76,7 @@ async def test_skip_refresh_if_recent(tmp_path: Path) -> None:
     recent_time = (datetime.now(UTC) - timedelta(hours=1)).isoformat()
     cache_path.write_text(f'{{"last_updated": "{recent_time}", "models": ["gemini-2.5-flash"]}}')
 
-    with patch("ductor_bot.cli.gemini_cache.discover_gemini_models") as mock_discover:
+    with patch("ductor_slack.cli.gemini_cache.discover_gemini_models") as mock_discover:
         result = await GeminiModelCache.load_or_refresh(cache_path)
 
         mock_discover.assert_not_called()
@@ -93,7 +93,7 @@ async def test_refresh_if_recent_but_empty(
     cache_path.write_text(f'{{"last_updated": "{recent_time}", "models": []}}')
 
     with patch(
-        "ductor_bot.cli.gemini_cache.discover_gemini_models",
+        "ductor_slack.cli.gemini_cache.discover_gemini_models",
         return_value=frozenset(sample_models),
     ) as mock_discover:
         result = await GeminiModelCache.load_or_refresh(cache_path)
@@ -112,7 +112,7 @@ async def test_force_refresh_ignores_fresh_cache(
     cache_path.write_text(f'{{"last_updated": "{recent_time}", "models": ["old-model"]}}')
 
     with patch(
-        "ductor_bot.cli.gemini_cache.discover_gemini_models",
+        "ductor_slack.cli.gemini_cache.discover_gemini_models",
         return_value=frozenset(sample_models),
     ) as mock_discover:
         result = await GeminiModelCache.load_or_refresh(cache_path, force_refresh=True)
@@ -147,7 +147,7 @@ async def test_discovery_failure_preserves_existing_disk_cache(tmp_path: Path) -
     )
 
     with patch(
-        "ductor_bot.cli.gemini_cache.discover_gemini_models",
+        "ductor_slack.cli.gemini_cache.discover_gemini_models",
         side_effect=Exception("Discovery failed"),
     ):
         result = await GeminiModelCache.load_or_refresh(cache_path, force_refresh=True)
@@ -164,7 +164,7 @@ async def test_discovery_failure_uses_fallback_when_no_disk_cache(tmp_path: Path
     assert not cache_path.exists()
 
     with patch(
-        "ductor_bot.cli.gemini_cache.discover_gemini_models",
+        "ductor_slack.cli.gemini_cache.discover_gemini_models",
         side_effect=Exception("Discovery failed"),
     ):
         result = await GeminiModelCache.load_or_refresh(cache_path)
@@ -180,7 +180,7 @@ async def test_discovery_failure_uses_fallback_when_disk_cache_empty(tmp_path: P
     cache_path.write_text(json.dumps({"last_updated": datetime.now(UTC).isoformat(), "models": []}))
 
     with patch(
-        "ductor_bot.cli.gemini_cache.discover_gemini_models",
+        "ductor_slack.cli.gemini_cache.discover_gemini_models",
         side_effect=Exception("Discovery failed"),
     ):
         result = await GeminiModelCache.load_or_refresh(cache_path, force_refresh=True)
@@ -197,7 +197,7 @@ async def test_fallback_replaced_by_successful_discovery(tmp_path: Path) -> None
 
     # First call: discovery fails → fallback (not on disk)
     with patch(
-        "ductor_bot.cli.gemini_cache.discover_gemini_models",
+        "ductor_slack.cli.gemini_cache.discover_gemini_models",
         side_effect=Exception("fail"),
     ):
         result1 = await GeminiModelCache.load_or_refresh(cache_path)
@@ -207,7 +207,7 @@ async def test_fallback_replaced_by_successful_discovery(tmp_path: Path) -> None
     # Second call: discovery succeeds → real models saved to disk
     real_models = frozenset({"gemini-3-pro", "gemini-3-flash"})
     with patch(
-        "ductor_bot.cli.gemini_cache.discover_gemini_models",
+        "ductor_slack.cli.gemini_cache.discover_gemini_models",
         return_value=real_models,
     ):
         result2 = await GeminiModelCache.load_or_refresh(cache_path)
@@ -231,7 +231,7 @@ async def test_empty_discovery_result_preserves_existing_cache(tmp_path: Path) -
     )
 
     with patch(
-        "ductor_bot.cli.gemini_cache.discover_gemini_models",
+        "ductor_slack.cli.gemini_cache.discover_gemini_models",
         return_value=frozenset(),
     ):
         result = await GeminiModelCache.load_or_refresh(cache_path, force_refresh=True)
@@ -246,7 +246,7 @@ async def test_empty_cache_not_saved_to_disk(tmp_path: Path) -> None:
     cache_path.write_text(json.dumps(original))
 
     with patch(
-        "ductor_bot.cli.gemini_cache.discover_gemini_models",
+        "ductor_slack.cli.gemini_cache.discover_gemini_models",
         return_value=frozenset(),
     ):
         await GeminiModelCache.load_or_refresh(cache_path, force_refresh=True)
@@ -264,7 +264,7 @@ async def test_successful_discovery_overwrites_disk_cache(tmp_path: Path) -> Non
 
     new_models = frozenset({"gemini-3-flash", "gemini-3-pro"})
     with patch(
-        "ductor_bot.cli.gemini_cache.discover_gemini_models",
+        "ductor_slack.cli.gemini_cache.discover_gemini_models",
         return_value=new_models,
     ):
         result = await GeminiModelCache.load_or_refresh(cache_path, force_refresh=True)

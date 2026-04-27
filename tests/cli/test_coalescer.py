@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from ductor_bot.cli.coalescer import CoalesceConfig, StreamCoalescer
+from ductor_slack.cli.coalescer import CoalesceConfig, StreamCoalescer
 
 
 @pytest.fixture

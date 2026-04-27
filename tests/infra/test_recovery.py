@@ -5,8 +5,8 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from ductor_bot.infra.inflight import InflightTracker, InflightTurn
-from ductor_bot.infra.recovery import RecoveryAction, RecoveryPlanner
+from ductor_slack.infra.inflight import InflightTracker, InflightTurn
+from ductor_slack.infra.recovery import RecoveryAction, RecoveryPlanner
 
 
 def _make_turn(
@@ -71,7 +71,7 @@ class TestRecoveryPlannerForeground:
 class TestRecoveryPlannerNamedSessions:
     def test_finds_recovered_named_session(self, tmp_path: Path) -> None:
         """Named sessions with status 'idle' and non-empty prompt_preview are candidates."""
-        from ductor_bot.session.named import NamedSession
+        from ductor_slack.session.named import NamedSession
 
         ns = NamedSession(
             name="boldowl",
@@ -97,7 +97,7 @@ class TestRecoveryPlannerNamedSessions:
         assert ns_actions[0].session_id == "sess-ns-1"
 
     def test_skips_inter_agent_sessions(self, tmp_path: Path) -> None:
-        from ductor_bot.session.named import NamedSession
+        from ductor_slack.session.named import NamedSession
 
         ns = NamedSession(
             name="ia-research",
@@ -114,7 +114,7 @@ class TestRecoveryPlannerNamedSessions:
         assert planner.plan() == []
 
     def test_skips_ended_sessions(self, tmp_path: Path) -> None:
-        from ductor_bot.session.named import NamedSession
+        from ductor_slack.session.named import NamedSession
 
         ns = NamedSession(
             name="boldowl",
@@ -132,7 +132,7 @@ class TestRecoveryPlannerNamedSessions:
 
     def test_skips_running_sessions(self, tmp_path: Path) -> None:
         """Running sessions should not be recovered (they're still active)."""
-        from ductor_bot.session.named import NamedSession
+        from ductor_slack.session.named import NamedSession
 
         ns = NamedSession(
             name="boldowl",
@@ -150,7 +150,7 @@ class TestRecoveryPlannerNamedSessions:
 
     def test_skips_sessions_without_session_id(self, tmp_path: Path) -> None:
         """Sessions that never got a CLI session_id can't be resumed."""
-        from ductor_bot.session.named import NamedSession
+        from ductor_slack.session.named import NamedSession
 
         ns = NamedSession(
             name="boldowl",
@@ -169,7 +169,7 @@ class TestRecoveryPlannerNamedSessions:
 
 class TestRecoveryPlannerMixed:
     def test_foreground_and_named_combined(self, tmp_path: Path) -> None:
-        from ductor_bot.session.named import NamedSession
+        from ductor_slack.session.named import NamedSession
 
         tracker = InflightTracker(tmp_path / "inflight.json")
         tracker.begin(_make_turn(chat_id=100, prompt_preview="fg task"))

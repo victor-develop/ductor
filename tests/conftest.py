@@ -17,39 +17,39 @@ def _no_real_process_signals() -> object:
     """
     with (
         patch(
-            "ductor_bot.cli.process_registry.terminate_process_tree",
+            "ductor_slack.cli.process_registry.terminate_process_tree",
             return_value=None,
         ),
         patch(
-            "ductor_bot.cli.process_registry.force_kill_process_tree",
+            "ductor_slack.cli.process_registry.force_kill_process_tree",
             return_value=None,
         ),
         patch(
-            "ductor_bot.cli.process_registry.interrupt_process",
+            "ductor_slack.cli.process_registry.interrupt_process",
             return_value=None,
         ),
         patch(
-            "ductor_bot.cli.executor.force_kill_process_tree",
+            "ductor_slack.cli.executor.force_kill_process_tree",
             return_value=None,
         ),
         patch(
-            "ductor_bot.cli.gemini_provider.force_kill_process_tree",
+            "ductor_slack.cli.gemini_provider.force_kill_process_tree",
             return_value=None,
         ),
         patch(
-            "ductor_bot.cron.execution.force_kill_process_tree",
+            "ductor_slack.cron.execution.force_kill_process_tree",
             return_value=None,
         ),
         patch(
-            "ductor_bot.infra.pidlock.terminate_process_tree",
+            "ductor_slack.infra.pidlock.terminate_process_tree",
             return_value=None,
         ),
         patch(
-            "ductor_bot.infra.pidlock.force_kill_process_tree",
+            "ductor_slack.infra.pidlock.force_kill_process_tree",
             return_value=None,
         ),
         patch(
-            "ductor_bot.infra.pidlock.list_process_descendants",
+            "ductor_slack.infra.pidlock.list_process_descendants",
             return_value=[],
         ),
     ):
@@ -65,6 +65,6 @@ def _no_real_service_management() -> object:
     machine where ductor is installed and running.
     """
     with patch(
-        "ductor_bot.cli_commands.lifecycle._stop_service_if_running",
+        "ductor_slack.cli_commands.lifecycle._stop_service_if_running",
     ):
         yield

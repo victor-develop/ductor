@@ -12,7 +12,7 @@ class TestTypingContext:
     """Test the typing indicator context manager."""
 
     async def test_sends_typing_action_on_enter(self) -> None:
-        from ductor_bot.messenger.telegram.typing import TypingContext
+        from ductor_slack.messenger.telegram.typing import TypingContext
 
         bot = MagicMock()
         bot.send_chat_action = AsyncMock()
@@ -28,7 +28,7 @@ class TestTypingContext:
         assert args.kwargs.get("action") == ChatAction.TYPING
 
     async def test_cancels_loop_on_exit(self) -> None:
-        from ductor_bot.messenger.telegram.typing import TypingContext
+        from ductor_slack.messenger.telegram.typing import TypingContext
 
         bot = MagicMock()
         bot.send_chat_action = AsyncMock()
@@ -41,7 +41,7 @@ class TestTypingContext:
         assert ctx._task is None or ctx._task.done()
 
     async def test_no_error_on_double_exit(self) -> None:
-        from ductor_bot.messenger.telegram.typing import TypingContext
+        from ductor_slack.messenger.telegram.typing import TypingContext
 
         bot = MagicMock()
         bot.send_chat_action = AsyncMock()
@@ -53,7 +53,7 @@ class TestTypingContext:
         await ctx.__aexit__()
 
     async def test_thread_id_passed_to_send_chat_action(self) -> None:
-        from ductor_bot.messenger.telegram.typing import TypingContext
+        from ductor_slack.messenger.telegram.typing import TypingContext
 
         bot = MagicMock()
         bot.send_chat_action = AsyncMock()
@@ -65,7 +65,7 @@ class TestTypingContext:
         assert bot.send_chat_action.call_args.kwargs["message_thread_id"] == 99
 
     async def test_thread_id_none_by_default(self) -> None:
-        from ductor_bot.messenger.telegram.typing import TypingContext
+        from ductor_slack.messenger.telegram.typing import TypingContext
 
         bot = MagicMock()
         bot.send_chat_action = AsyncMock()

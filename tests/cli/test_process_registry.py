@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from ductor_bot.cli.process_registry import ProcessRegistry, TrackedProcess
+from ductor_slack.cli.process_registry import ProcessRegistry, TrackedProcess
 
 
 def _mock_process(*, pid: int = 1, returncode: int | None = None) -> MagicMock:
@@ -50,7 +50,7 @@ async def test_kill_all() -> None:
     reg = ProcessRegistry()
     proc = _mock_process(pid=10)
     reg.register(chat_id=1, process=proc, label="main")
-    with patch("ductor_bot.cli.process_registry.asyncio.sleep", new_callable=AsyncMock):
+    with patch("ductor_slack.cli.process_registry.asyncio.sleep", new_callable=AsyncMock):
         count = await reg.kill_all(chat_id=1)
     assert count == 1
 
@@ -60,7 +60,7 @@ async def test_kill_all_sets_aborted() -> None:
     proc = _mock_process()
     reg.register(chat_id=1, process=proc, label="main")
     assert reg.was_aborted(1) is False
-    with patch("ductor_bot.cli.process_registry.asyncio.sleep", new_callable=AsyncMock):
+    with patch("ductor_slack.cli.process_registry.asyncio.sleep", new_callable=AsyncMock):
         await reg.kill_all(chat_id=1)
     assert reg.was_aborted(1) is True
 
@@ -86,7 +86,7 @@ async def test_kill_all_active_across_chats() -> None:
     reg.register(chat_id=1, process=proc1, label="main")
     reg.register(chat_id=2, process=proc2, label="main")
 
-    with patch("ductor_bot.cli.process_registry.asyncio.sleep", new_callable=AsyncMock):
+    with patch("ductor_slack.cli.process_registry.asyncio.sleep", new_callable=AsyncMock):
         count = await reg.kill_all_active()
 
     assert count == 2
@@ -136,7 +136,7 @@ async def test_kill_stale_kills_and_unregisters_old_entries() -> None:
     old.registered_at = time.time() - 1000
     fresh.registered_at = time.time()
 
-    with patch("ductor_bot.cli.process_registry.asyncio.sleep", new_callable=AsyncMock):
+    with patch("ductor_slack.cli.process_registry.asyncio.sleep", new_callable=AsyncMock):
         killed = await reg.kill_stale(max_age_seconds=60)
 
     assert killed == 1
@@ -223,7 +223,7 @@ async def test_kill_for_task_unregisters_killed_entry() -> None:
     reg.register(chat_id=1, process=proc, label="task:AAAAAAAA")
 
     with patch(
-        "ductor_bot.cli.process_registry._kill_processes",
+        "ductor_slack.cli.process_registry._kill_processes",
         new_callable=AsyncMock,
         return_value=1,
     ):
@@ -260,7 +260,7 @@ async def test_kill_for_task_concurrent_register_is_safe() -> None:
         reg.register(chat_id=1, process=racing, label="task:XXXXXXXX")
 
     with patch(
-        "ductor_bot.cli.process_registry._kill_processes",
+        "ductor_slack.cli.process_registry._kill_processes",
         new_callable=AsyncMock,
         return_value=1,
     ):
@@ -288,10 +288,10 @@ async def test_kill_for_task_kills_real_subprocess() -> None:
     locally so the SIGTERM → SIGKILL ladder actually lands on our child.
     """
     # Restore real signalling just for this test (see conftest._no_real_process_signals).
-    from ductor_bot.infra.process_tree import (
+    from ductor_slack.infra.process_tree import (
         force_kill_process_tree as _real_force_kill,
     )
-    from ductor_bot.infra.process_tree import (
+    from ductor_slack.infra.process_tree import (
         terminate_process_tree as _real_terminate,
     )
 
@@ -304,11 +304,11 @@ async def test_kill_for_task_kills_real_subprocess() -> None:
     try:
         with (
             patch(
-                "ductor_bot.cli.process_registry.terminate_process_tree",
+                "ductor_slack.cli.process_registry.terminate_process_tree",
                 side_effect=_real_terminate,
             ),
             patch(
-                "ductor_bot.cli.process_registry.force_kill_process_tree",
+                "ductor_slack.cli.process_registry.force_kill_process_tree",
                 side_effect=_real_force_kill,
             ),
         ):

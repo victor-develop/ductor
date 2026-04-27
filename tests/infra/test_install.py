@@ -5,14 +5,14 @@ from __future__ import annotations
 import json
 from unittest.mock import MagicMock, patch
 
-from ductor_bot.infra.install import detect_install_mode, is_upgradeable
+from ductor_slack.infra.install import detect_install_mode, is_upgradeable
 
 
 class TestDetectInstallMode:
     """Test runtime installation method detection."""
 
     def test_pipx_detected_from_sys_prefix(self) -> None:
-        with patch("ductor_bot.infra.install.sys") as mock_sys:
+        with patch("ductor_slack.infra.install.sys") as mock_sys:
             mock_sys.prefix = "/home/user/.local/share/pipx/venvs/ductor-slack"
             assert detect_install_mode() == "pipx"
 
@@ -22,8 +22,8 @@ class TestDetectInstallMode:
         mock_dist.read_text.return_value = direct_url
 
         with (
-            patch("ductor_bot.infra.install.sys") as mock_sys,
-            patch("ductor_bot.infra.install.distribution", return_value=mock_dist),
+            patch("ductor_slack.infra.install.sys") as mock_sys,
+            patch("ductor_slack.infra.install.distribution", return_value=mock_dist),
         ):
             mock_sys.prefix = "/home/user/venv"
             assert detect_install_mode() == "dev"
@@ -33,8 +33,8 @@ class TestDetectInstallMode:
         mock_dist.read_text.return_value = None  # No direct_url.json
 
         with (
-            patch("ductor_bot.infra.install.sys") as mock_sys,
-            patch("ductor_bot.infra.install.distribution", return_value=mock_dist),
+            patch("ductor_slack.infra.install.sys") as mock_sys,
+            patch("ductor_slack.infra.install.distribution", return_value=mock_dist),
         ):
             mock_sys.prefix = "/home/user/venv"
             assert detect_install_mode() == "pip"
@@ -43,9 +43,9 @@ class TestDetectInstallMode:
         from importlib.metadata import PackageNotFoundError
 
         with (
-            patch("ductor_bot.infra.install.sys") as mock_sys,
+            patch("ductor_slack.infra.install.sys") as mock_sys,
             patch(
-                "ductor_bot.infra.install.distribution",
+                "ductor_slack.infra.install.distribution",
                 side_effect=PackageNotFoundError("ductor-slack"),
             ),
         ):
@@ -54,14 +54,14 @@ class TestDetectInstallMode:
 
     def test_metadata_error_falls_back_to_dev(self) -> None:
         with (
-            patch("ductor_bot.infra.install.sys") as mock_sys,
-            patch("ductor_bot.infra.install.distribution", side_effect=OSError("corrupt")),
+            patch("ductor_slack.infra.install.sys") as mock_sys,
+            patch("ductor_slack.infra.install.distribution", side_effect=OSError("corrupt")),
         ):
             mock_sys.prefix = "/usr"
             assert detect_install_mode() == "dev"
 
     def test_pipx_path_variant_windows(self) -> None:
-        with patch("ductor_bot.infra.install.sys") as mock_sys:
+        with patch("ductor_slack.infra.install.sys") as mock_sys:
             mock_sys.prefix = "C:\\Users\\me\\AppData\\Local\\pipx\\venvs\\ductor-slack"
             assert detect_install_mode() == "pipx"
 
@@ -71,8 +71,8 @@ class TestDetectInstallMode:
         mock_dist.read_text.return_value = direct_url
 
         with (
-            patch("ductor_bot.infra.install.sys") as mock_sys,
-            patch("ductor_bot.infra.install.distribution", return_value=mock_dist),
+            patch("ductor_slack.infra.install.sys") as mock_sys,
+            patch("ductor_slack.infra.install.distribution", return_value=mock_dist),
         ):
             mock_sys.prefix = "/home/user/venv"
             assert detect_install_mode() == "pip"
@@ -82,13 +82,13 @@ class TestIsUpgradeable:
     """Test upgrade eligibility helper."""
 
     def test_pipx_is_upgradeable(self) -> None:
-        with patch("ductor_bot.infra.install.detect_install_mode", return_value="pipx"):
+        with patch("ductor_slack.infra.install.detect_install_mode", return_value="pipx"):
             assert is_upgradeable() is True
 
     def test_pip_is_upgradeable(self) -> None:
-        with patch("ductor_bot.infra.install.detect_install_mode", return_value="pip"):
+        with patch("ductor_slack.infra.install.detect_install_mode", return_value="pip"):
             assert is_upgradeable() is True
 
     def test_dev_is_not_upgradeable(self) -> None:
-        with patch("ductor_bot.infra.install.detect_install_mode", return_value="dev"):
+        with patch("ductor_slack.infra.install.detect_install_mode", return_value="dev"):
             assert is_upgradeable() is False

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import asyncio
 
-from ductor_bot.cli.coalescer import CoalesceConfig, StreamCoalescer
+from ductor_slack.cli.coalescer import CoalesceConfig, StreamCoalescer
 
 
 async def test_idle_timer_fires_flush() -> None:

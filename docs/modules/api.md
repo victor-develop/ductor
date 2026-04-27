@@ -106,7 +106,7 @@ Upload target:
 - `home` -> home-root limited
 - `workspace` -> `~/.ductor/workspace` limited
 
-MIME and file-tag parsing share helpers from `ductor_bot/files/`.
+MIME and file-tag parsing share helpers from `ductor_slack/files/`.
 
 ## Error model
 

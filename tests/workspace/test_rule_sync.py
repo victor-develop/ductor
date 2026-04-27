@@ -8,7 +8,7 @@ import os
 import time
 from pathlib import Path
 
-from ductor_bot.workspace.init import sync_rule_files, watch_rule_files
+from ductor_slack.workspace.init import sync_rule_files, watch_rule_files
 
 
 def test_sync_does_not_create_missing_files(tmp_path: Path) -> None:

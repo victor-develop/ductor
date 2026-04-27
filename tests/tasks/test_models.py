@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ductor_bot.tasks.models import TaskEntry, TaskResult, TaskSubmit
+from ductor_slack.tasks.models import TaskEntry, TaskResult, TaskSubmit
 
 
 class TestTaskEntry:

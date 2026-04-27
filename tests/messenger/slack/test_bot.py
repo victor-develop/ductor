@@ -4,9 +4,9 @@ import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from ductor_bot.config import AgentConfig
-from ductor_bot.messenger.slack.bot import SlackBot, _ThreadContextCache
-from ductor_bot.session.manager import SessionData
+from ductor_slack.config import AgentConfig
+from ductor_slack.messenger.slack.bot import SlackBot, _ThreadContextCache
+from ductor_slack.session.manager import SessionData
 
 
 def _make_bot() -> SlackBot:
@@ -69,7 +69,7 @@ class TestMentionedThreadCache:
             ("C123", "fresh"): now - 1.0,
         }
 
-        with patch("ductor_bot.messenger.slack.bot.time") as mock_time:
+        with patch("ductor_slack.messenger.slack.bot.time") as mock_time:
             mock_time.monotonic.return_value = now
             bot._mark_mentioned_thread("C123", "new")
 
@@ -82,7 +82,7 @@ class TestMentionedThreadCache:
         bot._MENTIONED_THREAD_MAX_SIZE = 2
         now = time.monotonic()
 
-        with patch("ductor_bot.messenger.slack.bot.time") as mock_time:
+        with patch("ductor_slack.messenger.slack.bot.time") as mock_time:
             mock_time.monotonic.return_value = now
             bot._mark_mentioned_thread("C123", "one")
             mock_time.monotonic.return_value = now + 1.0

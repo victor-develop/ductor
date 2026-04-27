@@ -4,16 +4,16 @@ Covers `ductor` command behavior, onboarding flow, and lifecycle commands.
 
 ## Files
 
-- `ductor_bot/__main__.py`: CLI dispatch + config helpers + `run_bot`
-- `ductor_bot/cli_commands/lifecycle.py`: start/stop/restart/upgrade/uninstall logic
-- `ductor_bot/cli_commands/status.py`: `ductor status` + `ductor help`
-- `ductor_bot/cli_commands/service.py`: service command routing
-- `ductor_bot/cli_commands/docker.py`: docker subcommands
-- `ductor_bot/cli_commands/api_cmd.py`: API enable/disable commands
-- `ductor_bot/cli_commands/agents.py`: sub-agent registry commands
-- `ductor_bot/cli_commands/install.py`: optional extras installer (`ductor install <extra>`)
-- `ductor_bot/infra/docker_extras.py`: optional Docker package registry + Dockerfile generation
-- `ductor_bot/cli/init_wizard.py`: onboarding + smart reset
+- `ductor_slack/__main__.py`: CLI dispatch + config helpers + `run_bot`
+- `ductor_slack/cli_commands/lifecycle.py`: start/stop/restart/upgrade/uninstall logic
+- `ductor_slack/cli_commands/status.py`: `ductor status` + `ductor help`
+- `ductor_slack/cli_commands/service.py`: service command routing
+- `ductor_slack/cli_commands/docker.py`: docker subcommands
+- `ductor_slack/cli_commands/api_cmd.py`: API enable/disable commands
+- `ductor_slack/cli_commands/agents.py`: sub-agent registry commands
+- `ductor_slack/cli_commands/install.py`: optional extras installer (`ductor install <extra>`)
+- `ductor_slack/infra/docker_extras.py`: optional Docker package registry + Dockerfile generation
+- `ductor_slack/cli/init_wizard.py`: onboarding + smart reset
 
 ## CLI commands
 

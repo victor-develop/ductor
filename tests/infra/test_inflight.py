@@ -5,7 +5,7 @@ from __future__ import annotations
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
-from ductor_bot.infra.inflight import InflightTracker, InflightTurn
+from ductor_slack.infra.inflight import InflightTracker, InflightTurn
 
 
 def _make_turn(

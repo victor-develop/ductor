@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from ductor_bot.infra.version import VersionInfo
-from ductor_bot.orchestrator.commands import cmd_upgrade
-from ductor_bot.orchestrator.core import Orchestrator
+from ductor_slack.infra.version import VersionInfo
+from ductor_slack.orchestrator.commands import cmd_upgrade
+from ductor_slack.orchestrator.core import Orchestrator
 
 
 class TestCmdUpgrade:
@@ -17,8 +17,8 @@ class TestCmdUpgrade:
             current="1.0.0", latest="2.0.0", update_available=True, summary="Big update"
         )
         with (
-            patch("ductor_bot.infra.install.detect_install_mode", return_value="pipx"),
-            patch("ductor_bot.orchestrator.commands.check_pypi", return_value=info),
+            patch("ductor_slack.infra.install.detect_install_mode", return_value="pipx"),
+            patch("ductor_slack.orchestrator.commands.check_pypi", return_value=info),
         ):
             result = await cmd_upgrade(orch, 1, "/upgrade")
 
@@ -36,8 +36,8 @@ class TestCmdUpgrade:
     async def test_shows_up_to_date_with_changelog_button(self, orch: Orchestrator) -> None:
         info = VersionInfo(current="2.0.0", latest="2.0.0", update_available=False, summary="")
         with (
-            patch("ductor_bot.infra.install.detect_install_mode", return_value="pip"),
-            patch("ductor_bot.orchestrator.commands.check_pypi", return_value=info),
+            patch("ductor_slack.infra.install.detect_install_mode", return_value="pip"),
+            patch("ductor_slack.orchestrator.commands.check_pypi", return_value=info),
         ):
             result = await cmd_upgrade(orch, 1, "/upgrade")
 
@@ -49,8 +49,8 @@ class TestCmdUpgrade:
 
     async def test_handles_pypi_failure(self, orch: Orchestrator) -> None:
         with (
-            patch("ductor_bot.infra.install.detect_install_mode", return_value="pipx"),
-            patch("ductor_bot.orchestrator.commands.check_pypi", return_value=None),
+            patch("ductor_slack.infra.install.detect_install_mode", return_value="pipx"),
+            patch("ductor_slack.orchestrator.commands.check_pypi", return_value=None),
         ):
             result = await cmd_upgrade(orch, 1, "/upgrade")
 
@@ -60,8 +60,8 @@ class TestCmdUpgrade:
     async def test_button_text_is_user_friendly(self, orch: Orchestrator) -> None:
         info = VersionInfo(current="1.0.0", latest="1.1.0", update_available=True, summary="Patch")
         with (
-            patch("ductor_bot.infra.install.detect_install_mode", return_value="pipx"),
-            patch("ductor_bot.orchestrator.commands.check_pypi", return_value=info),
+            patch("ductor_slack.infra.install.detect_install_mode", return_value="pipx"),
+            patch("ductor_slack.orchestrator.commands.check_pypi", return_value=info),
         ):
             result = await cmd_upgrade(orch, 1, "/upgrade")
 
@@ -74,8 +74,8 @@ class TestCmdUpgrade:
     async def test_version_info_in_up_to_date(self, orch: Orchestrator) -> None:
         info = VersionInfo(current="3.5.1", latest="3.5.1", update_available=False, summary="")
         with (
-            patch("ductor_bot.infra.install.detect_install_mode", return_value="pip"),
-            patch("ductor_bot.orchestrator.commands.check_pypi", return_value=info),
+            patch("ductor_slack.infra.install.detect_install_mode", return_value="pip"),
+            patch("ductor_slack.orchestrator.commands.check_pypi", return_value=info),
         ):
             result = await cmd_upgrade(orch, 1, "/upgrade")
 
@@ -85,8 +85,8 @@ class TestCmdUpgrade:
     async def test_update_available_has_changelog_button(self, orch: Orchestrator) -> None:
         info = VersionInfo(current="1.0.0", latest="2.0.0", update_available=True, summary="Update")
         with (
-            patch("ductor_bot.infra.install.detect_install_mode", return_value="pipx"),
-            patch("ductor_bot.orchestrator.commands.check_pypi", return_value=info),
+            patch("ductor_slack.infra.install.detect_install_mode", return_value="pipx"),
+            patch("ductor_slack.orchestrator.commands.check_pypi", return_value=info),
         ):
             result = await cmd_upgrade(orch, 1, "/upgrade")
 
@@ -95,7 +95,7 @@ class TestCmdUpgrade:
         assert any(b.callback_data == "upg:yes:2.0.0" for b in all_buttons)
 
     async def test_dev_mode_rejects_upgrade(self, orch: Orchestrator) -> None:
-        with patch("ductor_bot.infra.install.detect_install_mode", return_value="dev"):
+        with patch("ductor_slack.infra.install.detect_install_mode", return_value="dev"):
             result = await cmd_upgrade(orch, 1, "/upgrade")
 
         assert "source" in result.text.lower() or "git pull" in result.text.lower()

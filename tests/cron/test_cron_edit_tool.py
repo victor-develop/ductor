@@ -11,7 +11,7 @@ from typing import Any
 
 TOOL_ADD = (
     Path(__file__).resolve().parents[2]
-    / "ductor_bot"
+    / "ductor_slack"
     / "_home_defaults"
     / "workspace"
     / "tools"
@@ -20,7 +20,7 @@ TOOL_ADD = (
 )
 TOOL_EDIT = (
     Path(__file__).resolve().parents[2]
-    / "ductor_bot"
+    / "ductor_slack"
     / "_home_defaults"
     / "workspace"
     / "tools"

@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from ductor_bot.messenger.matrix.credentials import _save_credentials, login_or_restore
+from ductor_slack.messenger.matrix.credentials import _save_credentials, login_or_restore
 
 # ---------------------------------------------------------------------------
 # _save_credentials

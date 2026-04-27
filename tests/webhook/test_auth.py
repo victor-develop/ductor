@@ -6,14 +6,14 @@ import hmac as hmac_mod
 import time
 from unittest.mock import patch
 
-from ductor_bot.webhook.auth import (
+from ductor_slack.webhook.auth import (
     HmacConfig,
     RateLimiter,
     validate_bearer_token,
     validate_hmac_signature,
     validate_hook_auth,
 )
-from ductor_bot.webhook.models import WebhookEntry
+from ductor_slack.webhook.models import WebhookEntry
 
 # ---------------------------------------------------------------------------
 # Token validation
@@ -71,7 +71,7 @@ class TestRateLimiter:
         assert rl.check() is False
 
         # Simulate 61 seconds passing
-        with patch("ductor_bot.webhook.auth.time.monotonic", return_value=time.monotonic() + 61):
+        with patch("ductor_slack.webhook.auth.time.monotonic", return_value=time.monotonic() + 61):
             assert rl.check() is True
 
     def test_reset_clears_history(self) -> None:

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import json
 
-from ductor_bot.cli.codex_events import parse_codex_jsonl, parse_codex_stream_event
-from ductor_bot.cli.stream_events import (
+from ductor_slack.cli.codex_events import parse_codex_jsonl, parse_codex_stream_event
+from ductor_slack.cli.stream_events import (
     AssistantTextDelta,
     ResultEvent,
     SystemInitEvent,

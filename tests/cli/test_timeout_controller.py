@@ -6,7 +6,7 @@ import asyncio
 
 import pytest
 
-from ductor_bot.cli.timeout_controller import (
+from ductor_slack.cli.timeout_controller import (
     TimeoutConfig,
     TimeoutController,
     TimeoutWarning,

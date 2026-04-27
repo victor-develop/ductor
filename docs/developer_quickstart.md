@@ -48,7 +48,7 @@ Primary runtime files/directories:
 pytest
 ruff format .
 ruff check .
-mypy ductor_bot
+mypy ductor_slack
 ```
 
 Expected: zero warnings, zero errors.
@@ -73,71 +73,71 @@ background/async results
 
 Entry + command layer:
 
-- `ductor_bot/__main__.py`
-- `ductor_bot/cli_commands/`
+- `ductor_slack/__main__.py`
+- `ductor_slack/cli_commands/`
 
 Runtime hot path:
 
-- `ductor_bot/multiagent/supervisor.py`
-- `ductor_bot/messenger/telegram/app.py`
-- `ductor_bot/messenger/telegram/startup.py`
-- `ductor_bot/orchestrator/core.py`
-- `ductor_bot/orchestrator/lifecycle.py`
-- `ductor_bot/orchestrator/flows.py`
+- `ductor_slack/multiagent/supervisor.py`
+- `ductor_slack/messenger/telegram/app.py`
+- `ductor_slack/messenger/telegram/startup.py`
+- `ductor_slack/orchestrator/core.py`
+- `ductor_slack/orchestrator/lifecycle.py`
+- `ductor_slack/orchestrator/flows.py`
 
 Delivery/task/session core:
 
-- `ductor_bot/bus/`
-- `ductor_bot/session/manager.py`
-- `ductor_bot/tasks/hub.py`
-- `ductor_bot/tasks/registry.py`
+- `ductor_slack/bus/`
+- `ductor_slack/session/manager.py`
+- `ductor_slack/tasks/hub.py`
+- `ductor_slack/tasks/registry.py`
 
 Provider/API/workspace core:
 
-- `ductor_bot/cli/service.py` + provider wrappers
-- `ductor_bot/api/server.py`
-- `ductor_bot/workspace/init.py`
-- `ductor_bot/workspace/rules_selector.py`
-- `ductor_bot/workspace/skill_sync.py`
+- `ductor_slack/cli/service.py` + provider wrappers
+- `ductor_slack/api/server.py`
+- `ductor_slack/workspace/init.py`
+- `ductor_slack/workspace/rules_selector.py`
+- `ductor_slack/workspace/skill_sync.py`
 
 ## 6) Common debug paths
 
 If command behavior is wrong:
 
-1. `ductor_bot/__main__.py`
-2. `ductor_bot/cli_commands/*`
+1. `ductor_slack/__main__.py`
+2. `ductor_slack/cli_commands/*`
 
 If Telegram routing is wrong:
 
-1. `ductor_bot/messenger/telegram/middleware.py`
-2. `ductor_bot/messenger/telegram/app.py`
-3. `ductor_bot/orchestrator/commands.py`
-4. `ductor_bot/orchestrator/flows.py`
+1. `ductor_slack/messenger/telegram/middleware.py`
+2. `ductor_slack/messenger/telegram/app.py`
+3. `ductor_slack/orchestrator/commands.py`
+4. `ductor_slack/orchestrator/flows.py`
 
 If Matrix routing is wrong:
 
-1. `ductor_bot/messenger/matrix/bot.py`
-2. `ductor_bot/messenger/matrix/transport.py`
-3. `ductor_bot/orchestrator/flows.py`
+1. `ductor_slack/messenger/matrix/bot.py`
+2. `ductor_slack/messenger/matrix/transport.py`
+3. `ductor_slack/orchestrator/flows.py`
 
 If background results look wrong:
 
-1. `ductor_bot/bus/adapters.py`
-2. `ductor_bot/bus/bus.py`
-3. `ductor_bot/messenger/telegram/transport.py` (or `ductor_bot/messenger/matrix/transport.py`)
+1. `ductor_slack/bus/adapters.py`
+2. `ductor_slack/bus/bus.py`
+3. `ductor_slack/messenger/telegram/transport.py` (or `ductor_slack/messenger/matrix/transport.py`)
 
 If tasks are wrong:
 
-1. `ductor_bot/tasks/hub.py`
-2. `ductor_bot/tasks/registry.py`
-3. `ductor_bot/multiagent/internal_api.py`
-4. `ductor_bot/_home_defaults/workspace/tools/task_tools/*.py`
+1. `ductor_slack/tasks/hub.py`
+2. `ductor_slack/tasks/registry.py`
+3. `ductor_slack/multiagent/internal_api.py`
+4. `ductor_slack/_home_defaults/workspace/tools/task_tools/*.py`
 
 If API is wrong:
 
-1. `ductor_bot/api/server.py`
-2. `ductor_bot/orchestrator/lifecycle.py` (API startup wiring)
-3. `ductor_bot/files/*` (allowed roots, MIME, prompt building)
+1. `ductor_slack/api/server.py`
+2. `ductor_slack/orchestrator/lifecycle.py` (API startup wiring)
+3. `ductor_slack/files/*` (allowed roots, MIME, prompt building)
 
 ## 7) Behavior details to remember
 

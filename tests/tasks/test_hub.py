@@ -8,10 +8,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from ductor_bot.cli.process_registry import ProcessRegistry
-from ductor_bot.tasks.hub import TaskHub
-from ductor_bot.tasks.models import TaskResult, TaskSubmit
-from ductor_bot.tasks.registry import TaskRegistry
+from ductor_slack.cli.process_registry import ProcessRegistry
+from ductor_slack.tasks.hub import TaskHub
+from ductor_slack.tasks.models import TaskResult, TaskSubmit
+from ductor_slack.tasks.registry import TaskRegistry
 
 
 @pytest.fixture
@@ -664,7 +664,7 @@ class TestPerAgentTasksDir:
         self, registry: TaskRegistry, tmp_path: Path
     ) -> None:
         """Task folders land in the submitting agent's workspace."""
-        from ductor_bot.workspace.paths import DuctorPaths
+        from ductor_slack.workspace.paths import DuctorPaths
 
         agent_home = tmp_path / "agents" / "test"
         agent_paths = DuctorPaths(ductor_home=agent_home)
@@ -934,13 +934,13 @@ class TestAppendTaskmemory:
     parent agents receive silently-truncated memory content."""
 
     def test_warns_on_truncation(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-        from ductor_bot.tasks.hub import _TASKMEMORY_MAX_LEN, _append_taskmemory
+        from ductor_slack.tasks.hub import _TASKMEMORY_MAX_LEN, _append_taskmemory
 
         memory_file = tmp_path / "TASKMEMORY.md"
         original_len = _TASKMEMORY_MAX_LEN + 1000
         memory_file.write_text("X" * original_len, encoding="utf-8")
 
-        with caplog.at_level("WARNING", logger="ductor_bot.tasks.hub"):
+        with caplog.at_level("WARNING", logger="ductor_slack.tasks.hub"):
             result = _append_taskmemory("result_text", memory_file)
 
         # WARNING log fired
@@ -952,12 +952,12 @@ class TestAppendTaskmemory:
         assert "truncated" in result.lower()
 
     def test_no_warning_under_limit(self, tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
-        from ductor_bot.tasks.hub import _append_taskmemory
+        from ductor_slack.tasks.hub import _append_taskmemory
 
         memory_file = tmp_path / "TASKMEMORY.md"
         memory_file.write_text("short content", encoding="utf-8")
 
-        with caplog.at_level("WARNING", logger="ductor_bot.tasks.hub"):
+        with caplog.at_level("WARNING", logger="ductor_slack.tasks.hub"):
             result = _append_taskmemory("result_text", memory_file)
 
         assert not any("TASKMEMORY truncated" in rec.message for rec in caplog.records)

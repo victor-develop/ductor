@@ -9,10 +9,10 @@ from unittest.mock import AsyncMock
 import pytest
 import time_machine
 
-from ductor_bot.config import AgentConfig, HeartbeatConfig, HeartbeatTarget
-from ductor_bot.heartbeat.observer import HeartbeatObserver
-from ductor_bot.orchestrator.flows import _strip_ack_token
-from ductor_bot.utils.quiet_hours import is_quiet_hour
+from ductor_slack.config import AgentConfig, HeartbeatConfig, HeartbeatTarget
+from ductor_slack.heartbeat.observer import HeartbeatObserver
+from ductor_slack.orchestrator.flows import _strip_ack_token
+from ductor_slack.utils.quiet_hours import is_quiet_hour
 
 # ---------------------------------------------------------------------------
 # Quiet hour logic

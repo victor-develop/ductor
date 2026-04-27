@@ -6,8 +6,8 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from ductor_bot.cli.base import CLIConfig
-from ductor_bot.cli.service import CLIServiceConfig
+from ductor_slack.cli.base import CLIConfig
+from ductor_slack.cli.service import CLIServiceConfig
 
 
 @pytest.fixture
@@ -29,7 +29,7 @@ def service_config_with_params() -> CLIServiceConfig:
 
 def test_main_agent_claude_parameters() -> None:
     """Should pass Claude-specific CLI parameters to Claude provider."""
-    from ductor_bot.cli.claude_provider import ClaudeCodeCLI
+    from ductor_slack.cli.claude_provider import ClaudeCodeCLI
 
     config = CLIConfig(
         provider="claude",
@@ -64,7 +64,7 @@ def test_main_agent_claude_parameters() -> None:
 
 def test_main_agent_codex_parameters() -> None:
     """Should pass Codex-specific CLI parameters to Codex provider."""
-    from ductor_bot.cli.codex_provider import CodexCLI
+    from ductor_slack.cli.codex_provider import CodexCLI
 
     config = CLIConfig(
         provider="codex",
@@ -99,8 +99,8 @@ def test_main_agent_codex_parameters() -> None:
 
 def test_parameter_isolation() -> None:
     """Should not leak Claude parameters to Codex and vice versa."""
-    from ductor_bot.cli.claude_provider import ClaudeCodeCLI
-    from ductor_bot.cli.codex_provider import CodexCLI
+    from ductor_slack.cli.claude_provider import ClaudeCodeCLI
+    from ductor_slack.cli.codex_provider import CodexCLI
 
     # Build Claude command with Claude params
     claude_config = CLIConfig(

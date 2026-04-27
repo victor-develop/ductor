@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from ductor_bot.messenger.telegram.message_dispatch import (
+from ductor_slack.messenger.telegram.message_dispatch import (
     _REACTION_DEFAULT,
     _REACTION_SYSTEM,
     _REACTION_THINKING,
@@ -15,7 +15,7 @@ from ductor_bot.messenger.telegram.message_dispatch import (
     ReactionTracker,
     run_non_streaming_message,
 )
-from ductor_bot.session.key import SessionKey
+from ductor_slack.session.key import SessionKey
 
 
 def _make_bot() -> MagicMock:
@@ -141,10 +141,10 @@ async def test_non_streaming_reacts_on_trigger_message_not_reply_to() -> None:
 
     with (
         patch(
-            "ductor_bot.messenger.telegram.message_dispatch.send_rich",
+            "ductor_slack.messenger.telegram.message_dispatch.send_rich",
             new_callable=AsyncMock,
         ),
-        patch("ductor_bot.messenger.telegram.message_dispatch.TypingContext") as typing_ctx,
+        patch("ductor_slack.messenger.telegram.message_dispatch.TypingContext") as typing_ctx,
     ):
         typing_ctx.return_value.__aenter__ = AsyncMock()
         typing_ctx.return_value.__aexit__ = AsyncMock()

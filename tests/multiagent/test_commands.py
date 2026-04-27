@@ -4,13 +4,13 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
-from ductor_bot.multiagent.commands import (
+from ductor_slack.multiagent.commands import (
     cmd_agent_restart,
     cmd_agent_start,
     cmd_agent_stop,
     cmd_agents,
 )
-from ductor_bot.multiagent.health import AgentHealth
+from ductor_slack.multiagent.health import AgentHealth
 
 
 def _make_orch(*, with_supervisor: bool = True) -> MagicMock:

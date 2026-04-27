@@ -6,9 +6,9 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from ductor_bot.cli.types import AgentResponse
-from ductor_bot.orchestrator.core import Orchestrator
-from ductor_bot.orchestrator.flows import (
+from ductor_slack.cli.types import AgentResponse
+from ductor_slack.orchestrator.core import Orchestrator
+from ductor_slack.orchestrator.flows import (
     StreamingCallbacks,
     _finish_normal,
     _strip_ack_token,
@@ -16,9 +16,9 @@ from ductor_bot.orchestrator.flows import (
     normal,
     normal_streaming,
 )
-from ductor_bot.orchestrator.registry import OrchestratorResult
-from ductor_bot.session import SessionData
-from ductor_bot.session.key import SessionKey
+from ductor_slack.orchestrator.registry import OrchestratorResult
+from ductor_slack.session import SessionData
+from ductor_slack.session.key import SessionKey
 
 
 @pytest.fixture
@@ -264,7 +264,7 @@ async def test_normal_warns_for_gemini_api_key_mode_without_ductor_key(
     orch._config.gemini_api_key = "null"
 
     orch._providers._gemini_api_key_mode = True
-    monkeypatch.setattr("ductor_bot.cli.auth.gemini_uses_api_key_mode", lambda: True)
+    monkeypatch.setattr("ductor_slack.cli.auth.gemini_uses_api_key_mode", lambda: True)
     result = await normal(
         orch, SessionKey(chat_id=1), "Hello", model_override="gemini-3-pro-preview"
     )
@@ -283,7 +283,7 @@ async def test_streaming_warns_for_gemini_api_key_mode_without_ductor_key(
     orch._config.gemini_api_key = "null"
 
     orch._providers._gemini_api_key_mode = True
-    monkeypatch.setattr("ductor_bot.cli.auth.gemini_uses_api_key_mode", lambda: True)
+    monkeypatch.setattr("ductor_slack.cli.auth.gemini_uses_api_key_mode", lambda: True)
     result = await normal_streaming(
         orch, SessionKey(chat_id=1), "Hello", model_override="gemini-3-pro-preview"
     )
@@ -321,7 +321,7 @@ async def test_normal_recovers_when_gemini_auth_flipped_mid_session(
     orch._config.gemini_api_key = "null"
 
     orch._providers._gemini_api_key_mode = True  # stale cache
-    monkeypatch.setattr("ductor_bot.cli.auth.gemini_uses_api_key_mode", lambda: False)
+    monkeypatch.setattr("ductor_slack.cli.auth.gemini_uses_api_key_mode", lambda: False)
 
     result = await normal(
         orch, SessionKey(chat_id=1), "Hello", model_override="gemini-3-pro-preview"
@@ -725,7 +725,7 @@ def test_is_invalid_session_matches_no_conversation_found() -> None:
     must be detected as a stale session so recovery/retry can kick in.
 
     Regression for the marker extension in ``_INVALID_SESSION_MARKERS``."""
-    from ductor_bot.orchestrator.flows import _is_invalid_session
+    from ductor_slack.orchestrator.flows import _is_invalid_session
 
     response = AgentResponse(
         result="No conversation found with session ID: abc123",
@@ -736,7 +736,7 @@ def test_is_invalid_session_matches_no_conversation_found() -> None:
 
 def test_is_invalid_session_case_insensitive() -> None:
     """#81 defensive: marker match is lowercase-normalized."""
-    from ductor_bot.orchestrator.flows import _is_invalid_session
+    from ductor_slack.orchestrator.flows import _is_invalid_session
 
     response = AgentResponse(
         result="NO CONVERSATION FOUND with session ID: XYZ",
@@ -749,8 +749,8 @@ def test_finish_normal_substitutes_empty_success_with_fallback() -> None:
     """#84: successful turn with empty result -- e.g. agent spent the turn
     writing to memory -- must yield a non-empty visible status message so
     Telegram's send_rich doesn't silently drop the message."""
-    from ductor_bot.i18n import t
-    from ductor_bot.orchestrator.flows import _finish_normal
+    from ductor_slack.i18n import t
+    from ductor_slack.orchestrator.flows import _finish_normal
 
     response = AgentResponse(result="", is_error=False)
     result = _finish_normal(response)
@@ -760,8 +760,8 @@ def test_finish_normal_substitutes_empty_success_with_fallback() -> None:
 
 def test_finish_normal_whitespace_only_substitutes_fallback() -> None:
     """#84 defensive: whitespace-only result is also treated as empty."""
-    from ductor_bot.i18n import t
-    from ductor_bot.orchestrator.flows import _finish_normal
+    from ductor_slack.i18n import t
+    from ductor_slack.orchestrator.flows import _finish_normal
 
     response = AgentResponse(result="   \n  \t", is_error=False)
     result = _finish_normal(response)
@@ -770,7 +770,7 @@ def test_finish_normal_whitespace_only_substitutes_fallback() -> None:
 
 def test_finish_normal_non_empty_success_unchanged() -> None:
     """#84 non-regression: non-empty successful response passes through."""
-    from ductor_bot.orchestrator.flows import _finish_normal
+    from ductor_slack.orchestrator.flows import _finish_normal
 
     response = AgentResponse(result="Hello world", is_error=False)
     result = _finish_normal(response)

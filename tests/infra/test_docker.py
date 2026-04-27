@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from ductor_bot.config import DockerConfig
-from ductor_bot.workspace.paths import DuctorPaths
+from ductor_slack.config import DockerConfig
+from ductor_slack.workspace.paths import DuctorPaths
 
 
 @pytest.fixture
@@ -34,7 +34,7 @@ class TestDockerManager:
     async def test_setup_returns_none_when_docker_not_found(
         self, docker_config: DockerConfig, docker_paths: DuctorPaths
     ) -> None:
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         mgr = DockerManager(docker_config, docker_paths)
         with patch("shutil.which", return_value=None):
@@ -47,7 +47,7 @@ class TestDockerManager:
         docker_paths: DuctorPaths,
         monkeypatch: pytest.MonkeyPatch,
     ) -> None:
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         monkeypatch.setattr("sys.stderr", None)
 
@@ -58,7 +58,7 @@ class TestDockerManager:
     async def test_setup_returns_none_when_daemon_unavailable(
         self, docker_config: DockerConfig, docker_paths: DuctorPaths
     ) -> None:
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         mgr = DockerManager(docker_config, docker_paths)
         with (
@@ -71,7 +71,7 @@ class TestDockerManager:
     async def test_setup_returns_container_name_on_success(
         self, docker_config: DockerConfig, docker_paths: DuctorPaths
     ) -> None:
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         mgr = DockerManager(docker_config, docker_paths)
 
@@ -99,7 +99,7 @@ class TestDockerManager:
     async def test_setup_builds_image_when_auto_build(
         self, docker_config: DockerConfig, docker_paths: DuctorPaths
     ) -> None:
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         docker_config.auto_build = True
         # Create Dockerfile.sandbox
@@ -137,7 +137,7 @@ class TestDockerManager:
     async def test_setup_returns_none_when_auto_build_disabled(
         self, docker_config: DockerConfig, docker_paths: DuctorPaths
     ) -> None:
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         docker_config.auto_build = False
         mgr = DockerManager(docker_config, docker_paths)
@@ -160,7 +160,7 @@ class TestDockerManager:
     async def test_teardown_stops_and_removes(
         self, docker_config: DockerConfig, docker_paths: DuctorPaths
     ) -> None:
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         mgr = DockerManager(docker_config, docker_paths)
         mgr._container = "test-ctr"
@@ -181,7 +181,7 @@ class TestDockerManager:
     async def test_teardown_noop_when_no_container(
         self, docker_config: DockerConfig, docker_paths: DuctorPaths
     ) -> None:
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         mgr = DockerManager(docker_config, docker_paths)
         assert mgr._container is None
@@ -190,7 +190,7 @@ class TestDockerManager:
     async def test_exec_returns_exit_code_and_output(
         self, docker_config: DockerConfig, docker_paths: DuctorPaths
     ) -> None:
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         mgr = DockerManager(docker_config, docker_paths)
         # Test the static method with a simple command
@@ -201,7 +201,7 @@ class TestDockerManager:
     async def test_exec_handles_timeout(
         self, docker_config: DockerConfig, docker_paths: DuctorPaths
     ) -> None:
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         mgr = DockerManager(docker_config, docker_paths)
         rc, _ = await mgr._exec("sleep", "10", deadline_seconds=0.1)
@@ -211,7 +211,7 @@ class TestDockerManager:
         self, docker_config: DockerConfig, docker_paths: DuctorPaths
     ) -> None:
         """Verify run command mounts entire ~/.ductor, not just workspace."""
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         mgr = DockerManager(docker_config, docker_paths)
         run_args: list[str] = []
@@ -250,7 +250,7 @@ class TestDockerManager:
     async def test_ensure_running_returns_container_when_healthy(
         self, docker_config: DockerConfig, docker_paths: DuctorPaths
     ) -> None:
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         mgr = DockerManager(docker_config, docker_paths)
         mgr._container = "test-ctr"
@@ -262,7 +262,7 @@ class TestDockerManager:
     async def test_ensure_running_recovers_stopped_container(
         self, docker_config: DockerConfig, docker_paths: DuctorPaths
     ) -> None:
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         mgr = DockerManager(docker_config, docker_paths)
         mgr._container = "test-ctr"
@@ -277,7 +277,7 @@ class TestDockerManager:
     async def test_ensure_running_returns_none_on_recovery_failure(
         self, docker_config: DockerConfig, docker_paths: DuctorPaths
     ) -> None:
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         mgr = DockerManager(docker_config, docker_paths)
         mgr._container = "test-ctr"
@@ -292,7 +292,7 @@ class TestDockerManager:
     async def test_ensure_running_calls_setup_when_no_container(
         self, docker_config: DockerConfig, docker_paths: DuctorPaths
     ) -> None:
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         mgr = DockerManager(docker_config, docker_paths)
         assert mgr._container is None
@@ -306,7 +306,7 @@ class TestDockerManager:
         self, docker_config: DockerConfig, docker_paths: DuctorPaths
     ) -> None:
         """Verify --user flag is added on Linux."""
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         mgr = DockerManager(docker_config, docker_paths)
         run_args: list[str] = []
@@ -329,7 +329,7 @@ class TestDockerManager:
         with (
             patch("shutil.which", return_value="/usr/bin/docker"),
             patch.object(mgr, "_exec", side_effect=mock_exec),
-            patch("ductor_bot.infra.docker._needs_uid_mapping", return_value=True),
+            patch("ductor_slack.infra.docker._needs_uid_mapping", return_value=True),
             patch("os.getuid", return_value=1000),
             patch("os.getgid", return_value=1000),
         ):
@@ -342,7 +342,7 @@ class TestDockerManager:
         self, docker_config: DockerConfig, docker_paths: DuctorPaths
     ) -> None:
         """Verify --user flag is NOT added on macOS."""
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         mgr = DockerManager(docker_config, docker_paths)
         run_args: list[str] = []
@@ -365,7 +365,7 @@ class TestDockerManager:
         with (
             patch("shutil.which", return_value="/usr/bin/docker"),
             patch.object(mgr, "_exec", side_effect=mock_exec),
-            patch("ductor_bot.infra.docker._needs_uid_mapping", return_value=False),
+            patch("ductor_slack.infra.docker._needs_uid_mapping", return_value=False),
         ):
             await mgr.setup()
 
@@ -375,7 +375,7 @@ class TestDockerManager:
     async def test_container_property(
         self, docker_config: DockerConfig, docker_paths: DuctorPaths
     ) -> None:
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         mgr = DockerManager(docker_config, docker_paths)
         assert mgr.container is None
@@ -386,7 +386,7 @@ class TestDockerManager:
         self, docker_config: DockerConfig, tmp_path: Path
     ) -> None:
         """Sub-agent container mounts ~/.ductor (root), not ~/.ductor/agents/test."""
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         root_home = tmp_path / ".ductor"
         agent_home = root_home / "agents" / "test"
@@ -419,7 +419,7 @@ class TestDockerManager:
         with (
             patch("shutil.which", return_value="/usr/bin/docker"),
             patch.object(mgr, "_exec", side_effect=mock_exec),
-            patch("ductor_bot.infra.docker._needs_uid_mapping", return_value=False),
+            patch("ductor_slack.infra.docker._needs_uid_mapping", return_value=False),
         ):
             await mgr.setup()
 
@@ -434,7 +434,7 @@ class TestDockerManager:
         """Second concurrent setup() reuses the container created by the first."""
         import asyncio
 
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         mgr1 = DockerManager(docker_config, docker_paths)
         mgr2 = DockerManager(docker_config, docker_paths)

@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 
-from ductor_bot.cron.dependency_queue import DependencyQueue
+from ductor_slack.cron.dependency_queue import DependencyQueue
 
 # ---------------------------------------------------------------------------
 # No dependency runs immediately

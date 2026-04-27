@@ -11,12 +11,12 @@ from unittest.mock import AsyncMock, MagicMock, patch
 import pytest
 import time_machine
 
-from ductor_bot.cli.codex_cache import CodexModelCache
-from ductor_bot.config import AgentConfig, WebhookConfig
-from ductor_bot.webhook.manager import WebhookManager
-from ductor_bot.webhook.models import WebhookEntry, WebhookResult, render_template
-from ductor_bot.webhook.observer import _SAFETY_END, _SAFETY_START, WebhookObserver
-from ductor_bot.workspace.paths import DuctorPaths
+from ductor_slack.cli.codex_cache import CodexModelCache
+from ductor_slack.config import AgentConfig, WebhookConfig
+from ductor_slack.webhook.manager import WebhookManager
+from ductor_slack.webhook.models import WebhookEntry, WebhookResult, render_template
+from ductor_slack.webhook.observer import _SAFETY_END, _SAFETY_START, WebhookObserver
+from ductor_slack.workspace.paths import DuctorPaths
 
 
 def _make_paths(tmp_path: Path) -> DuctorPaths:
@@ -315,7 +315,7 @@ class TestDispatchCronTask:
 
         with (
             time_machine.travel(datetime(2026, 1, 15, 14, 0, tzinfo=UTC)),
-            patch("ductor_bot.cron.execution.which", return_value=None),
+            patch("ductor_slack.cron.execution.which", return_value=None),
         ):
             result = await observer._dispatch("ct-hook", {"msg": "go"})
 
@@ -334,7 +334,7 @@ class TestDispatchCronTask:
 
         with (
             time_machine.travel(datetime(2026, 1, 15, 14, 0, tzinfo=UTC)),
-            patch("ductor_bot.cron.execution.which", return_value="/usr/bin/claude"),
+            patch("ductor_slack.cron.execution.which", return_value="/usr/bin/claude"),
             patch("asyncio.create_subprocess_exec", return_value=mock_proc) as exec_mock,
         ):
             result = await observer._dispatch("ct-hook", {"msg": "go"})
@@ -356,7 +356,7 @@ class TestDispatchCronTask:
 
         with (
             time_machine.travel(datetime(2026, 1, 15, 14, 0, tzinfo=UTC)),
-            patch("ductor_bot.cron.execution.which", return_value="/usr/bin/claude"),
+            patch("ductor_slack.cron.execution.which", return_value="/usr/bin/claude"),
             patch("asyncio.create_subprocess_exec", return_value=mock_proc),
         ):
             result = await observer._dispatch("ct-hook", {"msg": "go"})
@@ -390,7 +390,7 @@ class TestDispatchCronTask:
 
         with (
             time_machine.travel(datetime(2026, 1, 15, 14, 0, tzinfo=UTC)),
-            patch("ductor_bot.cron.execution.which", return_value="/usr/bin/claude"),
+            patch("ductor_slack.cron.execution.which", return_value="/usr/bin/claude"),
             patch("asyncio.create_subprocess_exec", return_value=mock_proc),
         ):
             result = await observer._dispatch("ct-hook", {"msg": "go"})
@@ -411,7 +411,7 @@ class TestDispatchCronTask:
 
         with (
             time_machine.travel(datetime(2026, 1, 15, 14, 0, tzinfo=UTC)),
-            patch("ductor_bot.cron.execution.which", return_value="/usr/bin/claude"),
+            patch("ductor_slack.cron.execution.which", return_value="/usr/bin/claude"),
             patch("asyncio.create_subprocess_exec", return_value=mock_proc) as exec_mock,
         ):
             await observer._dispatch("ct-hook", {"msg": "go"})

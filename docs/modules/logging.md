@@ -4,8 +4,8 @@ Context-aware logging infrastructure used by all runtime modules.
 
 ## Files
 
-- `ductor_bot/log_context.py`: `ContextVar` state (`agent_name`, `operation`, `chat_id`, `session_id`) + `ContextFilter`.
-- `ductor_bot/logging_config.py`: root logger setup (console + rotating file via queue listener).
+- `ductor_slack/log_context.py`: `ContextVar` state (`agent_name`, `operation`, `chat_id`, `session_id`) + `ContextFilter`.
+- `ductor_slack/logging_config.py`: root logger setup (console + rotating file via queue listener).
 
 ## Context Model
 

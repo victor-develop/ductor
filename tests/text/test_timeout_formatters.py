@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ductor_bot.text.response_format import (
+from ductor_slack.text.response_format import (
     recovery_notification_text,
     startup_notification_text,
     timeout_extended_text,

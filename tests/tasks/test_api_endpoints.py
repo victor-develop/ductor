@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from ductor_bot.multiagent.internal_api import InternalAgentAPI
+from ductor_slack.multiagent.internal_api import InternalAgentAPI
 
 if TYPE_CHECKING:
     from aiohttp.test_utils import TestClient

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ductor_bot.webhook.models import WebhookEntry, WebhookResult, render_template
+from ductor_slack.webhook.models import WebhookEntry, WebhookResult, render_template
 
 # ---------------------------------------------------------------------------
 # WebhookEntry

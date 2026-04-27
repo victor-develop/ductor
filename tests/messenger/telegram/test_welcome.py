@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
-from ductor_bot.cli.auth import AuthResult, AuthStatus
-from ductor_bot.config import AgentConfig
+from ductor_slack.cli.auth import AuthResult, AuthStatus
+from ductor_slack.config import AgentConfig
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -38,7 +38,7 @@ def _config(**overrides: object) -> AgentConfig:
 
 class TestBuildWelcomeText:
     def test_both_providers_authenticated(self) -> None:
-        from ductor_bot.messenger.telegram.welcome import build_welcome_text
+        from ductor_slack.messenger.telegram.welcome import build_welcome_text
 
         auth_results = {
             "claude": _auth("claude"),
@@ -51,7 +51,7 @@ class TestBuildWelcomeText:
         assert "Sonnet" in text
 
     def test_only_claude_authenticated(self) -> None:
-        from ductor_bot.messenger.telegram.welcome import build_welcome_text
+        from ductor_slack.messenger.telegram.welcome import build_welcome_text
 
         auth_results = {
             "claude": _auth("claude"),
@@ -64,7 +64,7 @@ class TestBuildWelcomeText:
         assert "Codex authenticated" not in text
 
     def test_only_codex_authenticated(self) -> None:
-        from ductor_bot.messenger.telegram.welcome import build_welcome_text
+        from ductor_slack.messenger.telegram.welcome import build_welcome_text
 
         auth_results = {
             "claude": _auth("claude", authenticated=False),
@@ -77,7 +77,7 @@ class TestBuildWelcomeText:
         assert "gpt-5.2-codex" in text
 
     def test_only_gemini_authenticated(self) -> None:
-        from ductor_bot.messenger.telegram.welcome import build_welcome_text
+        from ductor_slack.messenger.telegram.welcome import build_welcome_text
 
         auth_results = {
             "claude": _auth("claude", authenticated=False),
@@ -91,7 +91,7 @@ class TestBuildWelcomeText:
         assert "gemini-2.5-pro" in text
 
     def test_no_providers_authenticated(self) -> None:
-        from ductor_bot.messenger.telegram.welcome import build_welcome_text
+        from ductor_slack.messenger.telegram.welcome import build_welcome_text
 
         auth_results = {
             "claude": _auth("claude", authenticated=False),
@@ -104,27 +104,27 @@ class TestBuildWelcomeText:
         assert "codex auth" in text
 
     def test_empty_auth_results(self) -> None:
-        from ductor_bot.messenger.telegram.welcome import build_welcome_text
+        from ductor_slack.messenger.telegram.welcome import build_welcome_text
 
         text = build_welcome_text("Eve", {}, _config())
 
         assert "No CLI authenticated" in text
 
     def test_user_name_present(self) -> None:
-        from ductor_bot.messenger.telegram.welcome import build_welcome_text
+        from ductor_slack.messenger.telegram.welcome import build_welcome_text
 
         text = build_welcome_text("Zara", {}, _config())
         assert "Welcome to ductor.dev, Zara!" in text
 
     def test_user_name_empty(self) -> None:
-        from ductor_bot.messenger.telegram.welcome import build_welcome_text
+        from ductor_slack.messenger.telegram.welcome import build_welcome_text
 
         text = build_welcome_text("", {}, _config())
         assert "Welcome to ductor.dev!" in text
         assert "Welcome to ductor.dev, " not in text
 
     def test_static_content_present(self) -> None:
-        from ductor_bot.messenger.telegram.welcome import build_welcome_text
+        from ductor_slack.messenger.telegram.welcome import build_welcome_text
 
         text = build_welcome_text("X", {}, _config())
 
@@ -147,7 +147,7 @@ class TestBuildWelcomeText:
         model: str,
         expected_fragment: str,
     ) -> None:
-        from ductor_bot.messenger.telegram.welcome import build_welcome_text
+        from ductor_slack.messenger.telegram.welcome import build_welcome_text
 
         auth_results = {"claude": _auth("claude")}
         text = build_welcome_text("U", auth_results, _config(model=model))
@@ -163,7 +163,7 @@ class TestBuildWelcomeText:
 
 class TestBuildAuthBlock:
     def test_both_ok_mentions_both_providers(self) -> None:
-        from ductor_bot.messenger.telegram.welcome import _build_auth_block
+        from ductor_slack.messenger.telegram.welcome import _build_auth_block
 
         auth_results = {
             "claude": _auth("claude"),
@@ -175,7 +175,7 @@ class TestBuildAuthBlock:
         assert "Opus" in block
 
     def test_codex_only_shows_model(self) -> None:
-        from ductor_bot.messenger.telegram.welcome import _build_auth_block
+        from ductor_slack.messenger.telegram.welcome import _build_auth_block
 
         auth_results = {
             "claude": _auth("claude", authenticated=False),
@@ -188,7 +188,7 @@ class TestBuildAuthBlock:
         assert "gpt-5.1-codex-mini" in block
 
     def test_claude_missing_from_dict(self) -> None:
-        from ductor_bot.messenger.telegram.welcome import _build_auth_block
+        from ductor_slack.messenger.telegram.welcome import _build_auth_block
 
         auth_results: dict[str, AuthResult] = {"codex": _auth("codex")}
         block = _build_auth_block(auth_results, _config(provider="codex"))
@@ -196,7 +196,7 @@ class TestBuildAuthBlock:
         assert "Codex authenticated" in block
 
     def test_codex_missing_from_dict(self) -> None:
-        from ductor_bot.messenger.telegram.welcome import _build_auth_block
+        from ductor_slack.messenger.telegram.welcome import _build_auth_block
 
         auth_results: dict[str, AuthResult] = {"claude": _auth("claude")}
         block = _build_auth_block(auth_results, _config(model="sonnet"))
@@ -214,26 +214,29 @@ class TestBuildWelcomeKeyboard:
     def test_returns_inline_keyboard_markup(self) -> None:
         from aiogram.types import InlineKeyboardMarkup
 
-        from ductor_bot.messenger.telegram.welcome import build_welcome_keyboard
+        from ductor_slack.messenger.telegram.welcome import build_welcome_keyboard
 
         kb = build_welcome_keyboard()
         assert isinstance(kb, InlineKeyboardMarkup)
 
     def test_has_three_rows(self) -> None:
-        from ductor_bot.messenger.telegram.welcome import build_welcome_keyboard
+        from ductor_slack.messenger.telegram.welcome import build_welcome_keyboard
 
         kb = build_welcome_keyboard()
         assert len(kb.inline_keyboard) == 3
 
     def test_each_row_has_one_button(self) -> None:
-        from ductor_bot.messenger.telegram.welcome import build_welcome_keyboard
+        from ductor_slack.messenger.telegram.welcome import build_welcome_keyboard
 
         kb = build_welcome_keyboard()
         for row in kb.inline_keyboard:
             assert len(row) == 1
 
     def test_callback_data_matches_welcome_keys(self) -> None:
-        from ductor_bot.messenger.telegram.welcome import WELCOME_CALLBACKS, build_welcome_keyboard
+        from ductor_slack.messenger.telegram.welcome import (
+            WELCOME_CALLBACKS,
+            build_welcome_keyboard,
+        )
 
         kb = build_welcome_keyboard()
         callback_keys = [row[0].callback_data for row in kb.inline_keyboard]
@@ -242,7 +245,7 @@ class TestBuildWelcomeKeyboard:
             assert key in WELCOME_CALLBACKS
 
     def test_button_labels_match_expected(self) -> None:
-        from ductor_bot.messenger.telegram.welcome import _BUTTON_LABELS, build_welcome_keyboard
+        from ductor_slack.messenger.telegram.welcome import _BUTTON_LABELS, build_welcome_keyboard
 
         kb = build_welcome_keyboard()
 
@@ -260,13 +263,13 @@ class TestBuildWelcomeKeyboard:
 class TestIsWelcomeCallback:
     @pytest.mark.parametrize("data", ["w:1", "w:2", "w:3"])
     def test_valid_welcome_data(self, data: str) -> None:
-        from ductor_bot.messenger.telegram.welcome import is_welcome_callback
+        from ductor_slack.messenger.telegram.welcome import is_welcome_callback
 
         assert is_welcome_callback(data) is True
 
     @pytest.mark.parametrize("data", ["w:999", "w:"])
     def test_valid_prefix_unknown_key(self, data: str) -> None:
-        from ductor_bot.messenger.telegram.welcome import is_welcome_callback
+        from ductor_slack.messenger.telegram.welcome import is_welcome_callback
 
         assert is_welcome_callback(data) is True
 
@@ -282,7 +285,7 @@ class TestIsWelcomeCallback:
         ],
     )
     def test_non_welcome_data(self, data: str) -> None:
-        from ductor_bot.messenger.telegram.welcome import is_welcome_callback
+        from ductor_slack.messenger.telegram.welcome import is_welcome_callback
 
         assert is_welcome_callback(data) is False
 
@@ -302,29 +305,29 @@ class TestResolveWelcomeCallback:
         ],
     )
     def test_known_keys_return_prompt(self, key: str, expected_substring: str) -> None:
-        from ductor_bot.messenger.telegram.welcome import resolve_welcome_callback
+        from ductor_slack.messenger.telegram.welcome import resolve_welcome_callback
 
         result = resolve_welcome_callback(key)
         assert result is not None
         assert expected_substring in result.lower()
 
     def test_unknown_key_returns_none(self) -> None:
-        from ductor_bot.messenger.telegram.welcome import resolve_welcome_callback
+        from ductor_slack.messenger.telegram.welcome import resolve_welcome_callback
 
         assert resolve_welcome_callback("w:99") is None
 
     def test_non_welcome_key_returns_none(self) -> None:
-        from ductor_bot.messenger.telegram.welcome import resolve_welcome_callback
+        from ductor_slack.messenger.telegram.welcome import resolve_welcome_callback
 
         assert resolve_welcome_callback("ms:p:claude") is None
 
     def test_empty_string_returns_none(self) -> None:
-        from ductor_bot.messenger.telegram.welcome import resolve_welcome_callback
+        from ductor_slack.messenger.telegram.welcome import resolve_welcome_callback
 
         assert resolve_welcome_callback("") is None
 
     def test_resolved_prompts_are_non_empty_strings(self) -> None:
-        from ductor_bot.messenger.telegram.welcome import (
+        from ductor_slack.messenger.telegram.welcome import (
             WELCOME_CALLBACKS,
             resolve_welcome_callback,
         )

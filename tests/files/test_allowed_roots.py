@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ductor_bot.files.allowed_roots import resolve_allowed_roots
+from ductor_slack.files.allowed_roots import resolve_allowed_roots
 
 
 class TestResolveAllowedRoots:

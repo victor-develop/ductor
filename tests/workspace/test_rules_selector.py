@@ -5,9 +5,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-from ductor_bot.cli.auth import AuthResult, AuthStatus
-from ductor_bot.workspace.paths import DuctorPaths
-from ductor_bot.workspace.rules_selector import RulesSelector
+from ductor_slack.cli.auth import AuthResult, AuthStatus
+from ductor_slack.workspace.paths import DuctorPaths
+from ductor_slack.workspace.rules_selector import RulesSelector
 
 
 @pytest.fixture
@@ -49,7 +49,7 @@ def test_variant_selection_claude_only(mock_paths: DuctorPaths) -> None:
         "codex": AuthResult(provider="codex", status=AuthStatus.NOT_FOUND),
     }
 
-    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+    with patch("ductor_slack.cli.auth.check_all_auth", return_value=auth):
         selector = RulesSelector(mock_paths)
         assert selector.get_variant_suffix() == "claude-only"
 
@@ -61,7 +61,7 @@ def test_variant_selection_codex_only(mock_paths: DuctorPaths) -> None:
         "codex": AuthResult(provider="codex", status=AuthStatus.AUTHENTICATED),
     }
 
-    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+    with patch("ductor_slack.cli.auth.check_all_auth", return_value=auth):
         selector = RulesSelector(mock_paths)
         assert selector.get_variant_suffix() == "codex-only"
 
@@ -73,7 +73,7 @@ def test_variant_selection_both(mock_paths: DuctorPaths) -> None:
         "codex": AuthResult(provider="codex", status=AuthStatus.AUTHENTICATED),
     }
 
-    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+    with patch("ductor_slack.cli.auth.check_all_auth", return_value=auth):
         selector = RulesSelector(mock_paths)
         assert selector.get_variant_suffix() == "all-clis"
 
@@ -85,7 +85,7 @@ def test_template_discovery(mock_paths: DuctorPaths) -> None:
         "codex": AuthResult(provider="codex", status=AuthStatus.NOT_FOUND),
     }
 
-    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+    with patch("ductor_slack.cli.auth.check_all_auth", return_value=auth):
         selector = RulesSelector(mock_paths)
         dirs = selector.discover_template_directories()
 
@@ -104,7 +104,7 @@ def test_deploy_claude_only_no_agents_md(mock_paths: DuctorPaths) -> None:
         "codex": AuthResult(provider="codex", status=AuthStatus.NOT_FOUND),
     }
 
-    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+    with patch("ductor_slack.cli.auth.check_all_auth", return_value=auth):
         selector = RulesSelector(mock_paths)
         selector.deploy_rules()
 
@@ -125,7 +125,7 @@ def test_deploy_codex_only_with_agents_md(mock_paths: DuctorPaths) -> None:
         "codex": AuthResult(provider="codex", status=AuthStatus.AUTHENTICATED),
     }
 
-    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+    with patch("ductor_slack.cli.auth.check_all_auth", return_value=auth):
         selector = RulesSelector(mock_paths)
         selector.deploy_rules()
 
@@ -146,7 +146,7 @@ def test_deploy_both_with_both_files(mock_paths: DuctorPaths) -> None:
         "codex": AuthResult(provider="codex", status=AuthStatus.AUTHENTICATED),
     }
 
-    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+    with patch("ductor_slack.cli.auth.check_all_auth", return_value=auth):
         selector = RulesSelector(mock_paths)
         selector.deploy_rules()
 
@@ -172,7 +172,7 @@ def test_deploy_all_directories(mock_paths: DuctorPaths) -> None:
         "codex": AuthResult(provider="codex", status=AuthStatus.AUTHENTICATED),
     }
 
-    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+    with patch("ductor_slack.cli.auth.check_all_auth", return_value=auth):
         selector = RulesSelector(mock_paths)
         selector.deploy_rules()
 
@@ -201,7 +201,7 @@ def test_fallback_to_static_template(mock_paths: DuctorPaths) -> None:
         "codex": AuthResult(provider="codex", status=AuthStatus.NOT_FOUND),
     }
 
-    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+    with patch("ductor_slack.cli.auth.check_all_auth", return_value=auth):
         selector = RulesSelector(mock_paths)
         selector.deploy_rules()
 
@@ -222,7 +222,7 @@ def test_skip_directory_without_templates(mock_paths: DuctorPaths) -> None:
         "codex": AuthResult(provider="codex", status=AuthStatus.NOT_FOUND),
     }
 
-    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+    with patch("ductor_slack.cli.auth.check_all_auth", return_value=auth):
         selector = RulesSelector(mock_paths)
         dirs = selector.discover_template_directories()
 
@@ -249,7 +249,7 @@ def test_cleanup_removes_agents_md_when_only_claude(mock_paths: DuctorPaths) -> 
         "codex": AuthResult(provider="codex", status=AuthStatus.NOT_FOUND),
     }
 
-    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+    with patch("ductor_slack.cli.auth.check_all_auth", return_value=auth):
         selector = RulesSelector(mock_paths)
         selector.deploy_rules()
 
@@ -279,7 +279,7 @@ def test_cleanup_removes_claude_md_when_only_codex(mock_paths: DuctorPaths) -> N
         "codex": AuthResult(provider="codex", status=AuthStatus.AUTHENTICATED),
     }
 
-    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+    with patch("ductor_slack.cli.auth.check_all_auth", return_value=auth):
         selector = RulesSelector(mock_paths)
         selector.deploy_rules()
 
@@ -299,7 +299,7 @@ def test_cleanup_keeps_both_when_both_authenticated(mock_paths: DuctorPaths) -> 
         "codex": AuthResult(provider="codex", status=AuthStatus.AUTHENTICATED),
     }
 
-    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+    with patch("ductor_slack.cli.auth.check_all_auth", return_value=auth):
         selector = RulesSelector(mock_paths)
         selector.deploy_rules()
 
@@ -319,7 +319,7 @@ def test_variant_selection_gemini_only(mock_paths: DuctorPaths) -> None:
         "gemini": AuthResult(provider="gemini", status=AuthStatus.AUTHENTICATED),
     }
 
-    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+    with patch("ductor_slack.cli.auth.check_all_auth", return_value=auth):
         selector = RulesSelector(mock_paths)
         assert selector.get_variant_suffix() == "gemini-only"
 
@@ -332,7 +332,7 @@ def test_variant_selection_claude_and_gemini(mock_paths: DuctorPaths) -> None:
         "gemini": AuthResult(provider="gemini", status=AuthStatus.AUTHENTICATED),
     }
 
-    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+    with patch("ductor_slack.cli.auth.check_all_auth", return_value=auth):
         selector = RulesSelector(mock_paths)
         assert selector.get_variant_suffix() == "all-clis"
 
@@ -345,7 +345,7 @@ def test_variant_selection_all_three(mock_paths: DuctorPaths) -> None:
         "gemini": AuthResult(provider="gemini", status=AuthStatus.AUTHENTICATED),
     }
 
-    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+    with patch("ductor_slack.cli.auth.check_all_auth", return_value=auth):
         selector = RulesSelector(mock_paths)
         assert selector.get_variant_suffix() == "all-clis"
 
@@ -358,7 +358,7 @@ def test_variant_selection_codex_and_gemini(mock_paths: DuctorPaths) -> None:
         "gemini": AuthResult(provider="gemini", status=AuthStatus.AUTHENTICATED),
     }
 
-    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+    with patch("ductor_slack.cli.auth.check_all_auth", return_value=auth):
         selector = RulesSelector(mock_paths)
         assert selector.get_variant_suffix() == "all-clis"
 
@@ -371,7 +371,7 @@ def test_deploy_with_gemini_creates_gemini_md(mock_paths: DuctorPaths) -> None:
         "gemini": AuthResult(provider="gemini", status=AuthStatus.AUTHENTICATED),
     }
 
-    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+    with patch("ductor_slack.cli.auth.check_all_auth", return_value=auth):
         selector = RulesSelector(mock_paths)
         selector.deploy_rules()
 
@@ -392,7 +392,7 @@ def test_deploy_all_three_providers(mock_paths: DuctorPaths) -> None:
         "gemini": AuthResult(provider="gemini", status=AuthStatus.AUTHENTICATED),
     }
 
-    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+    with patch("ductor_slack.cli.auth.check_all_auth", return_value=auth):
         selector = RulesSelector(mock_paths)
         selector.deploy_rules()
 
@@ -414,7 +414,7 @@ def test_cleanup_removes_gemini_md_when_not_authenticated(mock_paths: DuctorPath
         "gemini": AuthResult(provider="gemini", status=AuthStatus.NOT_FOUND),
     }
 
-    with patch("ductor_bot.cli.auth.check_all_auth", return_value=auth):
+    with patch("ductor_slack.cli.auth.check_all_auth", return_value=auth):
         selector = RulesSelector(mock_paths)
         selector.deploy_rules()
 

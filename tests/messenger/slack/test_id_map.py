@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from ductor_bot.messenger.slack.id_map import SlackIdMap
+from ductor_slack.messenger.slack.id_map import SlackIdMap
 
 
 def test_channel_and_thread_mapping_round_trip(tmp_path) -> None:

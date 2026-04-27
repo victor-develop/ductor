@@ -11,15 +11,15 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from ductor_bot.cli.base import CLIConfig
-from ductor_bot.cli.claude_provider import (
+from ductor_slack.cli.base import CLIConfig
+from ductor_slack.cli.claude_provider import (
     ClaudeCodeCLI,
     _add_opt,
     _log_cmd,
     _parse_response,
 )
-from ductor_bot.cli.process_registry import ProcessRegistry
-from ductor_bot.cli.stream_events import (
+from ductor_slack.cli.process_registry import ProcessRegistry
+from ductor_slack.cli.stream_events import (
     AssistantTextDelta,
     ResultEvent,
     StreamEvent,
@@ -30,7 +30,7 @@ from ductor_bot.cli.stream_events import (
 # Helpers
 # ---------------------------------------------------------------------------
 
-_EXEC_PATH = "ductor_bot.cli.executor.asyncio.create_subprocess_exec"
+_EXEC_PATH = "ductor_slack.cli.executor.asyncio.create_subprocess_exec"
 
 
 def _make_cli(
@@ -43,7 +43,7 @@ def _make_cli(
     **kwargs: Any,
 ) -> ClaudeCodeCLI:
     """Create a ClaudeCodeCLI with `which` stubbed out."""
-    monkeypatch.setattr("ductor_bot.cli.claude_provider.which", lambda _: "/usr/bin/claude")
+    monkeypatch.setattr("ductor_slack.cli.claude_provider.which", lambda _: "/usr/bin/claude")
     cfg = CLIConfig(
         provider="claude",
         model=model,
@@ -106,18 +106,18 @@ async def _collect_stream(
 
 class TestInit:
     def test_find_cli_not_found_raises(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ductor_bot.cli.claude_provider.which", lambda _: None)
+        monkeypatch.setattr("ductor_slack.cli.claude_provider.which", lambda _: None)
         with pytest.raises(FileNotFoundError, match="claude CLI not found"):
             ClaudeCodeCLI(CLIConfig(provider="claude"))
 
     def test_docker_container_skips_find_cli(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """When docker_container is set, CLI binary = 'claude' without PATH lookup."""
-        monkeypatch.setattr("ductor_bot.cli.claude_provider.which", lambda _: None)
+        monkeypatch.setattr("ductor_slack.cli.claude_provider.which", lambda _: None)
         cli = ClaudeCodeCLI(CLIConfig(provider="claude", docker_container="my-container"))
         assert cli._cli == "claude"
 
     def test_working_dir_resolved(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        monkeypatch.setattr("ductor_bot.cli.claude_provider.which", lambda _: "/usr/bin/claude")
+        monkeypatch.setattr("ductor_slack.cli.claude_provider.which", lambda _: "/usr/bin/claude")
         cfg = CLIConfig(provider="claude", working_dir=str(tmp_path / "sub" / ".."))
         cli = ClaudeCodeCLI(cfg)
         assert cli._working_dir == tmp_path.resolve()
@@ -153,7 +153,7 @@ class TestBuildCommand:
 
     def test_no_none_values_in_command(self, monkeypatch: pytest.MonkeyPatch) -> None:
         """Ensure optional None fields do not produce '--flag None' pairs."""
-        monkeypatch.setattr("ductor_bot.cli.claude_provider.which", lambda _: "/usr/bin/claude")
+        monkeypatch.setattr("ductor_slack.cli.claude_provider.which", lambda _: "/usr/bin/claude")
         cfg = CLIConfig(provider="claude", model=None, max_turns=None, max_budget_usd=None)
         cli = ClaudeCodeCLI(cfg)
         cmd = cli._build_command("go")
@@ -634,25 +634,25 @@ class TestLogCmd:
     def test_truncates_long_values_after_flags(self, caplog: pytest.LogCaptureFixture) -> None:
         long_prompt = "x" * 200
         cmd = ["claude", "--system-prompt", long_prompt, "short"]
-        with caplog.at_level(logging.INFO, logger="ductor_bot.cli.claude_provider"):
+        with caplog.at_level(logging.INFO, logger="ductor_slack.cli.claude_provider"):
             _log_cmd(cmd)
         assert "..." in caplog.text
 
     def test_does_not_truncate_short_values(self, caplog: pytest.LogCaptureFixture) -> None:
         cmd = ["claude", "--model", "opus", "hello"]
-        with caplog.at_level(logging.INFO, logger="ductor_bot.cli.claude_provider"):
+        with caplog.at_level(logging.INFO, logger="ductor_slack.cli.claude_provider"):
             _log_cmd(cmd)
         assert "..." not in caplog.text
 
     def test_streaming_prefix(self, caplog: pytest.LogCaptureFixture) -> None:
         cmd = ["claude", "-p", "hello"]
-        with caplog.at_level(logging.INFO, logger="ductor_bot.cli.claude_provider"):
+        with caplog.at_level(logging.INFO, logger="ductor_slack.cli.claude_provider"):
             _log_cmd(cmd, streaming=True)
         assert "CLI stream cmd" in caplog.text
 
     def test_normal_prefix(self, caplog: pytest.LogCaptureFixture) -> None:
         cmd = ["claude", "-p", "hello"]
-        with caplog.at_level(logging.INFO, logger="ductor_bot.cli.claude_provider"):
+        with caplog.at_level(logging.INFO, logger="ductor_slack.cli.claude_provider"):
             _log_cmd(cmd, streaming=False)
         assert "CLI cmd" in caplog.text
 

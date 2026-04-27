@@ -6,7 +6,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
-from ductor_bot.messenger.matrix.bot import MatrixBot
+from ductor_slack.messenger.matrix.bot import MatrixBot
 
 # ---------------------------------------------------------------------------
 # Lightweight fakes — no real nio dependency needed

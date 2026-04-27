@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock
 
 import time_machine
 
-from ductor_bot.config import AgentConfig, HeartbeatConfig, HeartbeatTarget
-from ductor_bot.heartbeat.observer import HeartbeatObserver
+from ductor_slack.config import AgentConfig, HeartbeatConfig, HeartbeatTarget
+from ductor_slack.heartbeat.observer import HeartbeatObserver
 
 # ---------------------------------------------------------------------------
 # HeartbeatTarget config model

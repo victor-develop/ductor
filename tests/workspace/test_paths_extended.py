@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ductor_bot.workspace.paths import DuctorPaths
+from ductor_slack.workspace.paths import DuctorPaths
 
 
 def _paths(tmp_path: Path) -> DuctorPaths:

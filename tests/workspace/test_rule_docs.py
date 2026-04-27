@@ -8,7 +8,7 @@ from pathlib import Path
 def test_agent_tools_rules_contains_transport_info() -> None:
     rules_path = (
         Path(__file__).resolve().parents[2]
-        / "ductor_bot"
+        / "ductor_slack"
         / "_home_defaults"
         / "workspace"
         / "tools"

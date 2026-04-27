@@ -6,8 +6,8 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from ductor_bot.bus.envelope import Envelope, Origin
-from ductor_bot.messenger.matrix.transport import MatrixTransport
+from ductor_slack.bus.envelope import Envelope, Origin
+from ductor_slack.messenger.matrix.transport import MatrixTransport
 
 if TYPE_CHECKING:
     import pytest
@@ -58,7 +58,7 @@ class TestBackgroundDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -79,7 +79,7 @@ class TestBackgroundDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -98,7 +98,7 @@ class TestBackgroundDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -116,7 +116,7 @@ class TestBackgroundDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -137,7 +137,7 @@ class TestBackgroundDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -155,7 +155,7 @@ class TestBackgroundDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -179,7 +179,7 @@ class TestHeartbeatDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -203,7 +203,7 @@ class TestInteragentDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -222,7 +222,7 @@ class TestInteragentDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -253,7 +253,7 @@ class TestTaskResultDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -273,7 +273,7 @@ class TestTaskResultDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -290,7 +290,7 @@ class TestTaskResultDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -314,7 +314,7 @@ class TestTaskQuestionDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -342,7 +342,7 @@ class TestCronBroadcast:
         )
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver_broadcast(env)
 
@@ -361,7 +361,7 @@ class TestCronBroadcast:
         )
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver_broadcast(env)
 
@@ -380,7 +380,7 @@ class TestCronBroadcast:
         )
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver_broadcast(env)
 
@@ -403,7 +403,7 @@ class TestWebhookCronBroadcast:
         )
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver_broadcast(env)
 
@@ -423,7 +423,7 @@ class TestWebhookCronBroadcast:
         )
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver_broadcast(env)
 
@@ -443,7 +443,7 @@ class TestDispatchFallback:
         env = _env(origin=Origin.USER)  # USER has no delivery handler
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ):
             await transport.deliver(env)
 
@@ -455,7 +455,7 @@ class TestDispatchFallback:
         env = _env(origin=Origin.BACKGROUND, result_text="test", status="success")
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -473,7 +473,7 @@ class TestBroadcastRooms:
         bot.config.matrix.allowed_rooms = ["!r1:test", "!r2:test"]
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport._broadcast("hello")
 
@@ -485,7 +485,7 @@ class TestBroadcastRooms:
         bot._last_active_room = "!fallback:test"
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport._broadcast("hello")
 
@@ -498,7 +498,7 @@ class TestBroadcastRooms:
         bot._last_active_room = None
 
         with patch(
-            "ductor_bot.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.matrix.transport.matrix_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport._broadcast("lost message")
 

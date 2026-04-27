@@ -13,7 +13,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from ductor_bot.config import (
+from ductor_slack.config import (
     AgentConfig,
     MatrixConfig,
     NotificationsConfig,
@@ -30,7 +30,7 @@ def _make_bot(
 
     Returns ``(bot, notify_mock, notify_all_mock, broadcast_mock)``.
     """
-    from ductor_bot.messenger.matrix import bot as bot_module
+    from ductor_slack.messenger.matrix import bot as bot_module
 
     cfg = AgentConfig(
         telegram_token="test-token",
@@ -136,7 +136,7 @@ async def test_matrix_startup_wires_notify_upgrade_on_update(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """The update observer callback must call notify_upgrade (not notify_startup)."""
-    from ductor_bot.messenger.matrix import startup as startup_module
+    from ductor_slack.messenger.matrix import startup as startup_module
 
     bot, notify, notify_all, broadcast = _make_bot(
         upgrade_targets=[NotificationTarget(enabled=True, chat_id=5555, topic_id=None)],
@@ -164,8 +164,8 @@ async def test_matrix_startup_wires_notify_upgrade_on_update(
     monkeypatch.setattr(startup_module, "consume_restart_marker", lambda **_kw: False)
     monkeypatch.setattr(startup_module, "consume_restart_sentinel", lambda **_kw: None)
 
-    import ductor_bot.infra.install as install_mod
-    import ductor_bot.infra.updater as updater_mod
+    import ductor_slack.infra.install as install_mod
+    import ductor_slack.infra.updater as updater_mod
 
     monkeypatch.setattr(install_mod, "is_upgradeable", _is_upgradeable)
     monkeypatch.setattr(updater_mod, "UpdateObserver", _FakeObserver)
@@ -191,7 +191,7 @@ async def test_matrix_startup_wires_notify_upgrade_on_update(
     async def _create(*_a: Any, **_kw: Any) -> Any:
         return fake_orch
 
-    import ductor_bot.orchestrator.core as core_mod
+    import ductor_slack.orchestrator.core as core_mod
 
     monkeypatch.setattr(core_mod.Orchestrator, "create", staticmethod(_create))
 

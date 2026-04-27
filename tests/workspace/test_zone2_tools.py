@@ -4,7 +4,7 @@ from pathlib import Path
 
 import pytest
 
-from ductor_bot.workspace.init import _walk_and_copy
+from ductor_slack.workspace.init import _walk_and_copy
 
 
 @pytest.fixture

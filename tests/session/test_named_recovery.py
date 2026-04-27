@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from pathlib import Path
 
-from ductor_bot.session.named import NamedSessionRegistry
+from ductor_slack.session.named import NamedSessionRegistry
 
 
 def _make_registry(tmp_path: Path) -> NamedSessionRegistry:

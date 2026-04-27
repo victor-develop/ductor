@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ductor_bot.cron.manager import CronJob, CronManager
+from ductor_slack.cron.manager import CronJob, CronManager
 
 
 def test_cronjob_new_fields_defaults() -> None:

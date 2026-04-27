@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ductor_bot.infra.env_secrets import clear_cache, load_env_secrets
+from ductor_slack.infra.env_secrets import clear_cache, load_env_secrets
 
 
 def test_parse_simple_key_value(tmp_path: Path) -> None:

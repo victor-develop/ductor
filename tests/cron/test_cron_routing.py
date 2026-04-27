@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ductor_bot.cron.manager import CronJob
+from ductor_slack.cron.manager import CronJob
 
 
 class TestCronJobRoutingFields:

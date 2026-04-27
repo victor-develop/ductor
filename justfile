@@ -32,11 +32,11 @@ _format:
 
 [private]
 _types:
-    uv run mypy ductor_bot
+    uv run mypy ductor_slack
 
 [private]
 _i18n:
-    uv run python -m ductor_bot.i18n.check --quiet
+    uv run python -m ductor_slack.i18n.check --quiet
 
 [private]
 _test:

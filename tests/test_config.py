@@ -5,7 +5,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from ductor_bot.config import (
+from ductor_slack.config import (
     AgentConfig,
     DockerConfig,
     MemoryCompactionConfig,

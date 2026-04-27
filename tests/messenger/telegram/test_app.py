@@ -10,7 +10,7 @@ import pytest
 from aiogram.exceptions import TelegramBadRequest
 from aiogram.types import CallbackQuery, Chat, Message, User
 
-from ductor_bot.config import AgentConfig, StreamingConfig
+from ductor_slack.config import AgentConfig, StreamingConfig
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -41,7 +41,7 @@ def _make_tg_bot(
     Returns ``(tg_bot, bot_instance)`` where *tg_bot* is the TelegramBot and
     *bot_instance* is the mocked aiogram Bot for assertion.
     """
-    from ductor_bot.messenger.telegram.app import TelegramBot
+    from ductor_slack.messenger.telegram.app import TelegramBot
 
     cfg = config or _make_config()
     if bot_instance is None:
@@ -53,7 +53,7 @@ def _make_tg_bot(
         bot_instance.send_chat_action = AsyncMock()
         bot_instance.delete_webhook = AsyncMock()
 
-    with patch("ductor_bot.messenger.telegram.app.Bot", return_value=bot_instance):
+    with patch("ductor_slack.messenger.telegram.app.Bot", return_value=bot_instance):
         tg_bot = TelegramBot(cfg)
 
     return tg_bot, bot_instance  # type: ignore[return-value]
@@ -247,19 +247,19 @@ class TestTelegramBotRun:
 
 class TestCancelTask:
     async def test_cancel_task_none(self) -> None:
-        from ductor_bot.messenger.telegram.app import _cancel_task
+        from ductor_slack.messenger.telegram.app import _cancel_task
 
         await _cancel_task(None)
 
     async def test_cancel_task_done(self) -> None:
-        from ductor_bot.messenger.telegram.app import _cancel_task
+        from ductor_slack.messenger.telegram.app import _cancel_task
 
         task: asyncio.Task[None] = asyncio.create_task(asyncio.sleep(0))
         await task
         await _cancel_task(task)
 
     async def test_cancel_task_running(self) -> None:
-        from ductor_bot.messenger.telegram.app import _cancel_task
+        from ductor_slack.messenger.telegram.app import _cancel_task
 
         task: asyncio.Task[None] = asyncio.create_task(asyncio.sleep(100))
         await _cancel_task(task)
@@ -272,7 +272,7 @@ class TestCancelTask:
 
 
 class TestOnHelp:
-    @patch("ductor_bot.messenger.telegram.app.send_rich", new_callable=AsyncMock)
+    @patch("ductor_slack.messenger.telegram.app.send_rich", new_callable=AsyncMock)
     async def test_sends_help_text(self, mock_send: AsyncMock) -> None:
         tg_bot, bot_instance = _make_tg_bot()
         msg = _make_message(chat_id=42)
@@ -287,9 +287,9 @@ class TestOnHelp:
         assert "Command Reference" in text
         assert "/help" in text
 
-    @patch("ductor_bot.messenger.telegram.app.send_rich", new_callable=AsyncMock)
+    @patch("ductor_slack.messenger.telegram.app.send_rich", new_callable=AsyncMock)
     async def test_help_lists_all_registered_commands(self, mock_send: AsyncMock) -> None:
-        from ductor_bot.commands import BOT_COMMANDS
+        from ductor_slack.commands import BOT_COMMANDS
 
         tg_bot, _bot_instance = _make_tg_bot()
         msg = _make_message(chat_id=42)
@@ -300,7 +300,7 @@ class TestOnHelp:
         for command, _desc in BOT_COMMANDS:
             assert f"/{command}" in text
 
-    @patch("ductor_bot.messenger.telegram.app.send_rich", new_callable=AsyncMock)
+    @patch("ductor_slack.messenger.telegram.app.send_rich", new_callable=AsyncMock)
     async def test_help_passes_reply_to(self, mock_send: AsyncMock) -> None:
         tg_bot, _ = _make_tg_bot()
         msg = _make_message()
@@ -317,10 +317,10 @@ class TestOnHelp:
 
 
 class TestOnStart:
-    @patch("ductor_bot.messenger.telegram.app.send_rich", new_callable=AsyncMock)
-    @patch("ductor_bot.messenger.telegram.app.build_welcome_keyboard")
-    @patch("ductor_bot.messenger.telegram.app.build_welcome_text", return_value="Welcome!")
-    @patch("ductor_bot.cli.auth.check_all_auth", return_value={})
+    @patch("ductor_slack.messenger.telegram.app.send_rich", new_callable=AsyncMock)
+    @patch("ductor_slack.messenger.telegram.app.build_welcome_keyboard")
+    @patch("ductor_slack.messenger.telegram.app.build_welcome_text", return_value="Welcome!")
+    @patch("ductor_slack.cli.auth.check_all_auth", return_value={})
     async def test_start_shows_welcome_without_image(
         self,
         _mock_auth: MagicMock,
@@ -339,7 +339,7 @@ class TestOnStart:
         assert mock_send.call_args[0][1] == 5
         assert mock_send.call_args[0][2] == "Welcome!"
 
-    @patch("ductor_bot.cli.auth.check_all_auth", return_value={})
+    @patch("ductor_slack.cli.auth.check_all_auth", return_value={})
     async def test_start_sends_image_when_available(self, _mock_auth: MagicMock) -> None:
         tg_bot, _bot_instance = _make_tg_bot()
         msg = _make_message(chat_id=5)
@@ -362,7 +362,7 @@ class TestSendWelcomeImage:
         kb = MagicMock()
 
         with patch(
-            "ductor_bot.messenger.telegram.app._WELCOME_IMAGE", Path("/nonexistent/file.png")
+            "ductor_slack.messenger.telegram.app._WELCOME_IMAGE", Path("/nonexistent/file.png")
         ):
             result = await tg_bot._send_welcome_image(1, "text", kb, msg)
 
@@ -375,9 +375,9 @@ class TestSendWelcomeImage:
         short_text = "Hi"
 
         with (
-            patch("ductor_bot.messenger.telegram.app._WELCOME_IMAGE") as mock_path,
+            patch("ductor_slack.messenger.telegram.app._WELCOME_IMAGE") as mock_path,
             patch(
-                "ductor_bot.messenger.telegram.app.markdown_to_telegram_html",
+                "ductor_slack.messenger.telegram.app.markdown_to_telegram_html",
                 return_value="<b>Hi</b>",
             ),
         ):
@@ -396,7 +396,7 @@ class TestSendWelcomeImage:
             side_effect=[TelegramBadRequest(method=MagicMock(), message="bad"), None]
         )
 
-        with patch("ductor_bot.messenger.telegram.app._WELCOME_IMAGE") as mock_path:
+        with patch("ductor_slack.messenger.telegram.app._WELCOME_IMAGE") as mock_path:
             mock_path.is_file.return_value = True
             result = await tg_bot._send_welcome_image(1, "x", kb, msg)
 
@@ -410,7 +410,7 @@ class TestSendWelcomeImage:
 
         bot_instance.send_photo = AsyncMock(side_effect=OSError("disk error"))
 
-        with patch("ductor_bot.messenger.telegram.app._WELCOME_IMAGE") as mock_path:
+        with patch("ductor_slack.messenger.telegram.app._WELCOME_IMAGE") as mock_path:
             mock_path.is_file.return_value = True
             result = await tg_bot._send_welcome_image(1, "x", kb, msg)
 
@@ -423,9 +423,9 @@ class TestSendWelcomeImage:
 
 
 class TestOnRestart:
-    @patch("ductor_bot.messenger.telegram.app.send_rich", new_callable=AsyncMock)
+    @patch("ductor_slack.messenger.telegram.app.send_rich", new_callable=AsyncMock)
     async def test_restart_writes_sentinel_and_stops(self, mock_send: AsyncMock) -> None:
-        from ductor_bot.infra.restart import EXIT_RESTART
+        from ductor_slack.infra.restart import EXIT_RESTART
 
         tg_bot, _ = _make_tg_bot()
         orch = _make_orchestrator()
@@ -433,7 +433,7 @@ class TestOnRestart:
         tg_bot._dp.stop_polling = AsyncMock()
         msg = _make_message(chat_id=77)
 
-        with patch("ductor_bot.infra.restart.write_restart_sentinel") as mock_sentinel:
+        with patch("ductor_slack.infra.restart.write_restart_sentinel") as mock_sentinel:
             await tg_bot._on_restart(msg)
 
         mock_send.assert_called_once()
@@ -460,7 +460,7 @@ class TestOnMessage:
         msg = _make_message(text="Hello bot")
 
         with patch(
-            "ductor_bot.messenger.telegram.app.run_non_streaming_message", new_callable=AsyncMock
+            "ductor_slack.messenger.telegram.app.run_non_streaming_message", new_callable=AsyncMock
         ) as mock_run:
             mock_run.return_value = "Non-streamed reply"
             await tg_bot._on_message(msg)
@@ -481,7 +481,7 @@ class TestOnMessage:
         with patch.object(tg_bot, "_handle_streaming", new_callable=AsyncMock) as mock_stream:
             await tg_bot._on_message(msg)
 
-        from ductor_bot.session.key import SessionKey
+        from ductor_slack.session.key import SessionKey
 
         mock_stream.assert_called_once_with(
             msg, SessionKey(chat_id=1), "Hello streaming", thread_id=None
@@ -498,7 +498,7 @@ class TestOnMessage:
         orch.handle_message.assert_not_called()
         orch.handle_message_streaming.assert_not_called()
 
-    @patch("ductor_bot.messenger.telegram.app.strip_mention", return_value="clean text")
+    @patch("ductor_slack.messenger.telegram.app.strip_mention", return_value="clean text")
     async def test_strips_mention_from_text(self, mock_strip: MagicMock) -> None:
         tg_bot, _ = _make_tg_bot()
         tg_bot.bot_instance_username = "testbot"
@@ -510,7 +510,7 @@ class TestOnMessage:
         with patch.object(tg_bot, "_handle_streaming", new_callable=AsyncMock) as mock_stream:
             await tg_bot._on_message(msg)
 
-        from ductor_bot.session.key import SessionKey
+        from ductor_slack.session.key import SessionKey
 
         mock_stream.assert_called_once_with(
             msg, SessionKey(chat_id=1), "clean text", thread_id=None
@@ -538,8 +538,8 @@ class TestResolveText:
         result = await tg_bot._resolve_text(msg)
         assert result is None
 
-    @patch("ductor_bot.messenger.telegram.app.resolve_media_text", new_callable=AsyncMock)
-    @patch("ductor_bot.messenger.telegram.app.has_media", return_value=True)
+    @patch("ductor_slack.messenger.telegram.app.resolve_media_text", new_callable=AsyncMock)
+    @patch("ductor_slack.messenger.telegram.app.has_media", return_value=True)
     async def test_media_in_private_chat(
         self, _mock_has: MagicMock, mock_resolve: AsyncMock
     ) -> None:
@@ -551,8 +551,8 @@ class TestResolveText:
         result = await tg_bot._resolve_text(msg)
         assert result == "[MEDIA PROMPT]"
 
-    @patch("ductor_bot.messenger.telegram.app.is_media_addressed", return_value=False)
-    @patch("ductor_bot.messenger.telegram.app.has_media", return_value=True)
+    @patch("ductor_slack.messenger.telegram.app.is_media_addressed", return_value=False)
+    @patch("ductor_slack.messenger.telegram.app.has_media", return_value=True)
     async def test_media_in_group_not_addressed_mention_only(
         self, _mock_has: MagicMock, _mock_addr: MagicMock
     ) -> None:
@@ -564,8 +564,8 @@ class TestResolveText:
         result = await tg_bot._resolve_text(msg)
         assert result is None
 
-    @patch("ductor_bot.messenger.telegram.app.resolve_media_text", new_callable=AsyncMock)
-    @patch("ductor_bot.messenger.telegram.app.has_media", return_value=True)
+    @patch("ductor_slack.messenger.telegram.app.resolve_media_text", new_callable=AsyncMock)
+    @patch("ductor_slack.messenger.telegram.app.has_media", return_value=True)
     async def test_media_in_group_not_addressed_mention_not_required(
         self, _mock_has: MagicMock, mock_resolve: AsyncMock
     ) -> None:
@@ -577,9 +577,9 @@ class TestResolveText:
         result = await tg_bot._resolve_text(msg)
         assert result == "[MEDIA]"
 
-    @patch("ductor_bot.messenger.telegram.app.resolve_media_text", new_callable=AsyncMock)
-    @patch("ductor_bot.messenger.telegram.app.is_media_addressed", return_value=True)
-    @patch("ductor_bot.messenger.telegram.app.has_media", return_value=True)
+    @patch("ductor_slack.messenger.telegram.app.resolve_media_text", new_callable=AsyncMock)
+    @patch("ductor_slack.messenger.telegram.app.is_media_addressed", return_value=True)
+    @patch("ductor_slack.messenger.telegram.app.has_media", return_value=True)
     async def test_media_in_group_addressed(
         self, _mock_has: MagicMock, _mock_addr: MagicMock, mock_resolve: AsyncMock
     ) -> None:
@@ -591,8 +591,8 @@ class TestResolveText:
         result = await tg_bot._resolve_text(msg)
         assert result == "[MEDIA]"
 
-    @patch("ductor_bot.messenger.telegram.app.is_command_for_others", return_value=True)
-    @patch("ductor_bot.messenger.telegram.app.has_media", return_value=True)
+    @patch("ductor_slack.messenger.telegram.app.is_command_for_others", return_value=True)
+    @patch("ductor_slack.messenger.telegram.app.has_media", return_value=True)
     async def test_media_in_group_for_other_bot(
         self, _mock_has: MagicMock, _mock_others: MagicMock
     ) -> None:
@@ -617,11 +617,11 @@ class TestHandleStreaming:
 
         msg = _make_message()
 
-        from ductor_bot.session.key import SessionKey
+        from ductor_slack.session.key import SessionKey
 
         key = SessionKey(chat_id=1)
         with patch(
-            "ductor_bot.messenger.telegram.app.run_streaming_message", new_callable=AsyncMock
+            "ductor_slack.messenger.telegram.app.run_streaming_message", new_callable=AsyncMock
         ) as mock_run:
             mock_run.return_value = "Fallback"
             await tg_bot._handle_streaming(msg, key, "test")
@@ -641,11 +641,11 @@ class TestHandleStreaming:
 
         msg = _make_message()
 
-        from ductor_bot.session.key import SessionKey
+        from ductor_slack.session.key import SessionKey
 
         key = SessionKey(chat_id=1)
         with patch(
-            "ductor_bot.messenger.telegram.app.run_streaming_message", new_callable=AsyncMock
+            "ductor_slack.messenger.telegram.app.run_streaming_message", new_callable=AsyncMock
         ) as mock_run:
             mock_run.return_value = "Streamed <file:/tmp/out.png>"
             await tg_bot._handle_streaming(msg, key, "test")
@@ -718,7 +718,7 @@ class TestCallbackQueryHandler:
         cb = _make_callback_query(data="Approve")
         await tg_bot._on_callback_query(cb)
 
-        from ductor_bot.session.key import SessionKey
+        from ductor_slack.session.key import SessionKey
 
         orch.handle_message_streaming.assert_called_once()
         call_args = orch.handle_message_streaming.call_args
@@ -752,7 +752,7 @@ class TestCallbackQueryHandler:
         orch = _make_orchestrator()
         tg_bot._orchestrator = orch
 
-        from ductor_bot.orchestrator.selectors.models import (
+        from ductor_slack.orchestrator.selectors.models import (
             Button,
             ButtonGrid,
             SelectorResponse,
@@ -763,7 +763,7 @@ class TestCallbackQueryHandler:
             buttons=ButtonGrid(rows=[[Button(text="OPUS", callback_data="ms:m:opus")]]),
         )
         with patch(
-            "ductor_bot.orchestrator.selectors.model_selector.handle_model_callback",
+            "ductor_slack.orchestrator.selectors.model_selector.handle_model_callback",
             new_callable=AsyncMock,
             return_value=resp,
         ):
@@ -778,7 +778,7 @@ class TestCallbackQueryHandler:
         orch = _make_orchestrator()
         tg_bot._orchestrator = orch
 
-        from ductor_bot.orchestrator.selectors.models import (
+        from ductor_slack.orchestrator.selectors.models import (
             Button,
             ButtonGrid,
             SelectorResponse,
@@ -789,7 +789,7 @@ class TestCallbackQueryHandler:
             buttons=ButtonGrid(rows=[[Button(text="Refresh", callback_data="crn:r:0")]]),
         )
         with patch(
-            "ductor_bot.orchestrator.selectors.cron_selector.handle_cron_callback",
+            "ductor_slack.orchestrator.selectors.cron_selector.handle_cron_callback",
             new_callable=AsyncMock,
             return_value=resp,
         ):
@@ -830,7 +830,7 @@ class TestCallbackQueryHandler:
         cb = _make_callback_query(data="Approve")
 
         with patch(
-            "ductor_bot.messenger.telegram.app.run_non_streaming_message", new_callable=AsyncMock
+            "ductor_slack.messenger.telegram.app.run_non_streaming_message", new_callable=AsyncMock
         ) as mock_run:
             mock_run.return_value = "Non-streamed"
             await tg_bot._on_callback_query(cb)
@@ -881,12 +881,12 @@ class TestCallbackQueryHandler:
 
 class TestHandleModelSelector:
     async def test_edits_message_in_place(self) -> None:
-        from ductor_bot.orchestrator.selectors.models import (
+        from ductor_slack.orchestrator.selectors.models import (
             Button,
             ButtonGrid,
             SelectorResponse,
         )
-        from ductor_bot.session.key import SessionKey
+        from ductor_slack.session.key import SessionKey
 
         tg_bot, bot_instance = _make_tg_bot()
         tg_bot._orchestrator = _make_orchestrator()
@@ -895,7 +895,7 @@ class TestHandleModelSelector:
         key = SessionKey(chat_id=1)
 
         with patch(
-            "ductor_bot.orchestrator.selectors.model_selector.handle_model_callback",
+            "ductor_slack.orchestrator.selectors.model_selector.handle_model_callback",
             new_callable=AsyncMock,
             return_value=resp,
         ):
@@ -914,8 +914,8 @@ class TestHandleModelSelector:
         assert markup.inline_keyboard[0][0].text == "OPUS"
 
     async def test_suppresses_bad_request(self) -> None:
-        from ductor_bot.orchestrator.selectors.models import SelectorResponse
-        from ductor_bot.session.key import SessionKey
+        from ductor_slack.orchestrator.selectors.models import SelectorResponse
+        from ductor_slack.session.key import SessionKey
 
         tg_bot, bot_instance = _make_tg_bot()
         tg_bot._orchestrator = _make_orchestrator()
@@ -927,7 +927,7 @@ class TestHandleModelSelector:
 
         resp = SelectorResponse(text="Pick:")
         with patch(
-            "ductor_bot.orchestrator.selectors.model_selector.handle_model_callback",
+            "ductor_slack.orchestrator.selectors.model_selector.handle_model_callback",
             new_callable=AsyncMock,
             return_value=resp,
         ):
@@ -938,7 +938,7 @@ class TestHandleModelSelector:
 
 class TestHandleCronSelector:
     async def test_edits_message_in_place(self) -> None:
-        from ductor_bot.orchestrator.selectors.models import (
+        from ductor_slack.orchestrator.selectors.models import (
             Button,
             ButtonGrid,
             SelectorResponse,
@@ -950,7 +950,7 @@ class TestHandleCronSelector:
         resp = SelectorResponse(text="Cron panel", buttons=grid)
 
         with patch(
-            "ductor_bot.orchestrator.selectors.cron_selector.handle_cron_callback",
+            "ductor_slack.orchestrator.selectors.cron_selector.handle_cron_callback",
             new_callable=AsyncMock,
             return_value=resp,
         ):
@@ -969,7 +969,7 @@ class TestHandleCronSelector:
         assert markup.inline_keyboard[0][0].text == "Refresh"
 
     async def test_suppresses_bad_request(self) -> None:
-        from ductor_bot.orchestrator.selectors.models import SelectorResponse
+        from ductor_slack.orchestrator.selectors.models import SelectorResponse
 
         tg_bot, bot_instance = _make_tg_bot()
         tg_bot._orchestrator = _make_orchestrator()
@@ -980,7 +980,7 @@ class TestHandleCronSelector:
 
         resp = SelectorResponse(text="Cron panel")
         with patch(
-            "ductor_bot.orchestrator.selectors.cron_selector.handle_cron_callback",
+            "ductor_slack.orchestrator.selectors.cron_selector.handle_cron_callback",
             new_callable=AsyncMock,
             return_value=resp,
         ):
@@ -996,7 +996,9 @@ class TestHandleCronSelector:
 
 class TestCommandHandlers:
     @patch(
-        "ductor_bot.messenger.telegram.app.handle_abort", new_callable=AsyncMock, return_value=True
+        "ductor_slack.messenger.telegram.app.handle_abort",
+        new_callable=AsyncMock,
+        return_value=True,
     )
     async def test_on_stop_calls_handle_abort(self, mock_abort: AsyncMock) -> None:
         tg_bot, _ = _make_tg_bot()
@@ -1008,7 +1010,7 @@ class TestCommandHandlers:
         mock_abort.assert_called_once()
         assert mock_abort.call_args.kwargs["chat_id"] == 5
 
-    @patch("ductor_bot.messenger.telegram.app.handle_command", new_callable=AsyncMock)
+    @patch("ductor_slack.messenger.telegram.app.handle_command", new_callable=AsyncMock)
     async def test_on_command_calls_handle_command(self, mock_cmd: AsyncMock) -> None:
         tg_bot, _ = _make_tg_bot()
         orch = _make_orchestrator()
@@ -1019,7 +1021,7 @@ class TestCommandHandlers:
 
         mock_cmd.assert_called_once_with(orch, tg_bot.bot_instance, msg)
 
-    @patch("ductor_bot.messenger.telegram.app.handle_new_session", new_callable=AsyncMock)
+    @patch("ductor_slack.messenger.telegram.app.handle_new_session", new_callable=AsyncMock)
     async def test_on_new_calls_handle_new_session(self, mock_new: AsyncMock) -> None:
         tg_bot, _ = _make_tg_bot()
         orch = _make_orchestrator()
@@ -1033,7 +1035,9 @@ class TestCommandHandlers:
         )
 
     @patch(
-        "ductor_bot.messenger.telegram.app.handle_abort", new_callable=AsyncMock, return_value=True
+        "ductor_slack.messenger.telegram.app.handle_abort",
+        new_callable=AsyncMock,
+        return_value=True,
     )
     async def test_on_abort_returns_handled(self, mock_abort: AsyncMock) -> None:
         tg_bot, _ = _make_tg_bot()
@@ -1045,7 +1049,7 @@ class TestCommandHandlers:
         assert result is True
         mock_abort.assert_called_once()
 
-    @patch("ductor_bot.messenger.telegram.app.handle_command", new_callable=AsyncMock)
+    @patch("ductor_slack.messenger.telegram.app.handle_command", new_callable=AsyncMock)
     async def test_on_quick_command_delegates(self, mock_cmd: AsyncMock) -> None:
         tg_bot, _ = _make_tg_bot()
         orch = _make_orchestrator()
@@ -1073,7 +1077,7 @@ class TestCommandHandlers:
 
 class TestWebhookWake:
     async def test_calls_handle_message_and_sends_result(self) -> None:
-        import ductor_bot.messenger.telegram.transport as _tgt
+        import ductor_slack.messenger.telegram.transport as _tgt
 
         tg_bot, _ = _make_tg_bot()
         orch = _make_orchestrator(handle_message_text="Webhook reply")
@@ -1082,7 +1086,7 @@ class TestWebhookWake:
         with patch.object(_tgt, "send_rich", new_callable=AsyncMock) as mock_send:
             result = await tg_bot._handle_webhook_wake(1, "Wake prompt")
 
-        from ductor_bot.session.key import SessionKey
+        from ductor_slack.session.key import SessionKey
 
         orch.handle_message.assert_called_once_with(SessionKey(chat_id=1), "Wake prompt")
         mock_send.assert_called_once()
@@ -1090,7 +1094,7 @@ class TestWebhookWake:
         assert result == "Webhook reply"
 
     async def test_acquires_per_chat_lock(self) -> None:
-        import ductor_bot.messenger.telegram.transport as _tgt
+        import ductor_slack.messenger.telegram.transport as _tgt
 
         tg_bot, _ = _make_tg_bot()
         orch = _make_orchestrator()
@@ -1114,7 +1118,7 @@ class TestWebhookWake:
 
     async def test_queues_behind_active_message(self) -> None:
         """Webhook wake waits for active conversation turn to finish."""
-        import ductor_bot.messenger.telegram.transport as _tgt
+        import ductor_slack.messenger.telegram.transport as _tgt
 
         tg_bot, _ = _make_tg_bot()
         orch = _make_orchestrator()
@@ -1147,7 +1151,7 @@ class TestWebhookWake:
 
 class TestWatchRestartMarker:
     async def test_detects_marker_and_stops(self, tmp_path: Path) -> None:
-        from ductor_bot.infra.restart import EXIT_RESTART
+        from ductor_slack.infra.restart import EXIT_RESTART
 
         tg_bot, _ = _make_tg_bot()
         orch = _make_orchestrator()
@@ -1193,7 +1197,7 @@ class TestWatchRestartMarker:
 
 class TestSyncCommands:
     async def test_sets_commands_when_different(self) -> None:
-        from ductor_bot.messenger.telegram.app import _BOT_COMMANDS
+        from ductor_slack.messenger.telegram.app import _BOT_COMMANDS
 
         tg_bot, bot_instance = _make_tg_bot()
         bot_instance.get_my_commands = AsyncMock(return_value=[])
@@ -1205,7 +1209,7 @@ class TestSyncCommands:
         bot_instance.set_my_commands.assert_called_once_with(_BOT_COMMANDS)
 
     async def test_skips_when_commands_match(self) -> None:
-        from ductor_bot.messenger.telegram.app import _BOT_COMMANDS
+        from ductor_slack.messenger.telegram.app import _BOT_COMMANDS
 
         tg_bot, bot_instance = _make_tg_bot()
         desired = list(_BOT_COMMANDS)
@@ -1221,7 +1225,7 @@ class TestSyncCommands:
         """Old scoped commands (private/group) are deleted on sync."""
         from aiogram.types import BotCommand
 
-        from ductor_bot.messenger.telegram.app import _BOT_COMMANDS
+        from ductor_slack.messenger.telegram.app import _BOT_COMMANDS
 
         tg_bot, bot_instance = _make_tg_bot()
         legacy = [BotCommand(command="old", description="legacy")]
@@ -1242,7 +1246,7 @@ class TestSyncCommands:
 
     async def test_updates_when_order_changes(self) -> None:
         """Reordering commands triggers an update (not just content diff)."""
-        from ductor_bot.messenger.telegram.app import _BOT_COMMANDS
+        from ductor_slack.messenger.telegram.app import _BOT_COMMANDS
 
         tg_bot, bot_instance = _make_tg_bot()
         reversed_cmds = list(reversed(_BOT_COMMANDS))
@@ -1313,7 +1317,7 @@ class TestForumTopicPropagation:
         msg = _make_message(topic_thread_id=88)
 
         with patch(
-            "ductor_bot.messenger.telegram.app.run_streaming_message", new_callable=AsyncMock
+            "ductor_slack.messenger.telegram.app.run_streaming_message", new_callable=AsyncMock
         ) as mock_run:
             mock_run.return_value = "Fallback"
             await tg_bot._handle_streaming(msg, 1, "test", thread_id=88)
@@ -1330,7 +1334,7 @@ class TestForumTopicPropagation:
         cb = _make_callback_query(data="Approve", topic_thread_id=77)
 
         with patch(
-            "ductor_bot.messenger.telegram.app.run_non_streaming_message", new_callable=AsyncMock
+            "ductor_slack.messenger.telegram.app.run_non_streaming_message", new_callable=AsyncMock
         ) as mock_run:
             mock_run.return_value = "Reply"
             await tg_bot._on_callback_query(cb)
@@ -1347,7 +1351,7 @@ class TestForumTopicPropagation:
         msg = _make_message(text="Hello", topic_thread_id=55)
 
         with patch(
-            "ductor_bot.messenger.telegram.app.run_non_streaming_message", new_callable=AsyncMock
+            "ductor_slack.messenger.telegram.app.run_non_streaming_message", new_callable=AsyncMock
         ) as mock_run:
             mock_run.return_value = "Reply"
             await tg_bot._on_message(msg)
@@ -1355,7 +1359,7 @@ class TestForumTopicPropagation:
         dispatch = mock_run.call_args.args[0]
         assert dispatch.thread_id == 55
 
-    @patch("ductor_bot.messenger.telegram.app.send_rich", new_callable=AsyncMock)
+    @patch("ductor_slack.messenger.telegram.app.send_rich", new_callable=AsyncMock)
     async def test_on_help_passes_thread_id(self, mock_send: AsyncMock) -> None:
         tg_bot, _ = _make_tg_bot()
         msg = _make_message(topic_thread_id=33)
@@ -1365,14 +1369,14 @@ class TestForumTopicPropagation:
         opts = mock_send.call_args[0][3]
         assert opts.thread_id == 33
 
-    @patch("ductor_bot.messenger.telegram.app.send_rich", new_callable=AsyncMock)
+    @patch("ductor_slack.messenger.telegram.app.send_rich", new_callable=AsyncMock)
     async def test_on_restart_passes_thread_id(self, mock_send: AsyncMock) -> None:
         tg_bot, _ = _make_tg_bot()
         tg_bot._orchestrator = _make_orchestrator()
         tg_bot._dp.stop_polling = AsyncMock()
         msg = _make_message(topic_thread_id=44)
 
-        with patch("ductor_bot.infra.restart.write_restart_sentinel"):
+        with patch("ductor_slack.infra.restart.write_restart_sentinel"):
             await tg_bot._on_restart(msg)
 
         opts = mock_send.call_args[0][3]

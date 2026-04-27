@@ -9,10 +9,10 @@ from unittest.mock import AsyncMock
 import pytest
 import time_machine
 
-from ductor_bot.cli.types import AgentResponse
-from ductor_bot.orchestrator.core import Orchestrator
-from ductor_bot.orchestrator.flows import heartbeat_flow
-from ductor_bot.session.key import SessionKey
+from ductor_slack.cli.types import AgentResponse
+from ductor_slack.orchestrator.core import Orchestrator
+from ductor_slack.orchestrator.flows import heartbeat_flow
+from ductor_slack.session.key import SessionKey
 
 
 def _mock_response(**kwargs: Any) -> AgentResponse:
@@ -41,7 +41,7 @@ async def test_heartbeat_ok_returns_none(
     orch: Orchestrator, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """HEARTBEAT_OK response is suppressed."""
-    from ductor_bot.orchestrator.flows import normal
+    from ductor_slack.orchestrator.flows import normal
 
     monkeypatch.setattr(
         orch._cli_service, "execute", AsyncMock(return_value=_mock_response(result="Hello"))
@@ -62,7 +62,7 @@ async def test_heartbeat_alert_returns_text(
     orch: Orchestrator, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Non-OK response returns the alert text."""
-    from ductor_bot.orchestrator.flows import normal
+    from ductor_slack.orchestrator.flows import normal
 
     monkeypatch.setattr(
         orch._cli_service, "execute", AsyncMock(return_value=_mock_response(result="Hello"))
@@ -88,7 +88,7 @@ async def test_heartbeat_ok_does_not_increment_message_count(
     orch: Orchestrator, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """HEARTBEAT_OK should not change message_count."""
-    from ductor_bot.orchestrator.flows import normal
+    from ductor_slack.orchestrator.flows import normal
 
     monkeypatch.setattr(
         orch._cli_service, "execute", AsyncMock(return_value=_mock_response(result="Hello"))
@@ -116,7 +116,7 @@ async def test_heartbeat_alert_increments_message_count(
     orch: Orchestrator, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Alert responses should update session state normally."""
-    from ductor_bot.orchestrator.flows import normal
+    from ductor_slack.orchestrator.flows import normal
 
     monkeypatch.setattr(
         orch._cli_service, "execute", AsyncMock(return_value=_mock_response(result="Hello"))
@@ -143,7 +143,7 @@ async def test_heartbeat_cli_error_returns_none(
     orch: Orchestrator, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """CLI errors during heartbeat are silently logged, not propagated."""
-    from ductor_bot.orchestrator.flows import normal
+    from ductor_slack.orchestrator.flows import normal
 
     monkeypatch.setattr(
         orch._cli_service, "execute", AsyncMock(return_value=_mock_response(result="Hello"))
@@ -164,7 +164,7 @@ async def test_heartbeat_does_not_apply_hooks(
     orch: Orchestrator, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Heartbeat prompt should not have message hooks injected."""
-    from ductor_bot.orchestrator.flows import normal
+    from ductor_slack.orchestrator.flows import normal
 
     monkeypatch.setattr(
         orch._cli_service, "execute", AsyncMock(return_value=_mock_response(result="Hello"))
@@ -189,7 +189,7 @@ async def test_heartbeat_skips_during_cooldown(
     orch: Orchestrator, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Heartbeat is skipped if user was active within cooldown_minutes."""
-    from ductor_bot.orchestrator.flows import normal
+    from ductor_slack.orchestrator.flows import normal
 
     monkeypatch.setattr(
         orch._cli_service, "execute", AsyncMock(return_value=_mock_response(result="Hello"))
@@ -209,7 +209,7 @@ async def test_heartbeat_runs_after_cooldown(
     orch: Orchestrator, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     """Heartbeat fires when last_active is older than cooldown_minutes."""
-    from ductor_bot.orchestrator.flows import normal
+    from ductor_slack.orchestrator.flows import normal
 
     monkeypatch.setattr(
         orch._cli_service, "execute", AsyncMock(return_value=_mock_response(result="Hello"))

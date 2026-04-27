@@ -24,7 +24,7 @@ Create a dedicated account on any Matrix homeserver. You need:
 | What | Example |
 |---|---|
 | Homeserver URL | `https://matrix-client.matrix.org` |
-| User ID | `@my_ductor_bot:matrix.org` |
+| User ID | `@my_ductor_slack:matrix.org` |
 | Password | (the account password) |
 
 You can use any homeserver — matrix.org, your own Synapse/Conduit, etc.
@@ -52,7 +52,7 @@ Edit `~/.ductor/config/config.json`:
 
   "matrix": {
     "homeserver": "https://matrix-client.matrix.org",
-    "user_id": "@my_ductor_bot:matrix.org",
+    "user_id": "@my_ductor_slack:matrix.org",
     "password": "YOUR_MATRIX_PASSWORD",
     "allowed_rooms": [],
     "allowed_users": ["@you:matrix.org"],
@@ -69,7 +69,7 @@ Edit `~/.ductor/config/config.json`:
 
   "matrix": {
     "homeserver": "https://matrix-client.matrix.org",
-    "user_id": "@my_ductor_bot:matrix.org",
+    "user_id": "@my_ductor_slack:matrix.org",
     "password": "YOUR_MATRIX_PASSWORD",
     "allowed_rooms": [],
     "allowed_users": ["@you:matrix.org"]

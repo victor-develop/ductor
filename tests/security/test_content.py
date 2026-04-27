@@ -6,7 +6,7 @@ import re
 
 import pytest
 
-from ductor_bot.security.content import (
+from ductor_slack.security.content import (
     _fold_fullwidth,
     _fold_fullwidth_char,
     detect_suspicious_patterns,

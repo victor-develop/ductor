@@ -14,7 +14,7 @@ CLI command implementation package extracted from `__main__.py`.
 
 ## Role in runtime
 
-`ductor_bot/__main__.py` is now a thin entrypoint:
+`ductor_slack/__main__.py` is now a thin entrypoint:
 
 - argument parsing + command dispatch
 - config helpers (`_is_configured`, `load_config`, `run_bot`)

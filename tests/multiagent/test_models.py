@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ductor_bot.config import AgentConfig, ApiConfig
-from ductor_bot.multiagent.models import SubAgentConfig, merge_sub_agent_config
+from ductor_slack.config import AgentConfig, ApiConfig
+from ductor_slack.multiagent.models import SubAgentConfig, merge_sub_agent_config
 
 
 class TestSubAgentConfig:

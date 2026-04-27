@@ -135,14 +135,14 @@ Sub-agent home: `~/.ductor/agents/<name>/` with its own config/workspace/session
 
 ## 8) Where to read code first
 
-1. `ductor_bot/__main__.py` (entrypoint + config/load/run)
-2. `ductor_bot/cli_commands/` (actual CLI subcommand logic)
-3. `ductor_bot/multiagent/supervisor.py` (always-on runtime wrapper)
-4. `ductor_bot/messenger/telegram/app.py` + `messenger/telegram/startup.py` (Telegram), `ductor_bot/messenger/matrix/bot.py` (Matrix)
-5. `ductor_bot/orchestrator/core.py` + `orchestrator/lifecycle.py`
-6. `ductor_bot/bus/*` (unified delivery/injection)
-7. `ductor_bot/tasks/hub.py` + `tasks/registry.py`
-8. `ductor_bot/cli/service.py` and provider wrappers
+1. `ductor_slack/__main__.py` (entrypoint + config/load/run)
+2. `ductor_slack/cli_commands/` (actual CLI subcommand logic)
+3. `ductor_slack/multiagent/supervisor.py` (always-on runtime wrapper)
+4. `ductor_slack/messenger/telegram/app.py` + `messenger/telegram/startup.py` (Telegram), `ductor_slack/messenger/matrix/bot.py` (Matrix)
+5. `ductor_slack/orchestrator/core.py` + `orchestrator/lifecycle.py`
+6. `ductor_slack/bus/*` (unified delivery/injection)
+7. `ductor_slack/tasks/hub.py` + `tasks/registry.py`
+8. `ductor_slack/cli/service.py` and provider wrappers
 
 ## 9) Command surface (high level)
 

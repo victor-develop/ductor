@@ -6,12 +6,12 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from ductor_bot.bus.cron_sanitize import (
+from ductor_slack.bus.cron_sanitize import (
     is_cron_transport_ack_line,
     sanitize_cron_result_text,
 )
-from ductor_bot.bus.envelope import Envelope, Origin
-from ductor_bot.messenger.telegram.transport import TelegramTransport
+from ductor_slack.bus.envelope import Envelope, Origin
+from ductor_slack.messenger.telegram.transport import TelegramTransport
 
 if TYPE_CHECKING:
     import pytest
@@ -84,7 +84,7 @@ class TestCronBroadcast:
             metadata={"title": "Backup"},
         )
 
-        with patch("ductor_bot.messenger.telegram.transport.send_rich", new_callable=AsyncMock):
+        with patch("ductor_slack.messenger.telegram.transport.send_rich", new_callable=AsyncMock):
             await transport.deliver_broadcast(env)
 
         bot.broadcast.assert_awaited_once()
@@ -136,7 +136,7 @@ class TestHeartbeatDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.telegram.transport.send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.telegram.transport.send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -200,7 +200,7 @@ class TestBackgroundDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.telegram.transport.send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.telegram.transport.send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -223,7 +223,7 @@ class TestBackgroundDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.telegram.transport.send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.telegram.transport.send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -242,7 +242,7 @@ class TestBackgroundDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.telegram.transport.send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.telegram.transport.send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -260,7 +260,7 @@ class TestBackgroundDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.telegram.transport.send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.telegram.transport.send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -281,7 +281,7 @@ class TestBackgroundDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.telegram.transport.send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.telegram.transport.send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -299,7 +299,7 @@ class TestBackgroundDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.telegram.transport.send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.telegram.transport.send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -324,7 +324,7 @@ class TestInteragentDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.telegram.transport.send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.telegram.transport.send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -343,7 +343,7 @@ class TestInteragentDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.telegram.transport.send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.telegram.transport.send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -374,7 +374,7 @@ class TestTaskResultDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.telegram.transport.send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.telegram.transport.send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -394,7 +394,7 @@ class TestTaskResultDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.telegram.transport.send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.telegram.transport.send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -411,7 +411,7 @@ class TestTaskResultDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.telegram.transport.send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.telegram.transport.send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -435,7 +435,7 @@ class TestTaskQuestionDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.telegram.transport.send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.telegram.transport.send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 
@@ -458,7 +458,7 @@ class TestDispatchFallback:
         # Use an origin that's not in _HANDLERS for unicast
         env = _env(origin=Origin.USER)  # USER has no delivery handler
 
-        with patch("ductor_bot.messenger.telegram.transport.send_rich", new_callable=AsyncMock):
+        with patch("ductor_slack.messenger.telegram.transport.send_rich", new_callable=AsyncMock):
             await transport.deliver(env)
 
         assert "No handler for origin=user" in caplog.text

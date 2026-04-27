@@ -12,7 +12,7 @@ class TestSendRich:
     """Test rich text sending with HTML conversion and file extraction."""
 
     async def test_plain_text_sent_as_html(self) -> None:
-        from ductor_bot.messenger.telegram.sender import send_rich
+        from ductor_slack.messenger.telegram.sender import send_rich
 
         bot = MagicMock()
         bot.send_message = AsyncMock()
@@ -23,7 +23,7 @@ class TestSendRich:
         assert "Hello world" in call_kwargs["text"]
 
     async def test_file_tags_extracted_and_sent(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import SendRichOpts, send_rich
+        from ductor_slack.messenger.telegram.sender import SendRichOpts, send_rich
 
         test_file = tmp_path / "test.txt"
         test_file.write_text("content")
@@ -38,7 +38,7 @@ class TestSendRich:
         bot.send_document.assert_called_once()
 
     async def test_reply_to_first_chunk(self) -> None:
-        from ductor_bot.messenger.telegram.sender import SendRichOpts, send_rich
+        from ductor_slack.messenger.telegram.sender import SendRichOpts, send_rich
 
         bot = MagicMock()
         bot.send_message = AsyncMock()
@@ -53,7 +53,7 @@ class TestSendRich:
         assert call_kwargs["reply_parameters"].message_id == 42
 
     async def test_empty_text_with_file_still_sends_file(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import SendRichOpts, send_rich
+        from ductor_slack.messenger.telegram.sender import SendRichOpts, send_rich
 
         test_file = tmp_path / "data.csv"
         test_file.write_text("a,b,c")
@@ -66,7 +66,7 @@ class TestSendRich:
         bot.send_document.assert_called_once()
 
     async def test_html_fallback_on_bad_request(self) -> None:
-        from ductor_bot.messenger.telegram.sender import send_rich
+        from ductor_slack.messenger.telegram.sender import send_rich
 
         bot = MagicMock()
         # First call fails with TelegramBadRequest, second succeeds (plain text)
@@ -84,7 +84,7 @@ class TestSendRichButtons:
     """Test button keyboard integration in send_rich."""
 
     async def test_send_rich_with_buttons_attaches_keyboard(self) -> None:
-        from ductor_bot.messenger.telegram.sender import send_rich
+        from ductor_slack.messenger.telegram.sender import send_rich
 
         bot = MagicMock()
         sent_msg = MagicMock()
@@ -100,7 +100,7 @@ class TestSendRichButtons:
         assert markup.inline_keyboard[0][1].text == "No"
 
     async def test_send_rich_without_buttons_no_keyboard(self) -> None:
-        from ductor_bot.messenger.telegram.sender import send_rich
+        from ductor_slack.messenger.telegram.sender import send_rich
 
         bot = MagicMock()
         bot.send_message = AsyncMock()
@@ -110,7 +110,7 @@ class TestSendRichButtons:
         bot.edit_message_reply_markup.assert_not_called()
 
     async def test_send_rich_buttons_stripped_from_displayed_text(self) -> None:
-        from ductor_bot.messenger.telegram.sender import send_rich
+        from ductor_slack.messenger.telegram.sender import send_rich
 
         bot = MagicMock()
         sent_msg = MagicMock()
@@ -124,7 +124,7 @@ class TestSendRichButtons:
         assert "Hello" in call_text
 
     async def test_send_rich_buttons_with_reply_to(self) -> None:
-        from ductor_bot.messenger.telegram.sender import SendRichOpts, send_rich
+        from ductor_slack.messenger.telegram.sender import SendRichOpts, send_rich
 
         bot = MagicMock()
         sent_msg = MagicMock()
@@ -145,7 +145,7 @@ class TestSendFile:
     """Test individual file sending."""
 
     async def test_image_sent_as_photo(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import send_file
+        from ductor_slack.messenger.telegram.sender import send_file
 
         img = tmp_path / "photo.jpg"
         img.write_bytes(b"\xff\xd8\xff\xe0")  # JPEG magic bytes
@@ -156,7 +156,7 @@ class TestSendFile:
         bot.send_photo.assert_called_once()
 
     async def test_non_image_sent_as_document(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import send_file
+        from ductor_slack.messenger.telegram.sender import send_file
 
         doc = tmp_path / "report.pdf"
         doc.write_bytes(b"%PDF-1.4")
@@ -167,7 +167,7 @@ class TestSendFile:
         bot.send_document.assert_called_once()
 
     async def test_unsupported_image_sent_as_document(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import send_file
+        from ductor_slack.messenger.telegram.sender import send_file
 
         img = tmp_path / "photo.heic"
         img.write_bytes(b"not-relevant")
@@ -175,27 +175,27 @@ class TestSendFile:
         bot = MagicMock()
         bot.send_photo = AsyncMock()
         bot.send_document = AsyncMock()
-        with patch("ductor_bot.messenger.telegram.sender.guess_mime", return_value="image/heic"):
+        with patch("ductor_slack.messenger.telegram.sender.guess_mime", return_value="image/heic"):
             await send_file(bot, chat_id=1, path=img)
 
         bot.send_photo.assert_not_called()
         bot.send_document.assert_called_once()
 
     async def test_supported_video_sent_as_video(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import send_file
+        from ductor_slack.messenger.telegram.sender import send_file
 
         video = tmp_path / "clip.mp4"
         video.write_bytes(b"not-relevant")
 
         bot = MagicMock()
         bot.send_video = AsyncMock()
-        with patch("ductor_bot.messenger.telegram.sender.guess_mime", return_value="video/mp4"):
+        with patch("ductor_slack.messenger.telegram.sender.guess_mime", return_value="video/mp4"):
             await send_file(bot, chat_id=1, path=video)
 
         bot.send_video.assert_called_once()
 
     async def test_unsupported_video_sent_as_document(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import send_file
+        from ductor_slack.messenger.telegram.sender import send_file
 
         video = tmp_path / "clip.webm"
         video.write_bytes(b"not-relevant")
@@ -203,27 +203,27 @@ class TestSendFile:
         bot = MagicMock()
         bot.send_video = AsyncMock()
         bot.send_document = AsyncMock()
-        with patch("ductor_bot.messenger.telegram.sender.guess_mime", return_value="video/webm"):
+        with patch("ductor_slack.messenger.telegram.sender.guess_mime", return_value="video/webm"):
             await send_file(bot, chat_id=1, path=video)
 
         bot.send_video.assert_not_called()
         bot.send_document.assert_called_once()
 
     async def test_supported_audio_sent_as_audio(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import send_file
+        from ductor_slack.messenger.telegram.sender import send_file
 
         audio = tmp_path / "sound.mp3"
         audio.write_bytes(b"not-relevant")
 
         bot = MagicMock()
         bot.send_audio = AsyncMock()
-        with patch("ductor_bot.messenger.telegram.sender.guess_mime", return_value="audio/mpeg"):
+        with patch("ductor_slack.messenger.telegram.sender.guess_mime", return_value="audio/mpeg"):
             await send_file(bot, chat_id=1, path=audio)
 
         bot.send_audio.assert_called_once()
 
     async def test_unsupported_audio_sent_as_document(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import send_file
+        from ductor_slack.messenger.telegram.sender import send_file
 
         audio = tmp_path / "sound.wav"
         audio.write_bytes(b"not-relevant")
@@ -231,14 +231,14 @@ class TestSendFile:
         bot = MagicMock()
         bot.send_audio = AsyncMock()
         bot.send_document = AsyncMock()
-        with patch("ductor_bot.messenger.telegram.sender.guess_mime", return_value="audio/wav"):
+        with patch("ductor_slack.messenger.telegram.sender.guess_mime", return_value="audio/wav"):
             await send_file(bot, chat_id=1, path=audio)
 
         bot.send_audio.assert_not_called()
         bot.send_document.assert_called_once()
 
     async def test_photo_rejected_retries_as_document(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import send_file
+        from ductor_slack.messenger.telegram.sender import send_file
 
         img = tmp_path / "photo.jpg"
         img.write_bytes(b"\xff\xd8\xff\xe0")
@@ -251,7 +251,7 @@ class TestSendFile:
         bot.send_document.assert_called_once()
 
     async def test_video_rejected_retries_as_document(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import send_file
+        from ductor_slack.messenger.telegram.sender import send_file
 
         video = tmp_path / "clip.mp4"
         video.write_bytes(b"not-relevant")
@@ -259,14 +259,14 @@ class TestSendFile:
         bot = MagicMock()
         bot.send_video = AsyncMock(side_effect=TelegramBadRequest(MagicMock(), "bad video"))
         bot.send_document = AsyncMock()
-        with patch("ductor_bot.messenger.telegram.sender.guess_mime", return_value="video/mp4"):
+        with patch("ductor_slack.messenger.telegram.sender.guess_mime", return_value="video/mp4"):
             await send_file(bot, chat_id=1, path=video)
 
         bot.send_video.assert_called_once()
         bot.send_document.assert_called_once()
 
     async def test_audio_rejected_retries_as_document(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import send_file
+        from ductor_slack.messenger.telegram.sender import send_file
 
         audio = tmp_path / "sound.mp3"
         audio.write_bytes(b"not-relevant")
@@ -274,14 +274,14 @@ class TestSendFile:
         bot = MagicMock()
         bot.send_audio = AsyncMock(side_effect=TelegramBadRequest(MagicMock(), "bad audio"))
         bot.send_document = AsyncMock()
-        with patch("ductor_bot.messenger.telegram.sender.guess_mime", return_value="audio/mpeg"):
+        with patch("ductor_slack.messenger.telegram.sender.guess_mime", return_value="audio/mpeg"):
             await send_file(bot, chat_id=1, path=audio)
 
         bot.send_audio.assert_called_once()
         bot.send_document.assert_called_once()
 
     async def test_missing_file_sends_error(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import send_file
+        from ductor_slack.messenger.telegram.sender import send_file
 
         bot = MagicMock()
         bot.send_message = AsyncMock()
@@ -290,7 +290,7 @@ class TestSendFile:
         assert "not found" in bot.send_message.call_args.kwargs["text"].lower()
 
     async def test_blocked_path_sends_warning(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import send_file
+        from ductor_slack.messenger.telegram.sender import send_file
 
         f = tmp_path / "secret.txt"
         f.write_text("secret")
@@ -309,18 +309,18 @@ class TestExtractFilePaths:
     """Test file path extraction from text."""
 
     def test_single_file(self) -> None:
-        from ductor_bot.messenger.telegram.sender import extract_file_paths
+        from ductor_slack.messenger.telegram.sender import extract_file_paths
 
         assert extract_file_paths("see <file:/tmp/a.txt>") == ["/tmp/a.txt"]
 
     def test_multiple_files(self) -> None:
-        from ductor_bot.messenger.telegram.sender import extract_file_paths
+        from ductor_slack.messenger.telegram.sender import extract_file_paths
 
         result = extract_file_paths("<file:/a> and <file:/b>")
         assert result == ["/a", "/b"]
 
     def test_no_files(self) -> None:
-        from ductor_bot.messenger.telegram.sender import extract_file_paths
+        from ductor_slack.messenger.telegram.sender import extract_file_paths
 
         assert extract_file_paths("no files here") == []
 
@@ -329,7 +329,7 @@ class TestSendFilesFromText:
     """Test post-streaming file extraction and delivery."""
 
     async def test_sends_files_from_tags(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import send_files_from_text
+        from ductor_slack.messenger.telegram.sender import send_files_from_text
 
         f1 = tmp_path / "a.pdf"
         f1.write_bytes(b"%PDF")
@@ -344,7 +344,7 @@ class TestSendFilesFromText:
         assert bot.send_document.call_count == 2
 
     async def test_no_tags_does_nothing(self) -> None:
-        from ductor_bot.messenger.telegram.sender import send_files_from_text
+        from ductor_slack.messenger.telegram.sender import send_files_from_text
 
         bot = MagicMock()
         bot.send_document = AsyncMock()
@@ -356,7 +356,7 @@ class TestSendFilesFromText:
         bot.send_photo.assert_not_called()
 
     async def test_image_sent_as_photo(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import send_files_from_text
+        from ductor_slack.messenger.telegram.sender import send_files_from_text
 
         img = tmp_path / "photo.png"
         img.write_bytes(b"\x89PNG")
@@ -367,14 +367,14 @@ class TestSendFilesFromText:
         await send_files_from_text(bot, chat_id=1, text=f"<file:{img}>")
 
     async def test_windows_slash_drive_tag_normalized_before_send(self) -> None:
-        from ductor_bot.messenger.telegram.sender import send_files_from_text
+        from ductor_slack.messenger.telegram.sender import send_files_from_text
 
         bot = MagicMock()
 
         with (
-            patch("ductor_bot.files.tags.is_windows", return_value=True),
+            patch("ductor_slack.files.tags.is_windows", return_value=True),
             patch(
-                "ductor_bot.messenger.telegram.sender.send_file", new_callable=AsyncMock
+                "ductor_slack.messenger.telegram.sender.send_file", new_callable=AsyncMock
             ) as mock_send_file,
         ):
             await send_files_from_text(
@@ -387,14 +387,14 @@ class TestSendFilesFromText:
 
 class TestWindowsTagNormalizationInSendRich:
     async def test_send_rich_normalizes_windows_file_tag(self) -> None:
-        from ductor_bot.messenger.telegram.sender import send_rich
+        from ductor_slack.messenger.telegram.sender import send_rich
 
         bot = MagicMock()
 
         with (
-            patch("ductor_bot.files.tags.is_windows", return_value=True),
+            patch("ductor_slack.files.tags.is_windows", return_value=True),
             patch(
-                "ductor_bot.messenger.telegram.sender.send_file", new_callable=AsyncMock
+                "ductor_slack.messenger.telegram.sender.send_file", new_callable=AsyncMock
             ) as mock_send_file,
         ):
             await send_rich(bot, 1, "<file:/C/Users/alice/result.apk>")
@@ -407,7 +407,7 @@ class TestForumTopicSupport:
     """Test message_thread_id propagation through sender functions."""
 
     async def test_send_rich_passes_thread_id(self) -> None:
-        from ductor_bot.messenger.telegram.sender import SendRichOpts, send_rich
+        from ductor_slack.messenger.telegram.sender import SendRichOpts, send_rich
 
         bot = MagicMock()
         bot.send_message = AsyncMock()
@@ -415,7 +415,7 @@ class TestForumTopicSupport:
         assert bot.send_message.call_args.kwargs["message_thread_id"] == 77
 
     async def test_send_rich_thread_id_none_by_default(self) -> None:
-        from ductor_bot.messenger.telegram.sender import send_rich
+        from ductor_slack.messenger.telegram.sender import send_rich
 
         bot = MagicMock()
         bot.send_message = AsyncMock()
@@ -423,7 +423,7 @@ class TestForumTopicSupport:
         assert bot.send_message.call_args.kwargs.get("message_thread_id") is None
 
     async def test_send_rich_passes_thread_id_to_files(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import SendRichOpts, send_rich
+        from ductor_slack.messenger.telegram.sender import SendRichOpts, send_rich
 
         doc = tmp_path / "data.csv"
         doc.write_text("a,b")
@@ -435,7 +435,7 @@ class TestForumTopicSupport:
         assert bot.send_document.call_args.kwargs["message_thread_id"] == 55
 
     async def test_send_file_passes_thread_id_to_document(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import send_file
+        from ductor_slack.messenger.telegram.sender import send_file
 
         doc = tmp_path / "test.pdf"
         doc.write_bytes(b"%PDF")
@@ -446,7 +446,7 @@ class TestForumTopicSupport:
         assert bot.send_document.call_args.kwargs["message_thread_id"] == 55
 
     async def test_send_file_passes_thread_id_to_photo(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import send_file
+        from ductor_slack.messenger.telegram.sender import send_file
 
         img = tmp_path / "photo.jpg"
         img.write_bytes(b"\xff\xd8\xff\xe0")
@@ -457,33 +457,33 @@ class TestForumTopicSupport:
         assert bot.send_photo.call_args.kwargs["message_thread_id"] == 55
 
     async def test_send_file_passes_thread_id_to_video(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import send_file
+        from ductor_slack.messenger.telegram.sender import send_file
 
         video = tmp_path / "clip.mp4"
         video.write_bytes(b"not-relevant")
 
         bot = MagicMock()
         bot.send_video = AsyncMock()
-        with patch("ductor_bot.messenger.telegram.sender.guess_mime", return_value="video/mp4"):
+        with patch("ductor_slack.messenger.telegram.sender.guess_mime", return_value="video/mp4"):
             await send_file(bot, chat_id=1, path=video, thread_id=55)
 
         assert bot.send_video.call_args.kwargs["message_thread_id"] == 55
 
     async def test_send_file_passes_thread_id_to_audio(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import send_file
+        from ductor_slack.messenger.telegram.sender import send_file
 
         audio = tmp_path / "sound.mp3"
         audio.write_bytes(b"not-relevant")
 
         bot = MagicMock()
         bot.send_audio = AsyncMock()
-        with patch("ductor_bot.messenger.telegram.sender.guess_mime", return_value="audio/mpeg"):
+        with patch("ductor_slack.messenger.telegram.sender.guess_mime", return_value="audio/mpeg"):
             await send_file(bot, chat_id=1, path=audio, thread_id=55)
 
         assert bot.send_audio.call_args.kwargs["message_thread_id"] == 55
 
     async def test_send_file_error_message_passes_thread_id(self) -> None:
-        from ductor_bot.messenger.telegram.sender import send_file
+        from ductor_slack.messenger.telegram.sender import send_file
 
         bot = MagicMock()
         bot.send_message = AsyncMock()
@@ -491,7 +491,7 @@ class TestForumTopicSupport:
         assert bot.send_message.call_args.kwargs["message_thread_id"] == 33
 
     async def test_send_file_blocked_path_passes_thread_id(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import send_file
+        from ductor_slack.messenger.telegram.sender import send_file
 
         f = tmp_path / "secret.txt"
         f.write_text("secret")
@@ -502,7 +502,7 @@ class TestForumTopicSupport:
         assert bot.send_message.call_args.kwargs["message_thread_id"] == 33
 
     async def test_send_files_from_text_passes_thread_id(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.sender import send_files_from_text
+        from ductor_slack.messenger.telegram.sender import send_files_from_text
 
         f = tmp_path / "data.csv"
         f.write_text("a,b")
@@ -513,7 +513,7 @@ class TestForumTopicSupport:
         assert bot.send_document.call_args.kwargs["message_thread_id"] == 44
 
     async def test_html_fallback_preserves_thread_id(self) -> None:
-        from ductor_bot.messenger.telegram.sender import SendRichOpts, send_rich
+        from ductor_slack.messenger.telegram.sender import SendRichOpts, send_rich
 
         bot = MagicMock()
         bot.send_message = AsyncMock(

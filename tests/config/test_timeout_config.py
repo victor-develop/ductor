@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ductor_bot.config import AgentConfig, TimeoutConfig, deep_merge_config, resolve_timeout
+from ductor_slack.config import AgentConfig, TimeoutConfig, deep_merge_config, resolve_timeout
 
 
 class TestTimeoutConfigDefaults:

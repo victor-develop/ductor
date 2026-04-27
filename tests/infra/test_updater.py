@@ -7,13 +7,13 @@ import json
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
-from ductor_bot.infra.updater import (
+from ductor_slack.infra.updater import (
     UpdateObserver,
     consume_upgrade_sentinel,
     perform_upgrade_pipeline,
     write_upgrade_sentinel,
 )
-from ductor_bot.infra.version import VersionInfo
+from ductor_slack.infra.version import VersionInfo
 
 # ---------------------------------------------------------------------------
 # Upgrade Sentinel
@@ -73,11 +73,11 @@ class TestPerformUpgradePipeline:
     async def test_changes_on_first_attempt(self) -> None:
         with (
             patch(
-                "ductor_bot.infra.updater._perform_upgrade_impl",
+                "ductor_slack.infra.updater._perform_upgrade_impl",
                 new=AsyncMock(return_value=(True, "first-pass")),
             ) as mock_upgrade,
             patch(
-                "ductor_bot.infra.updater._wait_for_version_change",
+                "ductor_slack.infra.updater._wait_for_version_change",
                 new=AsyncMock(return_value="2.0.0"),
             ),
         ):
@@ -91,11 +91,11 @@ class TestPerformUpgradePipeline:
     async def test_retries_with_target_when_unchanged(self) -> None:
         with (
             patch(
-                "ductor_bot.infra.updater._perform_upgrade_impl",
+                "ductor_slack.infra.updater._perform_upgrade_impl",
                 new=AsyncMock(side_effect=[(True, "first-pass"), (True, "retry-pass")]),
             ) as mock_upgrade,
             patch(
-                "ductor_bot.infra.updater._wait_for_version_change",
+                "ductor_slack.infra.updater._wait_for_version_change",
                 new=AsyncMock(side_effect=["1.0.0", "2.0.0"]),
             ),
         ):
@@ -117,15 +117,15 @@ class TestPerformUpgradePipeline:
     async def test_returns_unchanged_when_no_retry_target(self) -> None:
         with (
             patch(
-                "ductor_bot.infra.updater._perform_upgrade_impl",
+                "ductor_slack.infra.updater._perform_upgrade_impl",
                 new=AsyncMock(return_value=(True, "first-pass")),
             ),
             patch(
-                "ductor_bot.infra.updater._wait_for_version_change",
+                "ductor_slack.infra.updater._wait_for_version_change",
                 new=AsyncMock(return_value="1.0.0"),
             ),
             patch(
-                "ductor_bot.infra.updater._resolve_retry_target",
+                "ductor_slack.infra.updater._resolve_retry_target",
                 new=AsyncMock(return_value=None),
             ),
         ):
@@ -150,9 +150,9 @@ class TestUpdateObserver:
         observer = UpdateObserver(notify=notify)
 
         with (
-            patch("ductor_bot.infra.updater.check_pypi", return_value=info),
-            patch("ductor_bot.infra.updater._INITIAL_DELAY_S", 0),
-            patch("ductor_bot.infra.updater._CHECK_INTERVAL_S", 0.01),
+            patch("ductor_slack.infra.updater.check_pypi", return_value=info),
+            patch("ductor_slack.infra.updater._INITIAL_DELAY_S", 0),
+            patch("ductor_slack.infra.updater._CHECK_INTERVAL_S", 0.01),
         ):
             observer.start()
             await asyncio.sleep(0.1)
@@ -166,9 +166,9 @@ class TestUpdateObserver:
         observer = UpdateObserver(notify=notify)
 
         with (
-            patch("ductor_bot.infra.updater.check_pypi", return_value=info),
-            patch("ductor_bot.infra.updater._INITIAL_DELAY_S", 0),
-            patch("ductor_bot.infra.updater._CHECK_INTERVAL_S", 0.01),
+            patch("ductor_slack.infra.updater.check_pypi", return_value=info),
+            patch("ductor_slack.infra.updater._INITIAL_DELAY_S", 0),
+            patch("ductor_slack.infra.updater._CHECK_INTERVAL_S", 0.01),
         ):
             observer.start()
             await asyncio.sleep(0.1)
@@ -182,9 +182,9 @@ class TestUpdateObserver:
         observer = UpdateObserver(notify=notify)
 
         with (
-            patch("ductor_bot.infra.updater.check_pypi", return_value=info),
-            patch("ductor_bot.infra.updater._INITIAL_DELAY_S", 0),
-            patch("ductor_bot.infra.updater._CHECK_INTERVAL_S", 0.01),
+            patch("ductor_slack.infra.updater.check_pypi", return_value=info),
+            patch("ductor_slack.infra.updater._INITIAL_DELAY_S", 0),
+            patch("ductor_slack.infra.updater._CHECK_INTERVAL_S", 0.01),
         ):
             observer.start()
             # Let multiple check cycles run
@@ -199,9 +199,9 @@ class TestUpdateObserver:
         observer = UpdateObserver(notify=notify)
 
         with (
-            patch("ductor_bot.infra.updater.check_pypi", side_effect=RuntimeError("network")),
-            patch("ductor_bot.infra.updater._INITIAL_DELAY_S", 0),
-            patch("ductor_bot.infra.updater._CHECK_INTERVAL_S", 0.01),
+            patch("ductor_slack.infra.updater.check_pypi", side_effect=RuntimeError("network")),
+            patch("ductor_slack.infra.updater._INITIAL_DELAY_S", 0),
+            patch("ductor_slack.infra.updater._CHECK_INTERVAL_S", 0.01),
         ):
             observer.start()
             await asyncio.sleep(0.1)
@@ -214,9 +214,9 @@ class TestUpdateObserver:
         observer = UpdateObserver(notify=notify)
 
         with (
-            patch("ductor_bot.infra.updater.check_pypi", return_value=None),
-            patch("ductor_bot.infra.updater._INITIAL_DELAY_S", 0),
-            patch("ductor_bot.infra.updater._CHECK_INTERVAL_S", 0.01),
+            patch("ductor_slack.infra.updater.check_pypi", return_value=None),
+            patch("ductor_slack.infra.updater._INITIAL_DELAY_S", 0),
+            patch("ductor_slack.infra.updater._CHECK_INTERVAL_S", 0.01),
         ):
             observer.start()
             await asyncio.sleep(0.1)
@@ -245,9 +245,9 @@ class TestUpdateObserver:
         observer = UpdateObserver(notify=notify)
 
         with (
-            patch("ductor_bot.infra.updater.check_pypi", side_effect=mock_check),
-            patch("ductor_bot.infra.updater._INITIAL_DELAY_S", 0),
-            patch("ductor_bot.infra.updater._CHECK_INTERVAL_S", 0.01),
+            patch("ductor_slack.infra.updater.check_pypi", side_effect=mock_check),
+            patch("ductor_slack.infra.updater._INITIAL_DELAY_S", 0),
+            patch("ductor_slack.infra.updater._CHECK_INTERVAL_S", 0.01),
         ):
             observer.start()
             await asyncio.sleep(0.15)

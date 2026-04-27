@@ -1,4 +1,4 @@
-"""Tests for the i18n completeness checker (ductor_bot.i18n.check)."""
+"""Tests for the i18n completeness checker (ductor_slack.i18n.check)."""
 
 from __future__ import annotations
 
@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from ductor_bot.i18n.check import (
+from ductor_slack.i18n.check import (
     DomainReport,
     LocaleReport,
     Report,
@@ -90,7 +90,7 @@ def test_build_report_live_tree_clean() -> None:
 
 def test_build_report_covers_all_non_en_locales() -> None:
     """All non-en locales from LANGUAGES must appear in the report."""
-    from ductor_bot.i18n import LANGUAGES
+    from ductor_slack.i18n import LANGUAGES
 
     report = build_report()
     expected = {lang for lang in LANGUAGES if lang != "en"}
@@ -211,7 +211,7 @@ def test_main_returns_zero_on_clean_tree() -> None:
 def test_main_returns_one_on_gaps(tmp_path: Path) -> None:
     _write_locale(tmp_path, "en", {"chat": 'a = "x"\nb = "y"'})
     _write_locale(tmp_path, "de", {"chat": 'a = "x"'})
-    # Trick: ductor_bot.i18n.LANGUAGES has many locales; use --root and rely on
+    # Trick: ductor_slack.i18n.LANGUAGES has many locales; use --root and rely on
     # the fact that only 'de' exists here (others yield empty dicts -> all keys
     # reported missing for every other language). We still expect rc=1.
     buf = io.StringIO()

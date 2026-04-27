@@ -11,7 +11,7 @@ class TestSupervisor:
     """Test supervisor crash recovery and restart logic."""
 
     async def test_clean_exit_stops_supervisor(self) -> None:
-        from ductor_bot.run import supervisor
+        from ductor_slack.run import supervisor
 
         mock_proc = MagicMock()
         mock_proc.pid = 1234
@@ -20,13 +20,13 @@ class TestSupervisor:
 
         with (
             patch("asyncio.create_subprocess_exec", new_callable=AsyncMock, return_value=mock_proc),
-            patch("ductor_bot.run.WATCH_DIR", Path("/nonexistent")),
+            patch("ductor_slack.run.WATCH_DIR", Path("/nonexistent")),
         ):
             # supervisor() should exit when child returns 0
             await supervisor()
 
     async def test_restart_exit_code_respawns(self) -> None:
-        from ductor_bot.run import EXIT_RESTART, supervisor
+        from ductor_slack.run import EXIT_RESTART, supervisor
 
         call_count = 0
 
@@ -42,14 +42,14 @@ class TestSupervisor:
 
         with (
             patch("asyncio.create_subprocess_exec", side_effect=mock_create_proc),
-            patch("ductor_bot.run.WATCH_DIR", Path("/nonexistent")),
+            patch("ductor_slack.run.WATCH_DIR", Path("/nonexistent")),
         ):
             await supervisor()
 
         assert call_count == 2
 
     async def test_crash_with_backoff(self) -> None:
-        from ductor_bot.run import supervisor
+        from ductor_slack.run import supervisor
 
         call_count = 0
 
@@ -66,7 +66,7 @@ class TestSupervisor:
         with (
             patch("asyncio.create_subprocess_exec", side_effect=mock_create_proc),
             patch("asyncio.sleep", new_callable=AsyncMock) as mock_sleep,
-            patch("ductor_bot.run.WATCH_DIR", Path("/nonexistent")),
+            patch("ductor_slack.run.WATCH_DIR", Path("/nonexistent")),
         ):
             await supervisor()
 
@@ -75,7 +75,7 @@ class TestSupervisor:
         mock_sleep.assert_called()
 
     async def test_fast_crash_escalates_backoff(self) -> None:
-        from ductor_bot.run import supervisor
+        from ductor_slack.run import supervisor
 
         call_count = 0
 
@@ -103,8 +103,8 @@ class TestSupervisor:
         with (
             patch("asyncio.create_subprocess_exec", side_effect=mock_create_proc),
             patch("asyncio.sleep", side_effect=mock_sleep),
-            patch("ductor_bot.run.time") as mock_time,
-            patch("ductor_bot.run.WATCH_DIR", Path("/nonexistent")),
+            patch("ductor_slack.run.time") as mock_time,
+            patch("ductor_slack.run.WATCH_DIR", Path("/nonexistent")),
         ):
             mock_time.monotonic = mock_monotonic
             await supervisor()
@@ -118,7 +118,7 @@ class TestTerminateChild:
     """Test child process termination."""
 
     async def test_terminate_sends_sigterm(self) -> None:
-        from ductor_bot.run import _terminate_child
+        from ductor_slack.run import _terminate_child
 
         proc = MagicMock()
         proc.returncode = None
@@ -129,7 +129,7 @@ class TestTerminateChild:
         proc.terminate.assert_called_once()
 
     async def test_terminate_noop_if_already_exited(self) -> None:
-        from ductor_bot.run import _terminate_child
+        from ductor_slack.run import _terminate_child
 
         proc = MagicMock()
         proc.returncode = 0
@@ -150,7 +150,7 @@ class TestTerminateChild:
 
         proc.wait = slow_wait
         # With very short timeout
-        with patch("ductor_bot.run.SIGTERM_TIMEOUT", 0.01):
+        with patch("ductor_slack.run.SIGTERM_TIMEOUT", 0.01):
             # After kill, wait returns
             proc.wait = AsyncMock(return_value=-9)
             proc.returncode = None

@@ -62,5 +62,5 @@ At the end of the local milestone work captured in `.planning/`:
 - `pytest` passed
 - `ruff format --check .` passed
 - `ruff check .` passed
-- `mypy ductor_bot` passed
-- `python -m ductor_bot.i18n.check` passed
+- `mypy ductor_slack` passed
+- `python -m ductor_slack.i18n.check` passed

@@ -7,9 +7,9 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from ductor_bot.tasks.hub import TaskHub
-from ductor_bot.tasks.models import TASK_PRIORITIES, TaskEntry, TaskSubmit, normalise_priority
-from ductor_bot.tasks.registry import TaskRegistry
+from ductor_slack.tasks.hub import TaskHub
+from ductor_slack.tasks.models import TASK_PRIORITIES, TaskEntry, TaskSubmit, normalise_priority
+from ductor_slack.tasks.registry import TaskRegistry
 
 # -- Model tests -------------------------------------------------------------
 

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from ductor_bot.multiagent.shared_knowledge import (
+from ductor_slack.multiagent.shared_knowledge import (
     _END_MARKER,
     _LEGACY_END,
     _LEGACY_START,

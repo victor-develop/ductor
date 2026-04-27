@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from unittest.mock import patch
 
-from ductor_bot.cli.param_resolver import TaskExecutionConfig
-from ductor_bot.cron.execution import build_cmd
+from ductor_slack.cli.param_resolver import TaskExecutionConfig
+from ductor_slack.cron.execution import build_cmd
 
 
 class TestBuildCmdWithTaskExecutionConfig:
@@ -23,7 +23,7 @@ class TestBuildCmdWithTaskExecutionConfig:
             file_access="all",
         )
 
-        with patch("ductor_bot.cron.execution.which", return_value="/usr/bin/claude"):
+        with patch("ductor_slack.cron.execution.which", return_value="/usr/bin/claude"):
             result = build_cmd(exec_config, "hello world")
 
         assert result is not None
@@ -49,7 +49,7 @@ class TestBuildCmdWithTaskExecutionConfig:
             file_access="all",
         )
 
-        with patch("ductor_bot.cron.execution.which", return_value="/usr/bin/claude"):
+        with patch("ductor_slack.cron.execution.which", return_value="/usr/bin/claude"):
             result = build_cmd(exec_config, "test prompt")
 
         assert result is not None
@@ -73,7 +73,7 @@ class TestBuildCmdWithTaskExecutionConfig:
             file_access="all",
         )
 
-        with patch("ductor_bot.cron.execution.which", return_value="/usr/bin/codex"):
+        with patch("ductor_slack.cron.execution.which", return_value="/usr/bin/codex"):
             result = build_cmd(exec_config, "hello world")
 
         assert result is not None
@@ -98,7 +98,7 @@ class TestBuildCmdWithTaskExecutionConfig:
             file_access="all",
         )
 
-        with patch("ductor_bot.cron.execution.which", return_value="/usr/bin/codex"):
+        with patch("ductor_slack.cron.execution.which", return_value="/usr/bin/codex"):
             result = build_cmd(exec_config, "test prompt")
 
         assert result is not None
@@ -124,7 +124,7 @@ class TestBuildCmdWithTaskExecutionConfig:
             file_access="all",
         )
 
-        with patch("ductor_bot.cron.execution.which", return_value="/usr/bin/codex"):
+        with patch("ductor_slack.cron.execution.which", return_value="/usr/bin/codex"):
             result = build_cmd(exec_config, "complex task")
 
         assert result is not None
@@ -145,7 +145,7 @@ class TestBuildCmdWithTaskExecutionConfig:
             file_access="all",
         )
 
-        with patch("ductor_bot.cron.execution.which", return_value="/usr/bin/codex"):
+        with patch("ductor_slack.cron.execution.which", return_value="/usr/bin/codex"):
             result = build_cmd(exec_config, "quick task")
 
         assert result is not None
@@ -165,7 +165,7 @@ class TestBuildCmdWithTaskExecutionConfig:
             file_access="all",
         )
 
-        with patch("ductor_bot.cron.execution.which", return_value="/usr/bin/claude"):
+        with patch("ductor_slack.cron.execution.which", return_value="/usr/bin/claude"):
             result = build_cmd(exec_config, "my prompt")
 
         # Find the -- separator
@@ -192,7 +192,7 @@ class TestBuildCmdWithTaskExecutionConfig:
             file_access="all",
         )
 
-        with patch("ductor_bot.cron.execution.which", return_value="/usr/bin/claude"):
+        with patch("ductor_slack.cron.execution.which", return_value="/usr/bin/claude"):
             result = build_cmd(exec_config, "test")
 
         assert result is not None
@@ -213,7 +213,7 @@ class TestBuildCmdWithTaskExecutionConfig:
             file_access="all",
         )
 
-        with patch("ductor_bot.cron.execution.which", return_value=None):
+        with patch("ductor_slack.cron.execution.which", return_value=None):
             result = build_cmd(exec_config, "test")
 
         assert result is None
@@ -230,7 +230,7 @@ class TestBuildCmdWithTaskExecutionConfig:
             file_access="all",
         )
 
-        with patch("ductor_bot.cron.execution.which", return_value="/usr/bin/codex"):
+        with patch("ductor_slack.cron.execution.which", return_value="/usr/bin/codex"):
             result = build_cmd(exec_config, "complex task")
 
         assert result is not None

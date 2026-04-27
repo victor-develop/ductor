@@ -25,7 +25,7 @@ Cross-tool skill sync between ductor workspace and CLI skill homes.
 
 ## Bundled skills
 
-Bundled source: `ductor_bot/_home_defaults/workspace/skills/`.
+Bundled source: `ductor_slack/_home_defaults/workspace/skills/`.
 
 `sync_bundled_skills(paths)` mirrors bundled skills into each agent's workspace skill dir.
 

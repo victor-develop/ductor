@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 
-from ductor_bot.session.manager import ProviderSessionData, SessionData
+from ductor_slack.session.manager import ProviderSessionData, SessionData
 
 
 def test_session_id_property_reads_current_provider() -> None:

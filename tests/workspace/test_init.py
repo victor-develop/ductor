@@ -6,8 +6,8 @@ import json
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ductor_bot.workspace.init import init_workspace, inject_runtime_environment
-from ductor_bot.workspace.paths import DuctorPaths
+from ductor_slack.workspace.init import init_workspace, inject_runtime_environment
+from ductor_slack.workspace.paths import DuctorPaths
 
 if TYPE_CHECKING:
     import pytest
@@ -297,7 +297,7 @@ def test_zone2_user_modification_is_backed_up(
     template = paths.home_defaults / "workspace" / "tools" / "media_tools" / "transcribe_audio.py"
     template.write_text("# v0.16.1 framework transcribe_audio")
 
-    with caplog.at_level(logging.WARNING, logger="ductor_bot.workspace.init"):
+    with caplog.at_level(logging.WARNING, logger="ductor_slack.workspace.init"):
         init_workspace(paths)
 
     backup = media_dir / "transcribe_audio.py.bak"

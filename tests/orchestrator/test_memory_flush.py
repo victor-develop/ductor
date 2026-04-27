@@ -8,13 +8,13 @@ from unittest.mock import AsyncMock
 
 import pytest  # noqa: TC002  -- runtime fixture type (caplog)
 
-from ductor_bot.bus.lock_pool import LockPool
-from ductor_bot.cli.types import AgentResponse
-from ductor_bot.config import MemoryCompactionConfig, MemoryFlushConfig
-from ductor_bot.orchestrator.memory_flush import MemoryFlusher
-from ductor_bot.session import SessionKey
-from ductor_bot.session.manager import ProviderSessionData, SessionData
-from ductor_bot.workspace.paths import DuctorPaths
+from ductor_slack.bus.lock_pool import LockPool
+from ductor_slack.cli.types import AgentResponse
+from ductor_slack.config import MemoryCompactionConfig, MemoryFlushConfig
+from ductor_slack.orchestrator.memory_flush import MemoryFlusher
+from ductor_slack.session import SessionKey
+from ductor_slack.session.manager import ProviderSessionData, SessionData
+from ductor_slack.workspace.paths import DuctorPaths
 
 
 def _session_with_id(session_id: str) -> SessionData:
@@ -195,7 +195,7 @@ async def test_memory_flusher_falls_back_on_bad_prompt_placeholder(
     session = _session_with_id("sess-abc")
 
     flusher.mark_boundary(key)
-    with caplog.at_level("WARNING", logger="ductor_bot.orchestrator.memory_flush"):
+    with caplog.at_level("WARNING", logger="ductor_slack.orchestrator.memory_flush"):
         await flusher.maybe_flush(key, session)
 
     # Turn proceeded: both flush + compaction fired.

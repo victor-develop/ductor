@@ -10,7 +10,7 @@ pytest.importorskip("nacl", reason="PyNaCl not installed (optional: pip install 
 
 from nacl.exceptions import CryptoError
 
-from ductor_bot.api.crypto import E2ESession
+from ductor_slack.api.crypto import E2ESession
 
 
 def _make_pair() -> tuple[E2ESession, E2ESession]:

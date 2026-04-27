@@ -5,7 +5,7 @@ from __future__ import annotations
 import asyncio
 from unittest.mock import AsyncMock, MagicMock
 
-from ductor_bot.multiagent.bus import (
+from ductor_slack.multiagent.bus import (
     AsyncInterAgentResult,
     AsyncInterAgentTask,
     AsyncSendOptions,

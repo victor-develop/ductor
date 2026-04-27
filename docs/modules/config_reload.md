@@ -4,7 +4,7 @@ Centralized runtime config hot-reload watcher.
 
 ## File
 
-- `ductor_bot/config_reload.py`: `ConfigReloader`, config diff/classification helpers
+- `ductor_slack/config_reload.py`: `ConfigReloader`, config diff/classification helpers
 
 ## Purpose
 

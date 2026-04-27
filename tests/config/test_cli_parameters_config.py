@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ductor_bot.config import AgentConfig, CLIParametersConfig, deep_merge_config
+from ductor_slack.config import AgentConfig, CLIParametersConfig, deep_merge_config
 
 
 def test_cli_parameters_config_defaults() -> None:

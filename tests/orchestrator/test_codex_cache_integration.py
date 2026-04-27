@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from ductor_bot.cli.codex_cache import CodexModelCache
-from ductor_bot.cli.codex_discovery import CodexModelInfo
+from ductor_slack.cli.codex_cache import CodexModelCache
+from ductor_slack.cli.codex_discovery import CodexModelInfo
 
 
 @pytest.fixture
@@ -31,8 +31,8 @@ def mock_codex_cache() -> CodexModelCache:
 
 async def test_orchestrator_starts_cache_observer(mock_codex_cache: CodexModelCache) -> None:
     """Should start CodexCacheObserver during orchestrator creation."""
-    from ductor_bot.config import AgentConfig
-    from ductor_bot.orchestrator.core import Orchestrator
+    from ductor_slack.config import AgentConfig
+    from ductor_slack.orchestrator.core import Orchestrator
 
     mock_observer = MagicMock()
     mock_observer.start = AsyncMock()
@@ -42,10 +42,10 @@ async def test_orchestrator_starts_cache_observer(mock_codex_cache: CodexModelCa
     mock_config = AgentConfig()
 
     with (
-        patch("ductor_bot.orchestrator.observers.CodexCacheObserver", return_value=mock_observer),
-        patch("ductor_bot.orchestrator.lifecycle.resolve_paths"),
-        patch("ductor_bot.orchestrator.lifecycle.inject_runtime_environment"),
-        patch("ductor_bot.cli.auth.check_all_auth", return_value={}),
+        patch("ductor_slack.orchestrator.observers.CodexCacheObserver", return_value=mock_observer),
+        patch("ductor_slack.orchestrator.lifecycle.resolve_paths"),
+        patch("ductor_slack.orchestrator.lifecycle.inject_runtime_environment"),
+        patch("ductor_slack.cli.auth.check_all_auth", return_value={}),
     ):
         orch = await Orchestrator.create(mock_config)
 
@@ -59,8 +59,8 @@ async def test_orchestrator_passes_cache_to_observers(
     mock_codex_cache: CodexModelCache,
 ) -> None:
     """Should pass Codex cache to CronObserver and WebhookObserver."""
-    from ductor_bot.config import AgentConfig
-    from ductor_bot.orchestrator.core import Orchestrator
+    from ductor_slack.config import AgentConfig
+    from ductor_slack.orchestrator.core import Orchestrator
 
     mock_cache_observer = MagicMock()
     mock_cache_observer.start = AsyncMock()
@@ -81,13 +81,14 @@ async def test_orchestrator_passes_cache_to_observers(
 
     with (
         patch(
-            "ductor_bot.orchestrator.observers.CodexCacheObserver", return_value=mock_cache_observer
+            "ductor_slack.orchestrator.observers.CodexCacheObserver",
+            return_value=mock_cache_observer,
         ),
-        patch("ductor_bot.orchestrator.observers.CronObserver", mock_cron_class),
-        patch("ductor_bot.orchestrator.observers.WebhookObserver", mock_webhook_class),
-        patch("ductor_bot.orchestrator.lifecycle.resolve_paths"),
-        patch("ductor_bot.orchestrator.lifecycle.inject_runtime_environment"),
-        patch("ductor_bot.cli.auth.check_all_auth", return_value={}),
+        patch("ductor_slack.orchestrator.observers.CronObserver", mock_cron_class),
+        patch("ductor_slack.orchestrator.observers.WebhookObserver", mock_webhook_class),
+        patch("ductor_slack.orchestrator.lifecycle.resolve_paths"),
+        patch("ductor_slack.orchestrator.lifecycle.inject_runtime_environment"),
+        patch("ductor_slack.cli.auth.check_all_auth", return_value={}),
     ):
         orch = await Orchestrator.create(mock_config)
 
@@ -111,8 +112,8 @@ async def test_orchestrator_passes_cache_to_observers(
 
 async def test_orchestrator_stops_cache_observer(mock_codex_cache: CodexModelCache) -> None:
     """Should stop CodexCacheObserver during orchestrator shutdown."""
-    from ductor_bot.config import AgentConfig
-    from ductor_bot.orchestrator.core import Orchestrator
+    from ductor_slack.config import AgentConfig
+    from ductor_slack.orchestrator.core import Orchestrator
 
     mock_observer = MagicMock()
     mock_observer.start = AsyncMock()
@@ -122,10 +123,10 @@ async def test_orchestrator_stops_cache_observer(mock_codex_cache: CodexModelCac
     mock_config = AgentConfig()
 
     with (
-        patch("ductor_bot.orchestrator.observers.CodexCacheObserver", return_value=mock_observer),
-        patch("ductor_bot.orchestrator.lifecycle.resolve_paths"),
-        patch("ductor_bot.orchestrator.lifecycle.inject_runtime_environment"),
-        patch("ductor_bot.cli.auth.check_all_auth", return_value={}),
+        patch("ductor_slack.orchestrator.observers.CodexCacheObserver", return_value=mock_observer),
+        patch("ductor_slack.orchestrator.lifecycle.resolve_paths"),
+        patch("ductor_slack.orchestrator.lifecycle.inject_runtime_environment"),
+        patch("ductor_slack.cli.auth.check_all_auth", return_value={}),
     ):
         orch = await Orchestrator.create(mock_config)
 

@@ -1,6 +1,6 @@
 """Tests for command definitions."""
 
-from ductor_bot.commands import BOT_COMMANDS
+from ductor_slack.commands import BOT_COMMANDS
 
 
 def test_commands_is_list_of_tuples() -> None:

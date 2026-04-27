@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from ductor_bot.session.key import SessionKey
+from ductor_slack.session.key import SessionKey
 
 
 class TestStorageKey:

@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from ductor_bot.infra.service_windows import (
+from ductor_slack.infra.service_windows import (
     _TASK_NAME,
     _generate_task_xml,
     _is_access_denied,
@@ -23,12 +23,12 @@ from tests.infra.conftest import make_completed
 
 class TestGenerateTaskXml:
     def test_contains_command(self) -> None:
-        xml = _generate_task_xml(r"C:\Python\pythonw.exe", "-m ductor_bot")
+        xml = _generate_task_xml(r"C:\Python\pythonw.exe", "-m ductor_slack")
         assert r"C:\Python\pythonw.exe" in xml
 
     def test_contains_arguments(self) -> None:
-        xml = _generate_task_xml(r"C:\Python\pythonw.exe", "-m ductor_bot")
-        assert "-m ductor_bot" in xml
+        xml = _generate_task_xml(r"C:\Python\pythonw.exe", "-m ductor_slack")
+        assert "-m ductor_slack" in xml
 
     def test_no_arguments_element_when_empty(self) -> None:
         xml = _generate_task_xml(r"C:\Users\test\.local\bin\ductor-slack.exe")
@@ -76,33 +76,33 @@ class TestIsAccessDenied:
 
 
 class TestIsServiceInstalled:
-    @patch("ductor_bot.infra.service_windows._run_schtasks")
+    @patch("ductor_slack.infra.service_windows._run_schtasks")
     def test_installed_when_query_succeeds(self, mock_run: MagicMock) -> None:
         mock_run.return_value = make_completed(0, stdout="TaskName: ductor-slack")
         assert is_service_installed() is True
         mock_run.assert_called_once_with("/Query", "/TN", _TASK_NAME, "/FO", "LIST")
 
-    @patch("ductor_bot.infra.service_windows._run_schtasks")
+    @patch("ductor_slack.infra.service_windows._run_schtasks")
     def test_not_installed_when_query_fails(self, mock_run: MagicMock) -> None:
         mock_run.return_value = make_completed(1, stderr="not found")
         assert is_service_installed() is False
 
 
 class TestIsServiceRunning:
-    @patch("ductor_bot.infra.service_windows.is_service_installed", return_value=False)
+    @patch("ductor_slack.infra.service_windows.is_service_installed", return_value=False)
     def test_not_running_when_not_installed(self, _mock: MagicMock) -> None:
         assert is_service_running() is False
 
-    @patch("ductor_bot.infra.service_windows._run_schtasks")
-    @patch("ductor_bot.infra.service_windows.is_service_installed", return_value=True)
+    @patch("ductor_slack.infra.service_windows._run_schtasks")
+    @patch("ductor_slack.infra.service_windows.is_service_installed", return_value=True)
     def test_running_when_status_contains_running(
         self, _installed: MagicMock, mock_run: MagicMock
     ) -> None:
         mock_run.return_value = make_completed(0, stdout='"ductor-slack","Running","Interactive"')
         assert is_service_running() is True
 
-    @patch("ductor_bot.infra.service_windows._run_schtasks")
-    @patch("ductor_bot.infra.service_windows.is_service_installed", return_value=True)
+    @patch("ductor_slack.infra.service_windows._run_schtasks")
+    @patch("ductor_slack.infra.service_windows.is_service_installed", return_value=True)
     def test_not_running_when_status_says_ready(
         self, _installed: MagicMock, mock_run: MagicMock
     ) -> None:
@@ -111,14 +111,14 @@ class TestIsServiceRunning:
 
 
 class TestInstallService:
-    @patch("ductor_bot.infra.service_windows._run_schtasks")
-    @patch("ductor_bot.infra.service_windows.is_service_installed", return_value=False)
-    @patch("ductor_bot.infra.service_windows.is_service_available", return_value=True)
+    @patch("ductor_slack.infra.service_windows._run_schtasks")
+    @patch("ductor_slack.infra.service_windows.is_service_installed", return_value=False)
+    @patch("ductor_slack.infra.service_windows.is_service_available", return_value=True)
     @patch(
-        "ductor_bot.infra.service_windows._find_pythonw",
+        "ductor_slack.infra.service_windows._find_pythonw",
         return_value=r"C:\Python\pythonw.exe",
     )
-    @patch("ductor_bot.infra.service_windows._task_xml_path")
+    @patch("ductor_slack.infra.service_windows._task_xml_path")
     def test_install_with_pythonw(
         self,
         mock_xml_path: MagicMock,
@@ -136,12 +136,12 @@ class TestInstallService:
         assert install_service(console) is True
         assert mock_run.call_count >= 2  # Create + Run
 
-    @patch("ductor_bot.infra.service_windows._run_schtasks")
-    @patch("ductor_bot.infra.service_windows.is_service_installed", return_value=False)
-    @patch("ductor_bot.infra.service_windows.is_service_available", return_value=True)
-    @patch("ductor_bot.infra.service_windows._find_pythonw", return_value=None)
-    @patch("ductor_bot.infra.service_windows.find_ductor_binary", return_value="ductor-slack.exe")
-    @patch("ductor_bot.infra.service_windows._task_xml_path")
+    @patch("ductor_slack.infra.service_windows._run_schtasks")
+    @patch("ductor_slack.infra.service_windows.is_service_installed", return_value=False)
+    @patch("ductor_slack.infra.service_windows.is_service_available", return_value=True)
+    @patch("ductor_slack.infra.service_windows._find_pythonw", return_value=None)
+    @patch("ductor_slack.infra.service_windows.find_ductor_binary", return_value="ductor-slack.exe")
+    @patch("ductor_slack.infra.service_windows._task_xml_path")
     def test_install_fallback_to_binary(
         self,
         mock_xml_path: MagicMock,
@@ -159,28 +159,28 @@ class TestInstallService:
         console = MagicMock()
         assert install_service(console) is True
 
-    @patch("ductor_bot.infra.service_windows.is_service_available", return_value=False)
+    @patch("ductor_slack.infra.service_windows.is_service_available", return_value=False)
     def test_install_fails_on_non_windows(self, _avail: MagicMock) -> None:
         console = MagicMock()
         assert install_service(console) is False
 
-    @patch("ductor_bot.infra.service_windows.is_service_available", return_value=True)
-    @patch("ductor_bot.infra.service_windows._find_pythonw", return_value=None)
-    @patch("ductor_bot.infra.service_windows.find_ductor_binary", return_value=None)
+    @patch("ductor_slack.infra.service_windows.is_service_available", return_value=True)
+    @patch("ductor_slack.infra.service_windows._find_pythonw", return_value=None)
+    @patch("ductor_slack.infra.service_windows.find_ductor_binary", return_value=None)
     def test_install_fails_without_binary(
         self, _binary: MagicMock, _pythonw: MagicMock, _avail: MagicMock
     ) -> None:
         console = MagicMock()
         assert install_service(console) is False
 
-    @patch("ductor_bot.infra.service_windows._run_schtasks")
-    @patch("ductor_bot.infra.service_windows.is_service_installed", return_value=False)
-    @patch("ductor_bot.infra.service_windows.is_service_available", return_value=True)
+    @patch("ductor_slack.infra.service_windows._run_schtasks")
+    @patch("ductor_slack.infra.service_windows.is_service_installed", return_value=False)
+    @patch("ductor_slack.infra.service_windows.is_service_available", return_value=True)
     @patch(
-        "ductor_bot.infra.service_windows._find_pythonw",
+        "ductor_slack.infra.service_windows._find_pythonw",
         return_value=r"C:\Python\pythonw.exe",
     )
-    @patch("ductor_bot.infra.service_windows._task_xml_path")
+    @patch("ductor_slack.infra.service_windows._task_xml_path")
     def test_install_shows_admin_hint_on_access_denied(
         self,
         mock_xml_path: MagicMock,
@@ -201,21 +201,21 @@ class TestInstallService:
 
 
 class TestUninstallService:
-    @patch("ductor_bot.infra.service_windows._run_schtasks")
-    @patch("ductor_bot.infra.service_windows.is_service_installed", return_value=True)
+    @patch("ductor_slack.infra.service_windows._run_schtasks")
+    @patch("ductor_slack.infra.service_windows.is_service_installed", return_value=True)
     def test_uninstall_success(self, _installed: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = make_completed(0)
         console = MagicMock()
         assert uninstall_service(console) is True
         assert mock_run.call_count == 2  # End + Delete
 
-    @patch("ductor_bot.infra.service_windows.is_service_installed", return_value=False)
+    @patch("ductor_slack.infra.service_windows.is_service_installed", return_value=False)
     def test_uninstall_when_not_installed(self, _installed: MagicMock) -> None:
         console = MagicMock()
         assert uninstall_service(console) is False
 
-    @patch("ductor_bot.infra.service_windows._run_schtasks")
-    @patch("ductor_bot.infra.service_windows.is_service_installed", return_value=True)
+    @patch("ductor_slack.infra.service_windows._run_schtasks")
+    @patch("ductor_slack.infra.service_windows.is_service_installed", return_value=True)
     def test_uninstall_shows_admin_hint_on_access_denied(
         self, _installed: MagicMock, mock_run: MagicMock
     ) -> None:
@@ -228,15 +228,15 @@ class TestUninstallService:
 
 
 class TestStartService:
-    @patch("ductor_bot.infra.service_windows._run_schtasks")
-    @patch("ductor_bot.infra.service_windows.is_service_installed", return_value=True)
+    @patch("ductor_slack.infra.service_windows._run_schtasks")
+    @patch("ductor_slack.infra.service_windows.is_service_installed", return_value=True)
     def test_start_success(self, _installed: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = make_completed(0)
         console = MagicMock()
         start_service(console)
         mock_run.assert_called_once_with("/Run", "/TN", _TASK_NAME)
 
-    @patch("ductor_bot.infra.service_windows.is_service_installed", return_value=False)
+    @patch("ductor_slack.infra.service_windows.is_service_installed", return_value=False)
     def test_start_not_installed(self, _installed: MagicMock) -> None:
         console = MagicMock()
         start_service(console)
@@ -244,15 +244,15 @@ class TestStartService:
 
 
 class TestStopService:
-    @patch("ductor_bot.infra.service_windows._run_schtasks")
-    @patch("ductor_bot.infra.service_windows.is_service_running", return_value=True)
+    @patch("ductor_slack.infra.service_windows._run_schtasks")
+    @patch("ductor_slack.infra.service_windows.is_service_running", return_value=True)
     def test_stop_success(self, _running: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = make_completed(0)
         console = MagicMock()
         stop_service(console)
         mock_run.assert_called_once_with("/End", "/TN", _TASK_NAME)
 
-    @patch("ductor_bot.infra.service_windows.is_service_running", return_value=False)
+    @patch("ductor_slack.infra.service_windows.is_service_running", return_value=False)
     def test_stop_not_running(self, _running: MagicMock) -> None:
         console = MagicMock()
         stop_service(console)
@@ -260,8 +260,8 @@ class TestStopService:
 
 
 class TestPrintServiceStatus:
-    @patch("ductor_bot.infra.service_windows._run_schtasks")
-    @patch("ductor_bot.infra.service_windows.is_service_installed", return_value=True)
+    @patch("ductor_slack.infra.service_windows._run_schtasks")
+    @patch("ductor_slack.infra.service_windows.is_service_installed", return_value=True)
     def test_prints_status(self, _installed: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = make_completed(0, stdout="Task details here")
         console = MagicMock()
@@ -270,14 +270,14 @@ class TestPrintServiceStatus:
 
 
 class TestPrintServiceLogs:
-    @patch("ductor_bot.infra.service_windows.is_service_installed", return_value=False)
+    @patch("ductor_slack.infra.service_windows.is_service_installed", return_value=False)
     def test_not_installed(self, _installed: MagicMock) -> None:
         console = MagicMock()
         print_service_logs(console)
         console.print.assert_called_once()
 
-    @patch("ductor_bot.infra.service_windows.resolve_paths")
-    @patch("ductor_bot.infra.service_windows.is_service_installed", return_value=True)
+    @patch("ductor_slack.infra.service_windows.resolve_paths")
+    @patch("ductor_slack.infra.service_windows.is_service_installed", return_value=True)
     def test_shows_logs_from_file(
         self, _installed: MagicMock, mock_paths: MagicMock, tmp_path: Path
     ) -> None:

@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 from types import SimpleNamespace
 
-from ductor_bot.messenger.matrix.message_queue import MatrixMessageQueue
+from ductor_slack.messenger.matrix.message_queue import MatrixMessageQueue
 
 # ---------------------------------------------------------------------------
 # Helpers

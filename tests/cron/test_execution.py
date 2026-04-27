@@ -6,8 +6,8 @@ import asyncio
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
-from ductor_bot.cli.param_resolver import TaskExecutionConfig
-from ductor_bot.cron.execution import (
+from ductor_slack.cli.param_resolver import TaskExecutionConfig
+from ductor_slack.cron.execution import (
     OneShotCommand,
     build_cmd,
     enrich_instruction,
@@ -31,7 +31,7 @@ class TestBuildCmd:
             working_dir="/tmp",
             file_access="all",
         )
-        with patch("ductor_bot.cron.execution.which", return_value="/usr/bin/claude"):
+        with patch("ductor_slack.cron.execution.which", return_value="/usr/bin/claude"):
             result = build_cmd(exec_config, "hello")
         assert result is not None
         assert result.cmd[0] == "/usr/bin/claude"
@@ -51,7 +51,7 @@ class TestBuildCmd:
             working_dir="/tmp",
             file_access="all",
         )
-        with patch("ductor_bot.cron.execution.which", return_value="/usr/bin/codex"):
+        with patch("ductor_slack.cron.execution.which", return_value="/usr/bin/codex"):
             result = build_cmd(exec_config, "hello")
         assert result is not None
         assert result.cmd[0] == "/usr/bin/codex"
@@ -69,7 +69,7 @@ class TestBuildCmd:
             working_dir="/tmp",
             file_access="all",
         )
-        with patch("ductor_bot.cron.execution.which", return_value="/usr/bin/codex"):
+        with patch("ductor_slack.cron.execution.which", return_value="/usr/bin/codex"):
             result = build_cmd(exec_config, "hello")
         assert result is not None
         assert "--full-auto" in result.cmd
@@ -84,7 +84,7 @@ class TestBuildCmd:
             working_dir="/tmp",
             file_access="all",
         )
-        with patch("ductor_bot.cron.execution.which", return_value=None):
+        with patch("ductor_slack.cron.execution.which", return_value=None):
             assert build_cmd(exec_config, "hello") is None
 
     def test_gemini_provider(self) -> None:
@@ -97,7 +97,7 @@ class TestBuildCmd:
             working_dir="/tmp",
             file_access="all",
         )
-        with patch("ductor_bot.cron.execution.find_gemini_cli", return_value="/usr/bin/gemini"):
+        with patch("ductor_slack.cron.execution.find_gemini_cli", return_value="/usr/bin/gemini"):
             result = build_cmd(exec_config, "hello")
         assert result is not None
         assert result.cmd[0] == "/usr/bin/gemini"
@@ -123,7 +123,7 @@ class TestBuildCmd:
             file_access="all",
         )
         with patch(
-            "ductor_bot.cron.execution.find_gemini_cli",
+            "ductor_slack.cron.execution.find_gemini_cli",
             side_effect=FileNotFoundError("not found"),
         ):
             assert build_cmd(exec_config, "hello") is None
@@ -138,7 +138,7 @@ class TestBuildCmd:
             working_dir="/tmp",
             file_access="all",
         )
-        with patch("ductor_bot.cron.execution.which", return_value="/usr/bin/claude"):
+        with patch("ductor_slack.cron.execution.which", return_value="/usr/bin/claude"):
             result = build_cmd(exec_config, "hello")
         assert result is not None
         assert result.cmd[0] == "/usr/bin/claude"

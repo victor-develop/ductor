@@ -6,11 +6,11 @@ from unittest.mock import MagicMock
 
 import pytest
 
-from ductor_bot.cli.codex_cache import CodexModelCache
-from ductor_bot.cli.codex_discovery import CodexModelInfo
-from ductor_bot.cli.param_resolver import TaskOverrides
-from ductor_bot.config import AgentConfig
-from ductor_bot.webhook.models import WebhookEntry
+from ductor_slack.cli.codex_cache import CodexModelCache
+from ductor_slack.cli.codex_discovery import CodexModelInfo
+from ductor_slack.cli.param_resolver import TaskOverrides
+from ductor_slack.config import AgentConfig
+from ductor_slack.webhook.models import WebhookEntry
 
 
 @pytest.fixture
@@ -46,7 +46,7 @@ def test_resolve_execution_config_no_overrides(
     base_config: AgentConfig, codex_cache: CodexModelCache
 ) -> None:
     """Should fall back to global config when webhook has no overrides."""
-    from ductor_bot.webhook.observer import WebhookObserver
+    from ductor_slack.webhook.observer import WebhookObserver
 
     observer = WebhookObserver(
         paths=MagicMock(),
@@ -70,7 +70,7 @@ def test_resolve_execution_config_with_overrides(
     base_config: AgentConfig, codex_cache: CodexModelCache
 ) -> None:
     """Should apply webhook overrides over global config."""
-    from ductor_bot.webhook.observer import WebhookObserver
+    from ductor_slack.webhook.observer import WebhookObserver
 
     observer = WebhookObserver(
         paths=MagicMock(),
@@ -99,7 +99,7 @@ def test_dispatch_with_cli_parameters(
     base_config: AgentConfig, codex_cache: CodexModelCache
 ) -> None:
     """Should include webhook CLI parameters in the built command."""
-    from ductor_bot.webhook.observer import WebhookObserver
+    from ductor_slack.webhook.observer import WebhookObserver
 
     observer = WebhookObserver(
         paths=MagicMock(),

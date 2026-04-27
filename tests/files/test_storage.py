@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ductor_bot.files.storage import prepare_destination, sanitize_filename
+from ductor_slack.files.storage import prepare_destination, sanitize_filename
 
 
 class TestSanitizeFilename:

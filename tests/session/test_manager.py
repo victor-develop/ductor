@@ -8,9 +8,9 @@ from typing import Any
 import pytest
 import time_machine
 
-from ductor_bot.config import AgentConfig
-from ductor_bot.session.key import SessionKey
-from ductor_bot.session.manager import SessionData, SessionManager
+from ductor_slack.config import AgentConfig
+from ductor_slack.session.key import SessionKey
+from ductor_slack.session.manager import SessionData, SessionManager
 
 
 def _make_manager(tmp_path: Path, **overrides: Any) -> SessionManager:

@@ -9,9 +9,9 @@ from unittest.mock import patch
 
 import pytest
 
-from ductor_bot.config import DockerConfig
-from ductor_bot.infra.docker import resolve_mount_target
-from ductor_bot.workspace.paths import DuctorPaths
+from ductor_slack.config import DockerConfig
+from ductor_slack.infra.docker import resolve_mount_target
+from ductor_slack.workspace.paths import DuctorPaths
 
 # ---------------------------------------------------------------------------
 # resolve_mount_target
@@ -138,7 +138,7 @@ class TestDockerManagerMounts:
         proj.mkdir()
 
         config = DockerConfig(enabled=True, mounts=[str(proj)])
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         mgr = DockerManager(config, docker_paths)
         run_args: list[str] = []
@@ -176,7 +176,7 @@ class TestDockerManagerMounts:
         proj_b.mkdir()
 
         config = DockerConfig(enabled=True, mounts=[str(proj_a), str(proj_b)])
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         mgr = DockerManager(config, docker_paths)
         run_args: list[str] = []
@@ -215,7 +215,7 @@ class TestDockerManagerMounts:
         b.mkdir(parents=True)
 
         config = DockerConfig(enabled=True, mounts=[str(a), str(b)])
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         mgr = DockerManager(config, docker_paths)
         run_args: list[str] = []
@@ -249,7 +249,7 @@ class TestDockerManagerMounts:
         self, tmp_path: Path, docker_paths: DuctorPaths
     ) -> None:
         config = DockerConfig(enabled=True, mounts=["/does/not/exist"])
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         mgr = DockerManager(config, docker_paths)
         run_args: list[str] = []
@@ -281,7 +281,7 @@ class TestDockerManagerMounts:
 
     async def test_empty_mounts_list(self, docker_paths: DuctorPaths) -> None:
         config = DockerConfig(enabled=True, mounts=[])
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         mgr = DockerManager(config, docker_paths)
         run_args: list[str] = []
@@ -330,7 +330,7 @@ class TestDockerMountCLI:
         return json.loads(config_path.read_text(encoding="utf-8"))
 
     def test_mount_adds_path(self, tmp_path: Path) -> None:
-        from ductor_bot.cli_commands.docker import docker_mount
+        from ductor_slack.cli_commands.docker import docker_mount
 
         config_path = tmp_path / "config.json"
         proj = tmp_path / "myapp"
@@ -338,7 +338,7 @@ class TestDockerMountCLI:
         self._write_config(config_path, {"enabled": True, "mounts": []})
 
         paths_mock = type("P", (), {"config_path": config_path})()
-        with patch("ductor_bot.cli_commands.docker.resolve_paths", return_value=paths_mock):
+        with patch("ductor_slack.cli_commands.docker.resolve_paths", return_value=paths_mock):
             docker_mount(["docker", "mount", str(proj)])
 
         data = self._read_config(config_path)
@@ -348,20 +348,20 @@ class TestDockerMountCLI:
     def test_mount_rejects_nonexistent(
         self, tmp_path: Path, capsys: pytest.CaptureFixture[str]
     ) -> None:
-        from ductor_bot.cli_commands.docker import docker_mount
+        from ductor_slack.cli_commands.docker import docker_mount
 
         config_path = tmp_path / "config.json"
         self._write_config(config_path, {"enabled": True, "mounts": []})
 
         paths_mock = type("P", (), {"config_path": config_path})()
-        with patch("ductor_bot.cli_commands.docker.resolve_paths", return_value=paths_mock):
+        with patch("ductor_slack.cli_commands.docker.resolve_paths", return_value=paths_mock):
             docker_mount(["docker", "mount", "/no/such/dir"])
 
         data = self._read_config(config_path)
         assert data["docker"]["mounts"] == []
 
     def test_mount_deduplicates(self, tmp_path: Path) -> None:
-        from ductor_bot.cli_commands.docker import docker_mount
+        from ductor_slack.cli_commands.docker import docker_mount
 
         config_path = tmp_path / "config.json"
         proj = tmp_path / "myapp"
@@ -369,14 +369,14 @@ class TestDockerMountCLI:
         self._write_config(config_path, {"enabled": True, "mounts": [str(proj)]})
 
         paths_mock = type("P", (), {"config_path": config_path})()
-        with patch("ductor_bot.cli_commands.docker.resolve_paths", return_value=paths_mock):
+        with patch("ductor_slack.cli_commands.docker.resolve_paths", return_value=paths_mock):
             docker_mount(["docker", "mount", str(proj)])
 
         data = self._read_config(config_path)
         assert data["docker"]["mounts"].count(str(proj)) == 1
 
     def test_mount_creates_docker_section(self, tmp_path: Path) -> None:
-        from ductor_bot.cli_commands.docker import docker_mount
+        from ductor_slack.cli_commands.docker import docker_mount
 
         config_path = tmp_path / "config.json"
         proj = tmp_path / "myapp"
@@ -385,14 +385,14 @@ class TestDockerMountCLI:
         config_path.write_text("{}", encoding="utf-8")
 
         paths_mock = type("P", (), {"config_path": config_path})()
-        with patch("ductor_bot.cli_commands.docker.resolve_paths", return_value=paths_mock):
+        with patch("ductor_slack.cli_commands.docker.resolve_paths", return_value=paths_mock):
             docker_mount(["docker", "mount", str(proj)])
 
         data = self._read_config(config_path)
         assert str(proj) in data["docker"]["mounts"]
 
     def test_unmount_removes_path(self, tmp_path: Path) -> None:
-        from ductor_bot.cli_commands.docker import docker_unmount
+        from ductor_slack.cli_commands.docker import docker_unmount
 
         config_path = tmp_path / "config.json"
         proj = tmp_path / "myapp"
@@ -400,14 +400,14 @@ class TestDockerMountCLI:
         self._write_config(config_path, {"enabled": True, "mounts": [str(proj)]})
 
         paths_mock = type("P", (), {"config_path": config_path})()
-        with patch("ductor_bot.cli_commands.docker.resolve_paths", return_value=paths_mock):
+        with patch("ductor_slack.cli_commands.docker.resolve_paths", return_value=paths_mock):
             docker_unmount(["docker", "unmount", str(proj)])
 
         data = self._read_config(config_path)
         assert data["docker"]["mounts"] == []
 
     def test_unmount_by_basename(self, tmp_path: Path) -> None:
-        from ductor_bot.cli_commands.docker import docker_unmount
+        from ductor_slack.cli_commands.docker import docker_unmount
 
         config_path = tmp_path / "config.json"
         proj = tmp_path / "myapp"
@@ -415,37 +415,37 @@ class TestDockerMountCLI:
         self._write_config(config_path, {"enabled": True, "mounts": [str(proj)]})
 
         paths_mock = type("P", (), {"config_path": config_path})()
-        with patch("ductor_bot.cli_commands.docker.resolve_paths", return_value=paths_mock):
+        with patch("ductor_slack.cli_commands.docker.resolve_paths", return_value=paths_mock):
             docker_unmount(["docker", "unmount", "myapp"])
 
         data = self._read_config(config_path)
         assert data["docker"]["mounts"] == []
 
     def test_unmount_nonexistent_shows_error(self, tmp_path: Path) -> None:
-        from ductor_bot.cli_commands.docker import docker_unmount
+        from ductor_slack.cli_commands.docker import docker_unmount
 
         config_path = tmp_path / "config.json"
         self._write_config(config_path, {"enabled": True, "mounts": ["/some/path"]})
 
         paths_mock = type("P", (), {"config_path": config_path})()
-        with patch("ductor_bot.cli_commands.docker.resolve_paths", return_value=paths_mock):
+        with patch("ductor_slack.cli_commands.docker.resolve_paths", return_value=paths_mock):
             docker_unmount(["docker", "unmount", "/totally/different"])
 
         data = self._read_config(config_path)
         assert data["docker"]["mounts"] == ["/some/path"]  # Unchanged.
 
     def test_mounts_list_empty(self, tmp_path: Path) -> None:
-        from ductor_bot.cli_commands.docker import docker_list_mounts
+        from ductor_slack.cli_commands.docker import docker_list_mounts
 
         config_path = tmp_path / "config.json"
         self._write_config(config_path, {"enabled": True, "mounts": []})
 
         paths_mock = type("P", (), {"config_path": config_path})()
-        with patch("ductor_bot.cli_commands.docker.resolve_paths", return_value=paths_mock):
+        with patch("ductor_slack.cli_commands.docker.resolve_paths", return_value=paths_mock):
             docker_list_mounts()  # Should not raise.
 
     def test_mounts_list_with_entries(self, tmp_path: Path) -> None:
-        from ductor_bot.cli_commands.docker import docker_list_mounts
+        from ductor_slack.cli_commands.docker import docker_list_mounts
 
         config_path = tmp_path / "config.json"
         proj = tmp_path / "proj"
@@ -453,17 +453,17 @@ class TestDockerMountCLI:
         self._write_config(config_path, {"enabled": True, "mounts": [str(proj)]})
 
         paths_mock = type("P", (), {"config_path": config_path})()
-        with patch("ductor_bot.cli_commands.docker.resolve_paths", return_value=paths_mock):
+        with patch("ductor_slack.cli_commands.docker.resolve_paths", return_value=paths_mock):
             docker_list_mounts()  # Should not raise.
 
     def test_no_args_shows_usage(self, tmp_path: Path) -> None:
-        from ductor_bot.cli_commands.docker import docker_mount
+        from ductor_slack.cli_commands.docker import docker_mount
 
         config_path = tmp_path / "config.json"
         self._write_config(config_path, {"enabled": True, "mounts": []})
 
         paths_mock = type("P", (), {"config_path": config_path})()
-        with patch("ductor_bot.cli_commands.docker.resolve_paths", return_value=paths_mock):
+        with patch("ductor_slack.cli_commands.docker.resolve_paths", return_value=paths_mock):
             docker_mount(["docker", "mount"])  # No path arg -- should not crash.
 
 
@@ -476,7 +476,7 @@ class TestConfigDeepMergeMounts:
     """Verify deep_merge_config handles the mounts list correctly."""
 
     def test_new_mounts_key_added(self) -> None:
-        from ductor_bot.config import deep_merge_config
+        from ductor_slack.config import deep_merge_config
 
         user: dict[str, object] = {"docker": {"enabled": True}}
         defaults: dict[str, object] = {"docker": {"enabled": False, "mounts": []}}
@@ -488,7 +488,7 @@ class TestConfigDeepMergeMounts:
         assert changed is True
 
     def test_existing_mounts_preserved(self) -> None:
-        from ductor_bot.config import deep_merge_config
+        from ductor_slack.config import deep_merge_config
 
         user: dict[str, object] = {"docker": {"enabled": True, "mounts": ["/home/user/proj"]}}
         defaults: dict[str, object] = {"docker": {"enabled": False, "mounts": []}}

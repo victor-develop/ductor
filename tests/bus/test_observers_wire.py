@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock, MagicMock
 
-from ductor_bot.bus.bus import MessageBus
-from ductor_bot.bus.envelope import Origin
-from ductor_bot.orchestrator.observers import ObserverManager
+from ductor_slack.bus.bus import MessageBus
+from ductor_slack.bus.envelope import Origin
+from ductor_slack.orchestrator.observers import ObserverManager
 
 
 def _make_observers() -> ObserverManager:
@@ -93,7 +93,7 @@ class TestWireToBus:
 
 class TestWebhookWakeFilter:
     async def test_webhook_callback_skips_wake_mode(self) -> None:
-        from ductor_bot.webhook.models import WebhookResult
+        from ductor_slack.webhook.models import WebhookResult
 
         mgr = _make_observers()
         mgr.webhook = MagicMock()
@@ -117,7 +117,7 @@ class TestWebhookWakeFilter:
         transport.deliver_broadcast.assert_not_awaited()
 
     async def test_webhook_callback_submits_cron_task(self) -> None:
-        from ductor_bot.webhook.models import WebhookResult
+        from ductor_slack.webhook.models import WebhookResult
 
         mgr = _make_observers()
         mgr.webhook = MagicMock()

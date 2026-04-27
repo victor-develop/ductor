@@ -12,11 +12,11 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from ductor_bot.cli.base import CLIConfig
-from ductor_bot.cli.codex_provider import CodexCLI, _codex_final_result, _log_cmd
-from ductor_bot.cli.executor import SubprocessResult
-from ductor_bot.cli.process_registry import ProcessRegistry
-from ductor_bot.cli.stream_events import (
+from ductor_slack.cli.base import CLIConfig
+from ductor_slack.cli.codex_provider import CodexCLI, _codex_final_result, _log_cmd
+from ductor_slack.cli.executor import SubprocessResult
+from ductor_slack.cli.process_registry import ProcessRegistry
+from ductor_slack.cli.stream_events import (
     AssistantTextDelta,
     ResultEvent,
     StreamEvent,
@@ -31,7 +31,7 @@ from ductor_bot.cli.stream_events import (
 
 
 def _make_cli(monkeypatch: pytest.MonkeyPatch, **overrides: Any) -> CodexCLI:
-    monkeypatch.setattr("ductor_bot.cli.codex_provider.which", lambda _: "/usr/bin/codex")
+    monkeypatch.setattr("ductor_slack.cli.codex_provider.which", lambda _: "/usr/bin/codex")
     return CodexCLI(
         CLIConfig(
             provider="codex",
@@ -94,12 +94,12 @@ async def _collect_events(gen: AsyncGenerator[StreamEvent, None]) -> list[Stream
 
 class TestInit:
     def test_find_cli_raises_when_not_on_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ductor_bot.cli.codex_provider.which", lambda _: None)
+        monkeypatch.setattr("ductor_slack.cli.codex_provider.which", lambda _: None)
         with pytest.raises(FileNotFoundError, match="codex CLI not found"):
             CodexCLI(CLIConfig(provider="codex"))
 
     def test_find_cli_uses_resolved_path(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        monkeypatch.setattr("ductor_bot.cli.codex_provider.which", lambda _: "/opt/bin/codex")
+        monkeypatch.setattr("ductor_slack.cli.codex_provider.which", lambda _: "/opt/bin/codex")
         cli = CodexCLI(CLIConfig(provider="codex"))
         assert cli._cli == "/opt/bin/codex"
 
@@ -109,7 +109,7 @@ class TestInit:
         assert cli._cli == "codex"
 
     def test_working_dir_resolved(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-        monkeypatch.setattr("ductor_bot.cli.codex_provider.which", lambda _: "/usr/bin/codex")
+        monkeypatch.setattr("ductor_slack.cli.codex_provider.which", lambda _: "/usr/bin/codex")
         cli = CodexCLI(CLIConfig(provider="codex", working_dir=str(tmp_path)))
         assert cli._working_dir == tmp_path.resolve()
 
@@ -377,7 +377,7 @@ class TestSend:
         )
         proc = _make_process_mock(stdout=jsonl.encode(), returncode=0)
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
@@ -395,7 +395,7 @@ class TestSend:
         proc.communicate = AsyncMock(side_effect=TimeoutError)
         proc.returncode = None
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
@@ -418,7 +418,7 @@ class TestSend:
         )
         proc = _make_process_mock(stdout=jsonl.encode(), returncode=0)
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
@@ -440,7 +440,7 @@ class TestSend:
         )
         proc = _make_process_mock(stdout=jsonl.encode(), returncode=0)
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
@@ -459,7 +459,7 @@ class TestSend:
         )
         proc = _make_process_mock(stdout=jsonl.encode(), returncode=0)
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
@@ -478,7 +478,7 @@ class TestSend:
         proc.communicate = AsyncMock(side_effect=TimeoutError)
         proc.returncode = None
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
@@ -515,7 +515,7 @@ class TestSendStreaming:
         ]
         proc = _make_streaming_process(lines, returncode=0)
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
@@ -555,7 +555,7 @@ class TestSendStreaming:
         stderr_mock.read = AsyncMock(return_value=b"")
         proc.stderr = stderr_mock
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
@@ -577,7 +577,7 @@ class TestSendStreaming:
         proc.stdout = None
         proc.stderr = None
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
@@ -603,7 +603,7 @@ class TestSendStreaming:
         ]
         proc = _make_streaming_process(lines, returncode=0)
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
@@ -630,7 +630,7 @@ class TestSendStreaming:
         ]
         proc = _make_streaming_process(lines, returncode=0)
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
@@ -666,7 +666,7 @@ class TestSendStreaming:
         ]
         proc = _make_streaming_process(lines, returncode=0)
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
@@ -697,7 +697,7 @@ class TestSendStreaming:
         ]
         proc = _make_streaming_process(lines, returncode=0)
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
@@ -727,7 +727,7 @@ class TestSendStreaming:
         ]
         proc = _make_streaming_process(lines, stderr=b"fatal error", returncode=1)
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
@@ -752,7 +752,7 @@ class TestSendStreaming:
         ]
         proc = _make_streaming_process(lines, returncode=0)
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
@@ -776,7 +776,7 @@ class TestSendStreaming:
         ]
         proc = _make_streaming_process(lines, returncode=0)
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
@@ -874,23 +874,23 @@ class TestCodexFinalResult:
 
 class TestLogCmd:
     def test_short_values_not_truncated(self, caplog: pytest.LogCaptureFixture) -> None:
-        with caplog.at_level(logging.INFO, logger="ductor_bot.cli.codex_provider"):
+        with caplog.at_level(logging.INFO, logger="ductor_slack.cli.codex_provider"):
             _log_cmd(["codex", "exec", "--json", "short prompt"])
         assert "short prompt" in caplog.text
 
     def test_long_values_truncated(self, caplog: pytest.LogCaptureFixture) -> None:
         long_val = "x" * 100
-        with caplog.at_level(logging.INFO, logger="ductor_bot.cli.codex_provider"):
+        with caplog.at_level(logging.INFO, logger="ductor_slack.cli.codex_provider"):
             _log_cmd(["codex", "exec", long_val])
         assert "..." in caplog.text
 
     def test_streaming_prefix(self, caplog: pytest.LogCaptureFixture) -> None:
-        with caplog.at_level(logging.INFO, logger="ductor_bot.cli.codex_provider"):
+        with caplog.at_level(logging.INFO, logger="ductor_slack.cli.codex_provider"):
             _log_cmd(["codex", "exec"], streaming=True)
         assert "Codex stream cmd" in caplog.text
 
     def test_non_streaming_prefix(self, caplog: pytest.LogCaptureFixture) -> None:
-        with caplog.at_level(logging.INFO, logger="ductor_bot.cli.codex_provider"):
+        with caplog.at_level(logging.INFO, logger="ductor_slack.cli.codex_provider"):
             _log_cmd(["codex", "exec"], streaming=False)
         assert "Codex cmd" in caplog.text
 
@@ -918,7 +918,7 @@ class TestDockerIntegration:
         )
         proc = _make_process_mock(stdout=jsonl.encode(), returncode=0)
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
@@ -938,7 +938,7 @@ class TestDockerIntegration:
         self, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         """Windows Codex-in-Docker must use ``docker exec -i`` so stdin prompts arrive."""
-        monkeypatch.setattr("ductor_bot.cli.codex_provider._IS_WINDOWS", True)
+        monkeypatch.setattr("ductor_slack.cli.codex_provider._IS_WINDOWS", True)
         cli = CodexCLI(
             CLIConfig(
                 provider="codex",
@@ -954,7 +954,7 @@ class TestDockerIntegration:
         )
         proc = _make_process_mock(stdout=jsonl.encode(), returncode=0)
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
@@ -1014,14 +1014,14 @@ class TestEdgeCases:
                 ),
             ]
         )
-        with caplog.at_level(logging.INFO, logger="ductor_bot.cli.codex_provider"):
+        with caplog.at_level(logging.INFO, logger="ductor_slack.cli.codex_provider"):
             resp = CodexCLI._parse_output(jsonl.encode(), b"", 0)
         assert resp.is_error is False
         assert "Codex done" in caplog.text
         assert "th-log" in caplog.text
 
     def test_parse_output_error_logged(self, caplog: pytest.LogCaptureFixture) -> None:
-        with caplog.at_level(logging.ERROR, logger="ductor_bot.cli.codex_provider"):
+        with caplog.at_level(logging.ERROR, logger="ductor_slack.cli.codex_provider"):
             CodexCLI._parse_output(b"", b"", 0)
         assert "Codex returned empty output" in caplog.text
 
@@ -1038,7 +1038,7 @@ class TestSendWithoutRegistry:
         )
         proc = _make_process_mock(stdout=jsonl.encode(), returncode=0)
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
@@ -1060,7 +1060,7 @@ class TestSendWithoutRegistry:
         ]
         proc = _make_streaming_process(lines, returncode=0)
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
@@ -1106,7 +1106,7 @@ class TestStreamingContinueSessionIgnored:
         ]
         proc = _make_streaming_process(lines, returncode=0)
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)
@@ -1133,7 +1133,7 @@ class TestStreamingNonTextEventsNotAccumulated:
         ]
         proc = _make_streaming_process(lines, returncode=0)
 
-        with patch("ductor_bot.cli.executor.asyncio") as mock_asyncio:
+        with patch("ductor_slack.cli.executor.asyncio") as mock_asyncio:
             mock_asyncio.timeout = asyncio.timeout
             mock_asyncio.subprocess = asyncio.subprocess
             mock_asyncio.create_subprocess_exec = AsyncMock(return_value=proc)

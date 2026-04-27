@@ -6,19 +6,19 @@ from types import SimpleNamespace
 
 import pytest
 
-from ductor_bot.cli.codex_cache import CodexModelCache
-from ductor_bot.cli.codex_discovery import CodexModelInfo
-from ductor_bot.cli.param_resolver import (
+from ductor_slack.cli.codex_cache import CodexModelCache
+from ductor_slack.cli.codex_discovery import CodexModelInfo
+from ductor_slack.cli.param_resolver import (
     TaskOverrides,
     resolve_cli_config,
 )
-from ductor_bot.config import (
+from ductor_slack.config import (
     AgentConfig,
     CLIParametersConfig,
     reset_gemini_models,
     set_gemini_models,
 )
-from ductor_bot.errors import DuctorError
+from ductor_slack.errors import DuctorError
 
 
 @pytest.fixture

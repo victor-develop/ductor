@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from ductor_bot.errors import PathValidationError
-from ductor_bot.security.paths import is_path_safe, validate_file_path
+from ductor_slack.errors import PathValidationError
+from ductor_slack.security.paths import is_path_safe, validate_file_path
 
 
 def test_valid_path_inside_root(tmp_path: Path) -> None:

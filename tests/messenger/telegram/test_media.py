@@ -8,7 +8,7 @@ from unittest.mock import MagicMock
 import yaml
 from aiogram.types import Message
 
-from ductor_bot.files.prompt import MediaInfo
+from ductor_slack.files.prompt import MediaInfo
 
 
 def _make_message(
@@ -98,37 +98,37 @@ def _make_message(
 
 class TestHasMedia:
     def test_text_only(self) -> None:
-        from ductor_bot.messenger.telegram.media import has_media
+        from ductor_slack.messenger.telegram.media import has_media
 
         assert has_media(_make_message(text="hello")) is False
 
     def test_photo(self) -> None:
-        from ductor_bot.messenger.telegram.media import has_media
+        from ductor_slack.messenger.telegram.media import has_media
 
         assert has_media(_make_message(photo=True)) is True
 
     def test_voice(self) -> None:
-        from ductor_bot.messenger.telegram.media import has_media
+        from ductor_slack.messenger.telegram.media import has_media
 
         assert has_media(_make_message(voice=True)) is True
 
     def test_document(self) -> None:
-        from ductor_bot.messenger.telegram.media import has_media
+        from ductor_slack.messenger.telegram.media import has_media
 
         assert has_media(_make_message(document=True)) is True
 
     def test_video(self) -> None:
-        from ductor_bot.messenger.telegram.media import has_media
+        from ductor_slack.messenger.telegram.media import has_media
 
         assert has_media(_make_message(video=True)) is True
 
     def test_sticker(self) -> None:
-        from ductor_bot.messenger.telegram.media import has_media
+        from ductor_slack.messenger.telegram.media import has_media
 
         assert has_media(_make_message(sticker=True)) is True
 
     def test_video_note(self) -> None:
-        from ductor_bot.messenger.telegram.media import has_media
+        from ductor_slack.messenger.telegram.media import has_media
 
         assert has_media(_make_message(video_note=True)) is True
 
@@ -140,7 +140,7 @@ class TestHasMedia:
 
 class TestIsMediaAddressed:
     def test_reply_to_bot(self) -> None:
-        from ductor_bot.messenger.telegram.media import is_media_addressed
+        from ductor_slack.messenger.telegram.media import is_media_addressed
 
         msg = _make_message(photo=True, chat_type="group")
         msg.reply_to_message = MagicMock()
@@ -150,7 +150,7 @@ class TestIsMediaAddressed:
         assert is_media_addressed(msg, bot_id=42, bot_username="mybot") is True
 
     def test_caption_mention(self) -> None:
-        from ductor_bot.messenger.telegram.media import is_media_addressed
+        from ductor_slack.messenger.telegram.media import is_media_addressed
 
         msg = _make_message(photo=True, caption="@mybot look at this", chat_type="group")
         entity = MagicMock()
@@ -162,7 +162,7 @@ class TestIsMediaAddressed:
         assert is_media_addressed(msg, bot_id=42, bot_username="mybot") is True
 
     def test_not_addressed(self) -> None:
-        from ductor_bot.messenger.telegram.media import is_media_addressed
+        from ductor_slack.messenger.telegram.media import is_media_addressed
 
         msg = _make_message(photo=True, chat_type="group")
         assert is_media_addressed(msg, bot_id=42, bot_username="mybot") is False
@@ -172,7 +172,7 @@ class TestIsMessageAddressed:
     """Tests for the generalized is_message_addressed function."""
 
     def test_reply_to_bot(self) -> None:
-        from ductor_bot.messenger.telegram.media import is_message_addressed
+        from ductor_slack.messenger.telegram.media import is_message_addressed
 
         msg = _make_message(text="hello", chat_type="group")
         msg.entities = None
@@ -183,7 +183,7 @@ class TestIsMessageAddressed:
         assert is_message_addressed(msg, bot_id=42, bot_username="mybot") is True
 
     def test_text_mention(self) -> None:
-        from ductor_bot.messenger.telegram.media import is_message_addressed
+        from ductor_slack.messenger.telegram.media import is_message_addressed
 
         msg = _make_message(text="@mybot what time is it?", chat_type="group")
         entity = MagicMock()
@@ -196,7 +196,7 @@ class TestIsMessageAddressed:
         assert is_message_addressed(msg, bot_id=42, bot_username="mybot") is True
 
     def test_text_mention_case_insensitive(self) -> None:
-        from ductor_bot.messenger.telegram.media import is_message_addressed
+        from ductor_slack.messenger.telegram.media import is_message_addressed
 
         msg = _make_message(text="@MyBot hey", chat_type="group")
         entity = MagicMock()
@@ -209,7 +209,7 @@ class TestIsMessageAddressed:
         assert is_message_addressed(msg, bot_id=42, bot_username="mybot") is True
 
     def test_not_addressed_plain_text(self) -> None:
-        from ductor_bot.messenger.telegram.media import is_message_addressed
+        from ductor_slack.messenger.telegram.media import is_message_addressed
 
         msg = _make_message(text="just chatting", chat_type="group")
         msg.entities = None
@@ -218,7 +218,7 @@ class TestIsMessageAddressed:
         assert is_message_addressed(msg, bot_id=42, bot_username="mybot") is False
 
     def test_reply_to_other_user(self) -> None:
-        from ductor_bot.messenger.telegram.media import is_message_addressed
+        from ductor_slack.messenger.telegram.media import is_message_addressed
 
         msg = _make_message(text="hello", chat_type="group")
         msg.entities = None
@@ -229,7 +229,7 @@ class TestIsMessageAddressed:
         assert is_message_addressed(msg, bot_id=42, bot_username="mybot") is False
 
     def test_mention_other_bot(self) -> None:
-        from ductor_bot.messenger.telegram.media import is_message_addressed
+        from ductor_slack.messenger.telegram.media import is_message_addressed
 
         msg = _make_message(text="@otherbot hey", chat_type="group")
         entity = MagicMock()
@@ -242,7 +242,7 @@ class TestIsMessageAddressed:
         assert is_message_addressed(msg, bot_id=42, bot_username="mybot") is False
 
     def test_caption_mention_still_works(self) -> None:
-        from ductor_bot.messenger.telegram.media import is_message_addressed
+        from ductor_slack.messenger.telegram.media import is_message_addressed
 
         msg = _make_message(photo=True, caption="@mybot look", chat_type="group")
         entity = MagicMock()
@@ -256,7 +256,7 @@ class TestIsMessageAddressed:
         assert is_message_addressed(msg, bot_id=42, bot_username="mybot") is True
 
     def test_no_bot_username(self) -> None:
-        from ductor_bot.messenger.telegram.media import is_message_addressed
+        from ductor_slack.messenger.telegram.media import is_message_addressed
 
         msg = _make_message(text="@mybot hey", chat_type="group")
         msg.entities = [MagicMock(type="mention", offset=0, length=6)]
@@ -265,7 +265,7 @@ class TestIsMessageAddressed:
         assert is_message_addressed(msg, bot_id=42, bot_username=None) is False
 
     def test_no_bot_id_reply(self) -> None:
-        from ductor_bot.messenger.telegram.media import is_message_addressed
+        from ductor_slack.messenger.telegram.media import is_message_addressed
 
         msg = _make_message(text="hello", chat_type="group")
         msg.entities = None
@@ -283,7 +283,7 @@ class TestIsMessageAddressed:
 
 class TestResolveMedia:
     def test_photo_extraction(self) -> None:
-        from ductor_bot.messenger.telegram.media import _resolve_media
+        from ductor_slack.messenger.telegram.media import _resolve_media
 
         msg = _make_message(photo=True)
         kind, obj, name, mime = _resolve_media(msg)
@@ -294,7 +294,7 @@ class TestResolveMedia:
         assert mime == "image/jpeg"
 
     def test_voice_extraction(self) -> None:
-        from ductor_bot.messenger.telegram.media import _resolve_media
+        from ductor_slack.messenger.telegram.media import _resolve_media
 
         msg = _make_message(voice=True)
         kind, _obj, name, mime = _resolve_media(msg)
@@ -304,7 +304,7 @@ class TestResolveMedia:
         assert mime == "audio/ogg"
 
     def test_document_extraction(self) -> None:
-        from ductor_bot.messenger.telegram.media import _resolve_media
+        from ductor_slack.messenger.telegram.media import _resolve_media
 
         msg = _make_message(document=True)
         kind, _obj, name, mime = _resolve_media(msg)
@@ -314,7 +314,7 @@ class TestResolveMedia:
         assert mime == "application/pdf"
 
     def test_video_extraction(self) -> None:
-        from ductor_bot.messenger.telegram.media import _resolve_media
+        from ductor_slack.messenger.telegram.media import _resolve_media
 
         msg = _make_message(video=True)
         kind, _obj, name, mime = _resolve_media(msg)
@@ -324,7 +324,7 @@ class TestResolveMedia:
         assert mime == "video/mp4"
 
     def test_sticker_static(self) -> None:
-        from ductor_bot.messenger.telegram.media import _resolve_media
+        from ductor_slack.messenger.telegram.media import _resolve_media
 
         msg = _make_message(sticker=True)
         kind, _, name, mime = _resolve_media(msg)
@@ -334,7 +334,7 @@ class TestResolveMedia:
         assert mime == "image/webp"
 
     def test_video_note_extraction(self) -> None:
-        from ductor_bot.messenger.telegram.media import _resolve_media
+        from ductor_slack.messenger.telegram.media import _resolve_media
 
         msg = _make_message(video_note=True)
         kind, _, name, mime = _resolve_media(msg)
@@ -344,7 +344,7 @@ class TestResolveMedia:
         assert mime == "video/mp4"
 
     def test_no_media(self) -> None:
-        from ductor_bot.messenger.telegram.media import _resolve_media
+        from ductor_slack.messenger.telegram.media import _resolve_media
 
         msg = _make_message(text="hello")
         kind, obj, _name, _mime = _resolve_media(msg)
@@ -360,7 +360,7 @@ class TestResolveMedia:
 
 class TestUpdateIndex:
     def test_builds_index(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.media import update_index
+        from ductor_slack.messenger.telegram.media import update_index
 
         day_dir = tmp_path / "2025-06-15"
         day_dir.mkdir()
@@ -381,7 +381,7 @@ class TestUpdateIndex:
         assert "voice_xyz.ogg" in names
 
     def test_skips_non_date_dirs(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.media import update_index
+        from ductor_slack.messenger.telegram.media import update_index
 
         (tmp_path / "random_dir").mkdir()
         (tmp_path / "random_dir" / "file.txt").write_text("x")
@@ -392,7 +392,7 @@ class TestUpdateIndex:
         assert data["total_files"] == 0
 
     def test_empty_dir(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.media import update_index
+        from ductor_slack.messenger.telegram.media import update_index
 
         update_index(tmp_path)
 
@@ -408,7 +408,7 @@ class TestUpdateIndex:
 
 class TestTelegramBuildMediaPrompt:
     def test_includes_telegram_transport(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.media import build_media_prompt
+        from ductor_slack.messenger.telegram.media import build_media_prompt
 
         info = MediaInfo(
             path=tmp_path / "photo.jpg",
@@ -421,7 +421,7 @@ class TestTelegramBuildMediaPrompt:
         assert "via Telegram" in prompt
 
     def test_voice_hint(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.media import build_media_prompt
+        from ductor_slack.messenger.telegram.media import build_media_prompt
 
         info = MediaInfo(
             path=tmp_path / "voice.ogg",
@@ -434,7 +434,7 @@ class TestTelegramBuildMediaPrompt:
         assert "transcribe_audio.py" in prompt
 
     def test_caption(self, tmp_path: Path) -> None:
-        from ductor_bot.messenger.telegram.media import build_media_prompt
+        from ductor_slack.messenger.telegram.media import build_media_prompt
 
         info = MediaInfo(
             path=tmp_path / "photo.jpg",

@@ -4,14 +4,14 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from ductor_bot.config import StreamingConfig
+from ductor_slack.config import StreamingConfig
 
 
 class TestCreateStreamEditor:
     """Verify factory returns the correct editor type based on append_mode."""
 
     def test_append_mode_returns_stream_editor(self) -> None:
-        from ductor_bot.messenger.telegram.streaming import StreamEditor, create_stream_editor
+        from ductor_slack.messenger.telegram.streaming import StreamEditor, create_stream_editor
 
         bot = MagicMock()
         cfg = StreamingConfig(append_mode=True)
@@ -19,8 +19,8 @@ class TestCreateStreamEditor:
         assert isinstance(editor, StreamEditor)
 
     def test_edit_mode_returns_edit_stream_editor(self) -> None:
-        from ductor_bot.messenger.telegram.edit_streaming import EditStreamEditor
-        from ductor_bot.messenger.telegram.streaming import create_stream_editor
+        from ductor_slack.messenger.telegram.edit_streaming import EditStreamEditor
+        from ductor_slack.messenger.telegram.streaming import create_stream_editor
 
         bot = MagicMock()
         cfg = StreamingConfig(append_mode=False)
@@ -28,7 +28,7 @@ class TestCreateStreamEditor:
         assert isinstance(editor, EditStreamEditor)
 
     def test_thread_id_passed_to_stream_editor(self) -> None:
-        from ductor_bot.messenger.telegram.streaming import StreamEditor, create_stream_editor
+        from ductor_slack.messenger.telegram.streaming import StreamEditor, create_stream_editor
 
         bot = MagicMock()
         cfg = StreamingConfig(append_mode=True)
@@ -37,8 +37,8 @@ class TestCreateStreamEditor:
         assert editor._thread_id == 42
 
     def test_thread_id_passed_to_edit_stream_editor(self) -> None:
-        from ductor_bot.messenger.telegram.edit_streaming import EditStreamEditor
-        from ductor_bot.messenger.telegram.streaming import create_stream_editor
+        from ductor_slack.messenger.telegram.edit_streaming import EditStreamEditor
+        from ductor_slack.messenger.telegram.streaming import create_stream_editor
 
         bot = MagicMock()
         cfg = StreamingConfig(append_mode=False)

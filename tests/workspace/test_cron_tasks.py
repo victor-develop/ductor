@@ -6,13 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from ductor_bot.workspace.cron_tasks import (
+from ductor_slack.workspace.cron_tasks import (
     create_cron_task,
     delete_cron_task,
     ensure_task_rule_files,
     list_cron_tasks,
 )
-from ductor_bot.workspace.paths import DuctorPaths
+from ductor_slack.workspace.paths import DuctorPaths
 
 
 def _make_paths(tmp_path: Path) -> DuctorPaths:

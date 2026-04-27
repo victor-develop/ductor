@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from unittest.mock import MagicMock
 
-from ductor_bot.cron.manager import CronJob
-from ductor_bot.orchestrator.core import Orchestrator
-from ductor_bot.orchestrator.selectors.cron_selector import (
+from ductor_slack.cron.manager import CronJob
+from ductor_slack.orchestrator.core import Orchestrator
+from ductor_slack.orchestrator.selectors.cron_selector import (
     cron_selector_start,
     handle_cron_callback,
     is_cron_selector_callback,

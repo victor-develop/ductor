@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="https://raw.githubusercontent.com/PleasePrompto/ductor/main/ductor_bot/messenger/telegram/ductor_images/logo_text.png" alt="ductor" width="100%" />
+  <img src="https://raw.githubusercontent.com/PleasePrompto/ductor/main/ductor_slack/messenger/telegram/ductor_images/logo_text.png" alt="ductor" width="100%" />
 </p>
 
 <p align="center">
@@ -523,7 +523,7 @@ Or directly with uv:
 uv run pytest
 uv run ruff check .
 uv run ruff format --check .
-uv run mypy ductor_bot
+uv run mypy ductor_slack
 ```
 
 Zero warnings, zero errors.

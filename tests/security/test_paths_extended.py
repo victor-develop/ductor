@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from ductor_bot.errors import PathValidationError
-from ductor_bot.security.paths import validate_file_path
+from ductor_slack.errors import PathValidationError
+from ductor_slack.security.paths import validate_file_path
 
 
 def test_dotdot_traversal_blocked(tmp_path: Path) -> None:

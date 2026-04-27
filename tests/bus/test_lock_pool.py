@@ -6,7 +6,7 @@ import asyncio
 
 import pytest
 
-from ductor_bot.bus.lock_pool import LockPool
+from ductor_slack.bus.lock_pool import LockPool
 
 
 def test_get_creates_lock() -> None:

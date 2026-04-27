@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from ductor_bot.messenger.matrix.media import (
+from ductor_slack.messenger.matrix.media import (
     _mime_from_msgtype,
     _original_type_from_msgtype,
     build_media_prompt,
@@ -56,7 +56,7 @@ class TestOriginalTypeFromMsgtype:
 
 class TestBuildMediaPrompt:
     def test_returns_string_with_file_info(self, tmp_path: Path) -> None:
-        from ductor_bot.files.prompt import MediaInfo
+        from ductor_slack.files.prompt import MediaInfo
 
         info = MediaInfo(
             path=tmp_path / "test.pdf",
@@ -103,7 +103,7 @@ class TestDownloadMatrixMedia:
         client.download.return_value = error_resp
 
         # Patch the module-local fallback/download error type to match our fake class
-        with patch("ductor_bot.messenger.matrix.media.MatrixDownloadError", FakeDownloadError):
+        with patch("ductor_slack.messenger.matrix.media.MatrixDownloadError", FakeDownloadError):
             result = await download_matrix_media(client, event, tmp_path)
 
         assert result is None
@@ -121,7 +121,7 @@ class TestDownloadMatrixMedia:
         client.download.return_value = resp
 
         with patch(
-            "ductor_bot.messenger.matrix.media._prepare_destination",
+            "ductor_slack.messenger.matrix.media._prepare_destination",
             return_value=tmp_path / "report.pdf",
         ):
             result = await download_matrix_media(client, event, tmp_path)
@@ -145,7 +145,7 @@ class TestResolveMatrixMedia:
         callback = AsyncMock()
 
         with patch(
-            "ductor_bot.messenger.matrix.media.download_matrix_media",
+            "ductor_slack.messenger.matrix.media.download_matrix_media",
             side_effect=OSError("disk full"),
         ):
             result = await resolve_matrix_media(
@@ -167,7 +167,7 @@ class TestResolveMatrixMedia:
         callback = AsyncMock(side_effect=OSError("send failed"))
 
         with patch(
-            "ductor_bot.messenger.matrix.media.download_matrix_media",
+            "ductor_slack.messenger.matrix.media.download_matrix_media",
             side_effect=RuntimeError("boom"),
         ):
             result = await resolve_matrix_media(
@@ -186,7 +186,7 @@ class TestResolveMatrixMedia:
         event = MagicMock()
 
         with patch(
-            "ductor_bot.messenger.matrix.media.download_matrix_media",
+            "ductor_slack.messenger.matrix.media.download_matrix_media",
             return_value=None,
         ):
             result = await resolve_matrix_media(client, event, tmp_path, tmp_path)
@@ -194,7 +194,7 @@ class TestResolveMatrixMedia:
         assert result is None
 
     async def test_returns_prompt_on_success(self, tmp_path: Path) -> None:
-        from ductor_bot.files.prompt import MediaInfo
+        from ductor_slack.files.prompt import MediaInfo
 
         client = AsyncMock()
         event = MagicMock()
@@ -208,11 +208,11 @@ class TestResolveMatrixMedia:
 
         with (
             patch(
-                "ductor_bot.messenger.matrix.media.download_matrix_media",
+                "ductor_slack.messenger.matrix.media.download_matrix_media",
                 return_value=info,
             ),
             patch(
-                "ductor_bot.messenger.matrix.media._update_index",
+                "ductor_slack.messenger.matrix.media._update_index",
             ),
         ):
             result = await resolve_matrix_media(client, event, tmp_path, tmp_path)

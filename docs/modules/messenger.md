@@ -209,7 +209,7 @@ All bots in a `MultiBotAdapter` share:
        bus: MessageBus | None,
        lock_pool: LockPool | None,
    ) -> BotProtocol:
-       from ductor_bot.messenger.discord.bot import DiscordBot
+       from ductor_slack.messenger.discord.bot import DiscordBot
        return DiscordBot(config, agent_name=agent_name,
                          bus=bus, lock_pool=lock_pool)
 

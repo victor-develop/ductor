@@ -9,8 +9,8 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from ductor_bot.cli.codex_cache import _FALLBACK_CODEX_MODELS, CodexModelCache
-from ductor_bot.cli.codex_discovery import CodexModelInfo
+from ductor_slack.cli.codex_cache import _FALLBACK_CODEX_MODELS, CodexModelCache
+from ductor_slack.cli.codex_discovery import CodexModelInfo
 
 
 @pytest.fixture
@@ -75,7 +75,7 @@ async def test_load_from_disk(tmp_path: Path) -> None:
     }}"""
     )
 
-    with patch("ductor_bot.cli.codex_cache.discover_codex_models", AsyncMock()) as mock_discover:
+    with patch("ductor_slack.cli.codex_cache.discover_codex_models", AsyncMock()) as mock_discover:
         result = await CodexModelCache.load_or_refresh(cache_path)
 
         assert len(result.models) == 1
@@ -95,7 +95,7 @@ async def test_refresh_on_stale(tmp_path: Path, sample_models: list[CodexModelIn
     )
 
     with patch(
-        "ductor_bot.cli.codex_cache.discover_codex_models",
+        "ductor_slack.cli.codex_cache.discover_codex_models",
         AsyncMock(return_value=sample_models),
     ) as mock_discover:
         result = await CodexModelCache.load_or_refresh(cache_path)
@@ -128,7 +128,7 @@ async def test_skip_refresh_if_recent(tmp_path: Path) -> None:
     }}"""
     )
 
-    with patch("ductor_bot.cli.codex_cache.discover_codex_models", AsyncMock()) as mock_discover:
+    with patch("ductor_slack.cli.codex_cache.discover_codex_models", AsyncMock()) as mock_discover:
         result = await CodexModelCache.load_or_refresh(cache_path)
 
         mock_discover.assert_not_called()
@@ -150,7 +150,7 @@ async def test_refresh_if_recent_but_empty(
     )
 
     with patch(
-        "ductor_bot.cli.codex_cache.discover_codex_models",
+        "ductor_slack.cli.codex_cache.discover_codex_models",
         AsyncMock(return_value=sample_models),
     ) as mock_discover:
         result = await CodexModelCache.load_or_refresh(cache_path)
@@ -183,7 +183,7 @@ async def test_force_refresh_ignores_fresh_cache(
     )
 
     with patch(
-        "ductor_bot.cli.codex_cache.discover_codex_models",
+        "ductor_slack.cli.codex_cache.discover_codex_models",
         AsyncMock(return_value=sample_models),
     ) as mock_discover:
         result = await CodexModelCache.load_or_refresh(cache_path, force_refresh=True)
@@ -242,7 +242,7 @@ async def test_discovery_failure_preserves_existing_disk_cache(tmp_path: Path) -
     cache_path.write_text(json.dumps(existing.to_json(), indent=2))
 
     with patch(
-        "ductor_bot.cli.codex_cache.discover_codex_models",
+        "ductor_slack.cli.codex_cache.discover_codex_models",
         AsyncMock(side_effect=Exception("Discovery failed")),
     ):
         result = await CodexModelCache.load_or_refresh(cache_path, force_refresh=True)
@@ -261,7 +261,7 @@ async def test_discovery_failure_uses_fallback_when_no_disk_cache(tmp_path: Path
     assert not cache_path.exists()
 
     with patch(
-        "ductor_bot.cli.codex_cache.discover_codex_models",
+        "ductor_slack.cli.codex_cache.discover_codex_models",
         AsyncMock(side_effect=Exception("Discovery failed")),
     ):
         result = await CodexModelCache.load_or_refresh(cache_path)
@@ -279,7 +279,7 @@ async def test_discovery_failure_uses_fallback_when_disk_cache_empty(tmp_path: P
     cache_path.write_text(json.dumps({"last_updated": datetime.now(UTC).isoformat(), "models": []}))
 
     with patch(
-        "ductor_bot.cli.codex_cache.discover_codex_models",
+        "ductor_slack.cli.codex_cache.discover_codex_models",
         AsyncMock(side_effect=Exception("Discovery failed")),
     ):
         result = await CodexModelCache.load_or_refresh(cache_path, force_refresh=True)
@@ -296,7 +296,7 @@ async def test_fallback_replaced_by_successful_discovery(tmp_path: Path) -> None
 
     # First call: discovery fails → fallback (not on disk)
     with patch(
-        "ductor_bot.cli.codex_cache.discover_codex_models",
+        "ductor_slack.cli.codex_cache.discover_codex_models",
         AsyncMock(side_effect=Exception("fail")),
     ):
         result1 = await CodexModelCache.load_or_refresh(cache_path)
@@ -315,7 +315,7 @@ async def test_fallback_replaced_by_successful_discovery(tmp_path: Path) -> None
         ),
     ]
     with patch(
-        "ductor_bot.cli.codex_cache.discover_codex_models",
+        "ductor_slack.cli.codex_cache.discover_codex_models",
         AsyncMock(return_value=real_models),
     ):
         result2 = await CodexModelCache.load_or_refresh(cache_path)
@@ -345,7 +345,7 @@ async def test_empty_discovery_result_preserves_existing_cache(tmp_path: Path) -
     cache_path.write_text(json.dumps(existing.to_json(), indent=2))
 
     with patch(
-        "ductor_bot.cli.codex_cache.discover_codex_models",
+        "ductor_slack.cli.codex_cache.discover_codex_models",
         AsyncMock(return_value=[]),
     ):
         result = await CodexModelCache.load_or_refresh(cache_path, force_refresh=True)
@@ -373,7 +373,7 @@ async def test_empty_cache_not_saved_to_disk(tmp_path: Path) -> None:
     cache_path.write_text(json.dumps(original.to_json(), indent=2))
 
     with patch(
-        "ductor_bot.cli.codex_cache.discover_codex_models",
+        "ductor_slack.cli.codex_cache.discover_codex_models",
         AsyncMock(return_value=[]),
     ):
         await CodexModelCache.load_or_refresh(cache_path, force_refresh=True)
@@ -412,7 +412,7 @@ async def test_successful_discovery_overwrites_disk_cache(tmp_path: Path) -> Non
         ),
     ]
     with patch(
-        "ductor_bot.cli.codex_cache.discover_codex_models",
+        "ductor_slack.cli.codex_cache.discover_codex_models",
         AsyncMock(return_value=new_models),
     ):
         result = await CodexModelCache.load_or_refresh(cache_path, force_refresh=True)

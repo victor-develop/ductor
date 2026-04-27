@@ -7,7 +7,7 @@ from zoneinfo import ZoneInfo
 
 import time_machine
 
-from ductor_bot.utils.quiet_hours import check_quiet_hour, is_quiet_hour
+from ductor_slack.utils.quiet_hours import check_quiet_hour, is_quiet_hour
 
 # ---------------------------------------------------------------------------
 # is_quiet_hour: wrap-around (21-8)
@@ -246,7 +246,7 @@ async def test_check_quiet_hour_returns_zoneinfo() -> None:
 async def test_check_quiet_hour_invalid_timezone_fallback() -> None:
     """Invalid timezone falls back to host timezone or UTC."""
     with patch(
-        "ductor_bot.utils.quiet_hours.resolve_user_timezone",
+        "ductor_slack.utils.quiet_hours.resolve_user_timezone",
         return_value=ZoneInfo("UTC"),
     ):
         is_quiet, hour, _tz = check_quiet_hour(

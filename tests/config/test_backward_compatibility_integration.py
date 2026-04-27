@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
-from ductor_bot.config import AgentConfig, deep_merge_config
+from ductor_slack.config import AgentConfig, deep_merge_config
 
 
 def test_old_config_loads_with_new_defaults(tmp_path: Path) -> None:

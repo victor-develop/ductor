@@ -7,10 +7,10 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from ductor_bot.config import AgentConfig
-from ductor_bot.orchestrator.core import Orchestrator
-from ductor_bot.workspace.init import init_workspace
-from ductor_bot.workspace.paths import DuctorPaths
+from ductor_slack.config import AgentConfig
+from ductor_slack.orchestrator.core import Orchestrator
+from ductor_slack.workspace.init import init_workspace
+from ductor_slack.workspace.paths import DuctorPaths
 
 
 def setup_framework(fw_root: Path) -> None:

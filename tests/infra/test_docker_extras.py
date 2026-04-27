@@ -6,8 +6,8 @@ import json
 from pathlib import Path
 from unittest.mock import patch
 
-from ductor_bot.config import DockerConfig
-from ductor_bot.infra.docker_extras import (
+from ductor_slack.config import DockerConfig
+from ductor_slack.infra.docker_extras import (
     DOCKER_EXTRAS,
     DOCKER_EXTRAS_BY_ID,
     EXTRA_CATEGORIES,
@@ -246,26 +246,26 @@ class TestDockerConfigExtras:
 
 class TestExtrasCliList:
     def test_extras_list_empty(self, tmp_path: Path) -> None:
-        from ductor_bot.cli_commands.docker import docker_extras_list
+        from ductor_slack.cli_commands.docker import docker_extras_list
 
         config_path = tmp_path / "config.json"
         config_path.write_text(json.dumps({"docker": {"extras": []}}))
 
         with patch(
-            "ductor_bot.cli_commands.docker.docker_read_config",
+            "ductor_slack.cli_commands.docker.docker_read_config",
             return_value=(config_path, json.loads(config_path.read_text())),
         ):
             docker_extras_list()
 
     def test_extras_list_with_entries(self, tmp_path: Path) -> None:
-        from ductor_bot.cli_commands.docker import docker_extras_list
+        from ductor_slack.cli_commands.docker import docker_extras_list
 
         config_path = tmp_path / "config.json"
         data = {"docker": {"extras": ["ffmpeg", "pandas"]}}
         config_path.write_text(json.dumps(data))
 
         with patch(
-            "ductor_bot.cli_commands.docker.docker_read_config",
+            "ductor_slack.cli_commands.docker.docker_read_config",
             return_value=(config_path, data),
         ):
             docker_extras_list()
@@ -273,7 +273,7 @@ class TestExtrasCliList:
 
 class TestExtrasCliAdd:
     def test_add_stores_in_config(self, tmp_path: Path) -> None:
-        from ductor_bot.cli_commands.docker import docker_extras_add
+        from ductor_slack.cli_commands.docker import docker_extras_add
 
         config_path = tmp_path / "config.json"
         data: dict[str, object] = {"docker": {"extras": []}}
@@ -281,10 +281,10 @@ class TestExtrasCliAdd:
 
         with (
             patch(
-                "ductor_bot.cli_commands.docker.docker_read_config",
+                "ductor_slack.cli_commands.docker.docker_read_config",
                 return_value=(config_path, data),
             ),
-            patch("ductor_bot.infra.json_store.atomic_json_save") as mock_save,
+            patch("ductor_slack.infra.json_store.atomic_json_save") as mock_save,
         ):
             docker_extras_add(["docker", "extras-add", "ffmpeg"])
 
@@ -293,7 +293,7 @@ class TestExtrasCliAdd:
         assert "ffmpeg" in saved_data["docker"]["extras"]
 
     def test_add_resolves_dependencies(self, tmp_path: Path) -> None:
-        from ductor_bot.cli_commands.docker import docker_extras_add
+        from ductor_slack.cli_commands.docker import docker_extras_add
 
         config_path = tmp_path / "config.json"
         data: dict[str, object] = {"docker": {"extras": []}}
@@ -301,10 +301,10 @@ class TestExtrasCliAdd:
 
         with (
             patch(
-                "ductor_bot.cli_commands.docker.docker_read_config",
+                "ductor_slack.cli_commands.docker.docker_read_config",
                 return_value=(config_path, data),
             ),
-            patch("ductor_bot.infra.json_store.atomic_json_save") as mock_save,
+            patch("ductor_slack.infra.json_store.atomic_json_save") as mock_save,
         ):
             docker_extras_add(["docker", "extras-add", "whisper"])
 
@@ -314,7 +314,7 @@ class TestExtrasCliAdd:
         assert "whisper" in extras
 
     def test_add_duplicate_noop(self, tmp_path: Path) -> None:
-        from ductor_bot.cli_commands.docker import docker_extras_add
+        from ductor_slack.cli_commands.docker import docker_extras_add
 
         config_path = tmp_path / "config.json"
         data: dict[str, object] = {"docker": {"extras": ["ffmpeg"]}}
@@ -322,17 +322,17 @@ class TestExtrasCliAdd:
 
         with (
             patch(
-                "ductor_bot.cli_commands.docker.docker_read_config",
+                "ductor_slack.cli_commands.docker.docker_read_config",
                 return_value=(config_path, data),
             ),
-            patch("ductor_bot.infra.json_store.atomic_json_save") as mock_save,
+            patch("ductor_slack.infra.json_store.atomic_json_save") as mock_save,
         ):
             docker_extras_add(["docker", "extras-add", "ffmpeg"])
 
         mock_save.assert_not_called()
 
     def test_add_unknown_shows_error(self) -> None:
-        from ductor_bot.cli_commands.docker import docker_extras_add
+        from ductor_slack.cli_commands.docker import docker_extras_add
 
         # Should not crash, just print error.
         docker_extras_add(["docker", "extras-add", "nonexistent"])
@@ -340,7 +340,7 @@ class TestExtrasCliAdd:
 
 class TestExtrasCliRemove:
     def test_remove_from_config(self, tmp_path: Path) -> None:
-        from ductor_bot.cli_commands.docker import docker_extras_remove
+        from ductor_slack.cli_commands.docker import docker_extras_remove
 
         config_path = tmp_path / "config.json"
         data: dict[str, object] = {"docker": {"extras": ["ffmpeg", "pandas"]}}
@@ -348,10 +348,10 @@ class TestExtrasCliRemove:
 
         with (
             patch(
-                "ductor_bot.cli_commands.docker.docker_read_config",
+                "ductor_slack.cli_commands.docker.docker_read_config",
                 return_value=(config_path, data),
             ),
-            patch("ductor_bot.infra.json_store.atomic_json_save") as mock_save,
+            patch("ductor_slack.infra.json_store.atomic_json_save") as mock_save,
         ):
             docker_extras_remove(["docker", "extras-remove", "ffmpeg"])
 
@@ -360,7 +360,7 @@ class TestExtrasCliRemove:
         assert "pandas" in saved_data["docker"]["extras"]
 
     def test_remove_not_installed(self, tmp_path: Path) -> None:
-        from ductor_bot.cli_commands.docker import docker_extras_remove
+        from ductor_slack.cli_commands.docker import docker_extras_remove
 
         config_path = tmp_path / "config.json"
         data: dict[str, object] = {"docker": {"extras": []}}
@@ -368,10 +368,10 @@ class TestExtrasCliRemove:
 
         with (
             patch(
-                "ductor_bot.cli_commands.docker.docker_read_config",
+                "ductor_slack.cli_commands.docker.docker_read_config",
                 return_value=(config_path, data),
             ),
-            patch("ductor_bot.infra.json_store.atomic_json_save") as mock_save,
+            patch("ductor_slack.infra.json_store.atomic_json_save") as mock_save,
         ):
             docker_extras_remove(["docker", "extras-remove", "ffmpeg"])
 
@@ -385,7 +385,7 @@ class TestExtrasCliRemove:
 
 def _make_docker_paths(tmp_path: Path) -> tuple[Path, object]:
     """Create DuctorPaths and framework dir for Docker manager tests."""
-    from ductor_bot.workspace.paths import DuctorPaths
+    from ductor_slack.workspace.paths import DuctorPaths
 
     home = tmp_path / ".ductor"
     home.mkdir()
@@ -399,7 +399,7 @@ def _make_docker_paths(tmp_path: Path) -> tuple[Path, object]:
 
 class TestDockerManagerExtras:
     async def test_build_image_with_extras(self, tmp_path: Path) -> None:
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         fw, paths = _make_docker_paths(tmp_path)
         (fw / "Dockerfile.sandbox").write_text("FROM ubuntu\nUSER node\n")
@@ -432,7 +432,7 @@ class TestDockerManagerExtras:
         assert "Docker extras" in built_content[0]
 
     async def test_build_image_without_extras(self, tmp_path: Path) -> None:
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         fw, paths = _make_docker_paths(tmp_path)
         base_content = "FROM ubuntu\nUSER node\n"
@@ -460,7 +460,7 @@ class TestDockerManagerExtras:
         assert built_content[0] == base_content
 
     async def test_build_timeout_scales_with_extras(self, tmp_path: Path) -> None:
-        from ductor_bot.infra.docker import DockerManager
+        from ductor_slack.infra.docker import DockerManager
 
         fw, paths = _make_docker_paths(tmp_path)
         (fw / "Dockerfile.sandbox").write_text("FROM ubuntu\nUSER node\n")

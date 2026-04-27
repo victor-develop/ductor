@@ -5,16 +5,16 @@ from __future__ import annotations
 import json
 from unittest.mock import AsyncMock, patch
 
-from ductor_bot.cli.auth import AuthResult, AuthStatus
-from ductor_bot.orchestrator.commands import (
+from ductor_slack.cli.auth import AuthResult, AuthStatus
+from ductor_slack.orchestrator.commands import (
     cmd_cron,
     cmd_diagnose,
     cmd_memory,
     cmd_model,
     cmd_status,
 )
-from ductor_bot.orchestrator.core import Orchestrator
-from ductor_bot.session.key import SessionKey
+from ductor_slack.orchestrator.core import Orchestrator
+from ductor_slack.session.key import SessionKey
 
 # -- cmd_model (wizard + direct switch) --
 
@@ -26,7 +26,7 @@ _AUTHED = {
 
 async def test_model_list_returns_keyboard(orch: Orchestrator) -> None:
     with patch(
-        "ductor_bot.orchestrator.selectors.model_selector.check_all_auth", return_value=_AUTHED
+        "ductor_slack.orchestrator.selectors.model_selector.check_all_auth", return_value=_AUTHED
     ):
         result = await cmd_model(orch, SessionKey(chat_id=1), "/model")
     assert result.buttons is not None
@@ -83,7 +83,7 @@ async def test_model_same_provider_does_not_show_reset(orch: Orchestrator) -> No
 
 
 async def test_status_no_session(orch: Orchestrator) -> None:
-    with patch("ductor_bot.orchestrator.commands.check_all_auth", return_value={}):
+    with patch("ductor_slack.orchestrator.commands.check_all_auth", return_value={}):
         result = await cmd_status(orch, SessionKey(chat_id=1), "/status")
     assert "No active session" in result.text
     assert "opus" in result.text
@@ -91,7 +91,7 @@ async def test_status_no_session(orch: Orchestrator) -> None:
 
 async def test_status_with_session(orch: Orchestrator) -> None:
     await orch._sessions.resolve_session(SessionKey(chat_id=1))
-    with patch("ductor_bot.orchestrator.commands.check_all_auth", return_value={}):
+    with patch("ductor_slack.orchestrator.commands.check_all_auth", return_value={}):
         result = await cmd_status(orch, SessionKey(chat_id=1), "/status")
     assert "Session:" in result.text
     assert "Messages:" in result.text
@@ -101,7 +101,7 @@ async def test_status_prefers_session_model_over_config(orch: Orchestrator) -> N
     await orch._sessions.resolve_session(
         SessionKey(chat_id=1), provider="codex", model="gpt-5.2-codex"
     )
-    with patch("ductor_bot.orchestrator.commands.check_all_auth", return_value={}):
+    with patch("ductor_slack.orchestrator.commands.check_all_auth", return_value={}):
         result = await cmd_status(orch, SessionKey(chat_id=1), "/status")
     assert "Model: gpt-5.2-codex (configured: opus)" in result.text
 
@@ -130,7 +130,7 @@ async def test_cron_no_jobs(orch: Orchestrator) -> None:
 
 
 async def test_cron_lists_jobs(orch: Orchestrator) -> None:
-    from ductor_bot.cron.manager import CronJob
+    from ductor_slack.cron.manager import CronJob
 
     orch._cron_manager.add_job(
         CronJob(
@@ -170,8 +170,8 @@ async def test_diagnose_shows_cache_status(orch: Orchestrator) -> None:
     from datetime import UTC, datetime
     from unittest.mock import MagicMock
 
-    from ductor_bot.cli.codex_cache import CodexModelCache
-    from ductor_bot.cli.codex_discovery import CodexModelInfo
+    from ductor_slack.cli.codex_cache import CodexModelCache
+    from ductor_slack.cli.codex_discovery import CodexModelInfo
 
     # Create mock cache with test data
     mock_cache = CodexModelCache(

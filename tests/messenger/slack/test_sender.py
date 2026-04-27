@@ -3,7 +3,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import AsyncMock
 
-from ductor_bot.messenger.slack.sender import SlackSendOpts, _split_text, send_rich
+from ductor_slack.messenger.slack.sender import SlackSendOpts, _split_text, send_rich
 
 
 class TestSendRich:

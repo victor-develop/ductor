@@ -9,8 +9,8 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from ductor_bot.messenger.multi import MultiBotAdapter
-from ductor_bot.messenger.notifications import CompositeNotificationService
+from ductor_slack.messenger.multi import MultiBotAdapter
+from ductor_slack.messenger.notifications import CompositeNotificationService
 
 
 def _make_config(transports: list[str] | None = None) -> MagicMock:
@@ -47,7 +47,7 @@ class TestMultiBotAdapterCreation:
         fake_mx = _make_bot(name="matrix")
 
         with patch(
-            "ductor_bot.messenger.registry._create_single_bot",
+            "ductor_slack.messenger.registry._create_single_bot",
             side_effect=[fake_tg, fake_mx],
         ):
             adapter = MultiBotAdapter(config, agent_name="main")
@@ -61,7 +61,7 @@ class TestMultiBotAdapterCreation:
         fake_tg = _make_bot(name="telegram")
 
         with patch(
-            "ductor_bot.messenger.registry._create_single_bot",
+            "ductor_slack.messenger.registry._create_single_bot",
             return_value=fake_tg,
         ):
             adapter = MultiBotAdapter(config, agent_name="main")
@@ -84,7 +84,7 @@ class TestMultiBotAdapterProperties:
         fake_tg.orchestrator = MagicMock()
 
         with patch(
-            "ductor_bot.messenger.registry._create_single_bot",
+            "ductor_slack.messenger.registry._create_single_bot",
             side_effect=[fake_tg, fake_mx],
         ):
             adapter = MultiBotAdapter(config)
@@ -97,7 +97,7 @@ class TestMultiBotAdapterProperties:
         fake_mx = _make_bot()
 
         with patch(
-            "ductor_bot.messenger.registry._create_single_bot",
+            "ductor_slack.messenger.registry._create_single_bot",
             side_effect=[fake_tg, fake_mx],
         ):
             adapter = MultiBotAdapter(config)
@@ -110,7 +110,7 @@ class TestMultiBotAdapterProperties:
         fake_mx = _make_bot()
 
         with patch(
-            "ductor_bot.messenger.registry._create_single_bot",
+            "ductor_slack.messenger.registry._create_single_bot",
             side_effect=[fake_tg, fake_mx],
         ):
             adapter = MultiBotAdapter(config)
@@ -126,7 +126,7 @@ class TestMultiBotAdapterProperties:
         paths = MagicMock()
 
         with patch(
-            "ductor_bot.messenger.registry._create_single_bot",
+            "ductor_slack.messenger.registry._create_single_bot",
             side_effect=[fake_tg, fake_mx],
         ):
             adapter = MultiBotAdapter(config)
@@ -143,7 +143,7 @@ class TestMultiBotAdapterDelegation:
         fake_mx = _make_bot()
 
         with patch(
-            "ductor_bot.messenger.registry._create_single_bot",
+            "ductor_slack.messenger.registry._create_single_bot",
             side_effect=[fake_tg, fake_mx],
         ):
             adapter = MultiBotAdapter(config)
@@ -159,7 +159,7 @@ class TestMultiBotAdapterDelegation:
         fake_mx = _make_bot()
 
         with patch(
-            "ductor_bot.messenger.registry._create_single_bot",
+            "ductor_slack.messenger.registry._create_single_bot",
             side_effect=[fake_tg, fake_mx],
         ):
             adapter = MultiBotAdapter(config)
@@ -175,7 +175,7 @@ class TestMultiBotAdapterDelegation:
         fake_mx = _make_bot()
 
         with patch(
-            "ductor_bot.messenger.registry._create_single_bot",
+            "ductor_slack.messenger.registry._create_single_bot",
             side_effect=[fake_tg, fake_mx],
         ):
             adapter = MultiBotAdapter(config)
@@ -191,7 +191,7 @@ class TestMultiBotAdapterDelegation:
         fake_mx = _make_bot()
 
         with patch(
-            "ductor_bot.messenger.registry._create_single_bot",
+            "ductor_slack.messenger.registry._create_single_bot",
             side_effect=[fake_tg, fake_mx],
         ):
             adapter = MultiBotAdapter(config)
@@ -207,7 +207,7 @@ class TestMultiBotAdapterDelegation:
         fake_mx = _make_bot()
 
         with patch(
-            "ductor_bot.messenger.registry._create_single_bot",
+            "ductor_slack.messenger.registry._create_single_bot",
             side_effect=[fake_tg, fake_mx],
         ):
             adapter = MultiBotAdapter(config)
@@ -253,7 +253,7 @@ class TestMultiBotAdapterRun:
         fake_mx.run = secondary_run
 
         with patch(
-            "ductor_bot.messenger.registry._create_single_bot",
+            "ductor_slack.messenger.registry._create_single_bot",
             side_effect=[fake_tg, fake_mx],
         ):
             adapter = MultiBotAdapter(config)
@@ -294,7 +294,7 @@ class TestMultiBotAdapterRun:
         fake_mx.run = secondary_run
 
         with patch(
-            "ductor_bot.messenger.registry._create_single_bot",
+            "ductor_slack.messenger.registry._create_single_bot",
             side_effect=[fake_tg, fake_mx],
         ):
             adapter = MultiBotAdapter(config)
@@ -329,7 +329,7 @@ class TestMultiBotAdapterRun:
         fake_mx.run = secondary_returns_restart
 
         with patch(
-            "ductor_bot.messenger.registry._create_single_bot",
+            "ductor_slack.messenger.registry._create_single_bot",
             side_effect=[fake_tg, fake_mx],
         ):
             adapter = MultiBotAdapter(config)
@@ -343,7 +343,7 @@ class TestMultiBotAdapterRun:
         fake_mx = _make_bot()
 
         with patch(
-            "ductor_bot.messenger.registry._create_single_bot",
+            "ductor_slack.messenger.registry._create_single_bot",
             side_effect=[fake_tg, fake_mx],
         ):
             adapter = MultiBotAdapter(config)
@@ -380,7 +380,7 @@ class TestCompositeNotificationService:
 class TestRegistryMultiTransport:
     def test_single_transport_returns_single_bot(self) -> None:
         """When is_multi_transport is False, create_bot returns a plain bot."""
-        from ductor_bot.messenger.registry import create_bot
+        from ductor_slack.messenger.registry import create_bot
 
         config = MagicMock()
         config.transport = "telegram"
@@ -388,7 +388,7 @@ class TestRegistryMultiTransport:
         fake_bot = MagicMock()
 
         with patch(
-            "ductor_bot.messenger.telegram.app.TelegramBot",
+            "ductor_slack.messenger.telegram.app.TelegramBot",
             return_value=fake_bot,
         ):
             bot = create_bot(config, agent_name="test")
@@ -398,14 +398,14 @@ class TestRegistryMultiTransport:
 
     def test_multi_transport_returns_adapter(self) -> None:
         """When is_multi_transport is True, create_bot returns MultiBotAdapter."""
-        from ductor_bot.messenger.registry import create_bot
+        from ductor_slack.messenger.registry import create_bot
 
         config = _make_config(["telegram", "matrix"])
         fake_tg = _make_bot()
         fake_mx = _make_bot()
 
         with patch(
-            "ductor_bot.messenger.registry._create_single_bot",
+            "ductor_slack.messenger.registry._create_single_bot",
             side_effect=[fake_tg, fake_mx],
         ):
             bot = create_bot(config, agent_name="test")

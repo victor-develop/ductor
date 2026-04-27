@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import AsyncMock, MagicMock, patch
 
-from ductor_bot.bus.envelope import Envelope, Origin
-from ductor_bot.messenger.slack.transport import SlackTransport
+from ductor_slack.bus.envelope import Envelope, Origin
+from ductor_slack.messenger.slack.transport import SlackTransport
 
 
 def _make_transport() -> tuple[SlackTransport, MagicMock]:
@@ -63,7 +63,7 @@ class TestTaskQuestionDelivery:
         )
 
         with patch(
-            "ductor_bot.messenger.slack.transport.slack_send_rich", new_callable=AsyncMock
+            "ductor_slack.messenger.slack.transport.slack_send_rich", new_callable=AsyncMock
         ) as mock_send:
             await transport.deliver(env)
 

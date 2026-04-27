@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-from ductor_bot.files.tags import (
+from ductor_slack.files.tags import (
     classify_mime,
     extract_file_paths,
     guess_mime,
@@ -106,7 +106,7 @@ class TestClassifyMime:
 
 class TestPathFromFileTag:
     def test_windows_path_slash_drive_form(self) -> None:
-        with patch("ductor_bot.files.tags.is_windows", return_value=True):
+        with patch("ductor_slack.files.tags.is_windows", return_value=True):
             path = path_from_file_tag("/C/Users/alice/out.zip")
         assert str(path).replace("\\", "/") == "C:/Users/alice/out.zip"
 
@@ -116,7 +116,7 @@ class TestPathFromFileTag:
             "file:///C:/Users/alice/out.zip",
             "file://C:/Users/alice/out.zip",
         ]
-        with patch("ductor_bot.files.tags.is_windows", return_value=True):
+        with patch("ductor_slack.files.tags.is_windows", return_value=True):
             parsed = [path_from_file_tag(v) for v in variants]
         normalized = [str(p).replace("\\", "/") for p in parsed]
         assert normalized == [
@@ -126,12 +126,12 @@ class TestPathFromFileTag:
         ]
 
     def test_windows_file_uri_decodes_spaces(self) -> None:
-        with patch("ductor_bot.files.tags.is_windows", return_value=True):
+        with patch("ductor_slack.files.tags.is_windows", return_value=True):
             path = path_from_file_tag("file:///C:/Users/alice/My%20File.zip")
         assert str(path).replace("\\", "/") == "C:/Users/alice/My File.zip"
 
     def test_posix_path_unchanged(self) -> None:
-        with patch("ductor_bot.files.tags.is_windows", return_value=False):
+        with patch("ductor_slack.files.tags.is_windows", return_value=False):
             path = path_from_file_tag("/tmp/out.zip")
         # On Windows Path("/tmp/out.zip") uses backslash; normalize for assertion
         assert str(path).replace("\\", "/") == "/tmp/out.zip"
@@ -139,7 +139,7 @@ class TestPathFromFileTag:
     def test_docker_path_translated(self) -> None:
         with (
             patch.dict("os.environ", {"DUCTOR_HOME": "/home/user/.ductor"}),
-            patch("ductor_bot.files.tags.is_windows", return_value=False),
+            patch("ductor_slack.files.tags.is_windows", return_value=False),
         ):
             path = path_from_file_tag("/ductor/workspace/output_to_user/img.png")
         assert path == Path("/home/user/.ductor/workspace/output_to_user/img.png")
@@ -147,12 +147,12 @@ class TestPathFromFileTag:
     def test_docker_path_root(self) -> None:
         with (
             patch.dict("os.environ", {"DUCTOR_HOME": "/home/user/.ductor"}),
-            patch("ductor_bot.files.tags.is_windows", return_value=False),
+            patch("ductor_slack.files.tags.is_windows", return_value=False),
         ):
             path = path_from_file_tag("/ductor/sessions.json")
         assert path == Path("/home/user/.ductor/sessions.json")
 
     def test_non_docker_path_not_translated(self) -> None:
-        with patch("ductor_bot.files.tags.is_windows", return_value=False):
+        with patch("ductor_slack.files.tags.is_windows", return_value=False):
             path = path_from_file_tag("/home/user/.ductor/workspace/file.txt")
         assert path == Path("/home/user/.ductor/workspace/file.txt")

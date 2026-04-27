@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ductor_bot.workspace.loader import read_file, read_mainmemory
-from ductor_bot.workspace.paths import DuctorPaths
+from ductor_slack.workspace.loader import read_file, read_mainmemory
+from ductor_slack.workspace.paths import DuctorPaths
 
 
 def _make_paths(tmp_path: Path) -> DuctorPaths:

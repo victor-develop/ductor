@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import PureWindowsPath
 
-from ductor_bot.cli.base import CLIConfig, docker_wrap
+from ductor_slack.cli.base import CLIConfig, docker_wrap
 
 
 def test_docker_wrap_without_container() -> None:

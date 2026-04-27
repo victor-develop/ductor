@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from ductor_bot.text.response_format import normalize_tool_name
+from ductor_slack.text.response_format import normalize_tool_name
 
 
 @pytest.mark.parametrize(

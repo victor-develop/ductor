@@ -11,8 +11,8 @@ pytest.importorskip("nacl", reason="PyNaCl not installed (optional: pip install 
 
 from aiohttp import FormData, web
 
-from ductor_bot.api.server import _parse_file_refs
-from ductor_bot.config import ApiConfig
+from ductor_slack.api.server import _parse_file_refs
+from ductor_slack.config import ApiConfig
 
 # ---------------------------------------------------------------------------
 # Unit tests for helpers
@@ -41,7 +41,7 @@ class TestParseFileRefs:
         assert refs[1]["is_image"] is True
 
     def test_windows_file_ref_is_normalized(self) -> None:
-        with patch("ductor_bot.files.tags.is_windows", return_value=True):
+        with patch("ductor_slack.files.tags.is_windows", return_value=True):
             refs = _parse_file_refs("<file:/C/Users/alice/output_to_user/out.zip>")
         assert refs[0]["path"] == "C:/Users/alice/output_to_user/out.zip"
         assert refs[0]["name"] == "out.zip"
@@ -54,7 +54,7 @@ class TestParseFileRefs:
 
 def _make_app(tmp_path: Path) -> web.Application:
     """Build an aiohttp app with ApiServer file handlers for testing."""
-    from ductor_bot.api.server import ApiServer
+    from ductor_slack.api.server import ApiServer
 
     config = ApiConfig(
         enabled=True,
@@ -184,7 +184,7 @@ class TestFileUpload:
 
     def test_uploaded_file_exists_on_disk(self, tmp_path: Path) -> None:
         """Verify prepare_destination creates the file in the right place."""
-        from ductor_bot.files.storage import prepare_destination
+        from ductor_slack.files.storage import prepare_destination
 
         dest = prepare_destination(tmp_path, "data.csv")
         dest.write_bytes(b"saved content")

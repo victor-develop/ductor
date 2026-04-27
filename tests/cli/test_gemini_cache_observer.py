@@ -5,8 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
-from ductor_bot.cli.gemini_cache import GeminiModelCache
-from ductor_bot.cli.gemini_cache_observer import GeminiCacheObserver
+from ductor_slack.cli.gemini_cache import GeminiModelCache
+from ductor_slack.cli.gemini_cache_observer import GeminiCacheObserver
 
 
 class TestGeminiCacheObserver:
@@ -22,7 +22,7 @@ class TestGeminiCacheObserver:
         observer = GeminiCacheObserver(cache_path)
 
         with patch(
-            "ductor_bot.cli.gemini_cache_observer.GeminiModelCache.load_or_refresh",
+            "ductor_slack.cli.gemini_cache_observer.GeminiModelCache.load_or_refresh",
             new_callable=AsyncMock,
         ) as mock_load:
             mock_load.return_value = mock_cache
@@ -46,7 +46,7 @@ class TestGeminiCacheObserver:
         observer = GeminiCacheObserver(cache_path)
 
         with patch(
-            "ductor_bot.cli.gemini_cache_observer.GeminiModelCache.load_or_refresh",
+            "ductor_slack.cli.gemini_cache_observer.GeminiModelCache.load_or_refresh",
             new_callable=AsyncMock,
         ) as mock_load:
             mock_load.return_value = mock_cache
@@ -69,7 +69,7 @@ class TestGeminiCacheObserver:
 
     async def test_observer_verifies_60_minute_interval(self) -> None:
         """Verify observer uses the expected refresh interval."""
-        from ductor_bot.cli.model_cache import REFRESH_INTERVAL_S
+        from ductor_slack.cli.model_cache import REFRESH_INTERVAL_S
 
         assert REFRESH_INTERVAL_S == 3600
 
@@ -85,7 +85,7 @@ class TestGeminiCacheObserver:
         observer = GeminiCacheObserver(cache_path, on_refresh=received.append)
 
         with patch(
-            "ductor_bot.cli.gemini_cache_observer.GeminiModelCache.load_or_refresh",
+            "ductor_slack.cli.gemini_cache_observer.GeminiModelCache.load_or_refresh",
             new_callable=AsyncMock,
         ) as mock_load:
             mock_load.return_value = mock_cache
@@ -108,7 +108,7 @@ class TestGeminiCacheObserver:
         observer = GeminiCacheObserver(cache_path, on_refresh=received.append)
 
         with patch(
-            "ductor_bot.cli.gemini_cache_observer.GeminiModelCache.load_or_refresh",
+            "ductor_slack.cli.gemini_cache_observer.GeminiModelCache.load_or_refresh",
             new_callable=AsyncMock,
         ) as mock_load:
             mock_load.return_value = mock_cache

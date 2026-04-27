@@ -6,7 +6,7 @@ import plistlib
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from ductor_bot.infra.service_macos import (
+from ductor_slack.infra.service_macos import (
     _LABEL,
     _generate_plist_data,
     install_service,
@@ -62,7 +62,7 @@ class TestGeneratePlistData:
         (tmp_path / ".nvm" / "versions" / "node" / "v24.0.0" / "bin").mkdir(parents=True)
         (tmp_path / ".nvm" / "versions" / "node" / "v22.0.0" / "bin").mkdir(parents=True)
 
-        with patch("ductor_bot.infra.service_macos.Path.home", return_value=tmp_path):
+        with patch("ductor_slack.infra.service_macos.Path.home", return_value=tmp_path):
             data = _generate_plist_data("ductor-slack")
 
         path_value = data["EnvironmentVariables"]["PATH"]
@@ -85,24 +85,24 @@ class TestGeneratePlistData:
 
 
 class TestIsServiceInstalled:
-    @patch("ductor_bot.infra.service_macos._plist_path")
+    @patch("ductor_slack.infra.service_macos._plist_path")
     def test_installed_when_plist_exists(self, mock_path: MagicMock) -> None:
         mock_path.return_value = MagicMock(exists=MagicMock(return_value=True))
         assert is_service_installed() is True
 
-    @patch("ductor_bot.infra.service_macos._plist_path")
+    @patch("ductor_slack.infra.service_macos._plist_path")
     def test_not_installed_when_plist_missing(self, mock_path: MagicMock) -> None:
         mock_path.return_value = MagicMock(exists=MagicMock(return_value=False))
         assert is_service_installed() is False
 
 
 class TestIsServiceRunning:
-    @patch("ductor_bot.infra.service_macos.is_service_installed", return_value=False)
+    @patch("ductor_slack.infra.service_macos.is_service_installed", return_value=False)
     def test_not_running_when_not_installed(self, _mock: MagicMock) -> None:
         assert is_service_running() is False
 
-    @patch("ductor_bot.infra.service_macos._run_launchctl")
-    @patch("ductor_bot.infra.service_macos.is_service_installed", return_value=True)
+    @patch("ductor_slack.infra.service_macos._run_launchctl")
+    @patch("ductor_slack.infra.service_macos.is_service_installed", return_value=True)
     def test_running_when_pid_present(self, _installed: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = make_completed(
             0,
@@ -110,8 +110,8 @@ class TestIsServiceRunning:
         )
         assert is_service_running() is True
 
-    @patch("ductor_bot.infra.service_macos._run_launchctl")
-    @patch("ductor_bot.infra.service_macos.is_service_installed", return_value=True)
+    @patch("ductor_slack.infra.service_macos._run_launchctl")
+    @patch("ductor_slack.infra.service_macos.is_service_installed", return_value=True)
     def test_not_running_when_no_pid(self, _installed: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = make_completed(
             0,
@@ -119,8 +119,8 @@ class TestIsServiceRunning:
         )
         assert is_service_running() is False
 
-    @patch("ductor_bot.infra.service_macos._run_launchctl")
-    @patch("ductor_bot.infra.service_macos.is_service_installed", return_value=True)
+    @patch("ductor_slack.infra.service_macos._run_launchctl")
+    @patch("ductor_slack.infra.service_macos.is_service_installed", return_value=True)
     def test_not_running_when_launchctl_fails(
         self, _installed: MagicMock, mock_run: MagicMock
     ) -> None:
@@ -129,15 +129,15 @@ class TestIsServiceRunning:
 
 
 class TestInstallService:
-    @patch("ductor_bot.infra.service_macos._run_launchctl")
-    @patch("ductor_bot.infra.service_macos.is_service_installed", return_value=False)
-    @patch("ductor_bot.infra.service_macos.is_service_available", return_value=True)
+    @patch("ductor_slack.infra.service_macos._run_launchctl")
+    @patch("ductor_slack.infra.service_macos.is_service_installed", return_value=False)
+    @patch("ductor_slack.infra.service_macos.is_service_available", return_value=True)
     @patch(
-        "ductor_bot.infra.service_macos.find_ductor_binary",
+        "ductor_slack.infra.service_macos.find_ductor_binary",
         return_value="/usr/local/bin/ductor-slack",
     )
-    @patch("ductor_bot.infra.service_macos._plist_path")
-    @patch("ductor_bot.infra.service_macos.resolve_paths")
+    @patch("ductor_slack.infra.service_macos._plist_path")
+    @patch("ductor_slack.infra.service_macos.resolve_paths")
     def test_install_success(
         self,
         mock_paths: MagicMock,
@@ -163,22 +163,22 @@ class TestInstallService:
         plist_data = plistlib.loads(plist_file.read_bytes())
         assert plist_data["Label"] == "dev.ductor-slack"
 
-    @patch("ductor_bot.infra.service_macos.is_service_available", return_value=False)
+    @patch("ductor_slack.infra.service_macos.is_service_available", return_value=False)
     def test_install_fails_without_launchctl(self, _avail: MagicMock) -> None:
         console = MagicMock()
         assert install_service(console) is False
 
-    @patch("ductor_bot.infra.service_macos.is_service_available", return_value=True)
-    @patch("ductor_bot.infra.service_macos.find_ductor_binary", return_value=None)
+    @patch("ductor_slack.infra.service_macos.is_service_available", return_value=True)
+    @patch("ductor_slack.infra.service_macos.find_ductor_binary", return_value=None)
     def test_install_fails_without_binary(self, _binary: MagicMock, _avail: MagicMock) -> None:
         console = MagicMock()
         assert install_service(console) is False
 
 
 class TestUninstallService:
-    @patch("ductor_bot.infra.service_macos._run_launchctl")
-    @patch("ductor_bot.infra.service_macos._plist_path")
-    @patch("ductor_bot.infra.service_macos.is_service_installed", return_value=True)
+    @patch("ductor_slack.infra.service_macos._run_launchctl")
+    @patch("ductor_slack.infra.service_macos._plist_path")
+    @patch("ductor_slack.infra.service_macos.is_service_installed", return_value=True)
     def test_uninstall_success(
         self, _installed: MagicMock, mock_path: MagicMock, mock_run: MagicMock
     ) -> None:
@@ -187,22 +187,22 @@ class TestUninstallService:
         console = MagicMock()
         assert uninstall_service(console) is True
 
-    @patch("ductor_bot.infra.service_macos.is_service_installed", return_value=False)
+    @patch("ductor_slack.infra.service_macos.is_service_installed", return_value=False)
     def test_uninstall_when_not_installed(self, _installed: MagicMock) -> None:
         console = MagicMock()
         assert uninstall_service(console) is False
 
 
 class TestStartService:
-    @patch("ductor_bot.infra.service_macos._run_launchctl")
-    @patch("ductor_bot.infra.service_macos.is_service_installed", return_value=True)
+    @patch("ductor_slack.infra.service_macos._run_launchctl")
+    @patch("ductor_slack.infra.service_macos.is_service_installed", return_value=True)
     def test_start_success(self, _installed: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = make_completed(0)
         console = MagicMock()
         start_service(console)
         mock_run.assert_called_once_with("start", _LABEL)
 
-    @patch("ductor_bot.infra.service_macos.is_service_installed", return_value=False)
+    @patch("ductor_slack.infra.service_macos.is_service_installed", return_value=False)
     def test_start_not_installed(self, _installed: MagicMock) -> None:
         console = MagicMock()
         start_service(console)
@@ -210,15 +210,15 @@ class TestStartService:
 
 
 class TestStopService:
-    @patch("ductor_bot.infra.service_macos._run_launchctl")
-    @patch("ductor_bot.infra.service_macos.is_service_running", return_value=True)
+    @patch("ductor_slack.infra.service_macos._run_launchctl")
+    @patch("ductor_slack.infra.service_macos.is_service_running", return_value=True)
     def test_stop_success(self, _running: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = make_completed(0)
         console = MagicMock()
         stop_service(console)
         mock_run.assert_called_once_with("stop", _LABEL)
 
-    @patch("ductor_bot.infra.service_macos.is_service_running", return_value=False)
+    @patch("ductor_slack.infra.service_macos.is_service_running", return_value=False)
     def test_stop_not_running(self, _running: MagicMock) -> None:
         console = MagicMock()
         stop_service(console)
@@ -226,8 +226,8 @@ class TestStopService:
 
 
 class TestPrintServiceStatus:
-    @patch("ductor_bot.infra.service_macos._run_launchctl")
-    @patch("ductor_bot.infra.service_macos.is_service_installed", return_value=True)
+    @patch("ductor_slack.infra.service_macos._run_launchctl")
+    @patch("ductor_slack.infra.service_macos.is_service_installed", return_value=True)
     def test_prints_status(self, _installed: MagicMock, mock_run: MagicMock) -> None:
         mock_run.return_value = make_completed(0, stdout="Agent details here")
         console = MagicMock()
@@ -236,14 +236,14 @@ class TestPrintServiceStatus:
 
 
 class TestPrintServiceLogs:
-    @patch("ductor_bot.infra.service_macos.is_service_installed", return_value=False)
+    @patch("ductor_slack.infra.service_macos.is_service_installed", return_value=False)
     def test_not_installed(self, _installed: MagicMock) -> None:
         console = MagicMock()
         print_service_logs(console)
         console.print.assert_called_once()
 
-    @patch("ductor_bot.infra.service_macos.resolve_paths")
-    @patch("ductor_bot.infra.service_macos.is_service_installed", return_value=True)
+    @patch("ductor_slack.infra.service_macos.resolve_paths")
+    @patch("ductor_slack.infra.service_macos.is_service_installed", return_value=True)
     def test_shows_logs_from_file(
         self, _installed: MagicMock, mock_paths: MagicMock, tmp_path: Path
     ) -> None:

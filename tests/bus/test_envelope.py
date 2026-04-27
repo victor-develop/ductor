@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from ductor_bot.bus.envelope import DeliveryMode, Envelope, LockMode, Origin
+from ductor_slack.bus.envelope import DeliveryMode, Envelope, LockMode, Origin
 
 
 def test_origin_values() -> None:

@@ -7,13 +7,13 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from ductor_bot.cli.auth import AuthResult, AuthStatus
-from ductor_bot.cli.types import AgentResponse
-from ductor_bot.config import AgentConfig
-from ductor_bot.errors import CLIError, CronError, SessionError, StreamError, WorkspaceError
-from ductor_bot.orchestrator.core import Orchestrator
-from ductor_bot.session.key import SessionKey
-from ductor_bot.workspace.paths import DuctorPaths
+from ductor_slack.cli.auth import AuthResult, AuthStatus
+from ductor_slack.cli.types import AgentResponse
+from ductor_slack.config import AgentConfig
+from ductor_slack.errors import CLIError, CronError, SessionError, StreamError, WorkspaceError
+from ductor_slack.orchestrator.core import Orchestrator
+from ductor_slack.session.key import SessionKey
+from ductor_slack.workspace.paths import DuctorPaths
 
 
 @pytest.fixture
@@ -155,15 +155,15 @@ async def test_create_with_authenticated_provider(
 
     with (
         patch(
-            "ductor_bot.orchestrator.lifecycle.resolve_paths",
+            "ductor_slack.orchestrator.lifecycle.resolve_paths",
             return_value=paths,
         ),
         patch(
-            "ductor_bot.cli.auth.check_all_auth",
+            "ductor_slack.cli.auth.check_all_auth",
             return_value={"claude": claude_auth, "codex": codex_auth},
         ),
         patch(
-            "ductor_bot.orchestrator.observers.watch_rule_files",
+            "ductor_slack.orchestrator.observers.watch_rule_files",
             new_callable=AsyncMock,
         ),
     ):
@@ -181,15 +181,15 @@ async def test_create_no_authenticated_providers(
 
     with (
         patch(
-            "ductor_bot.orchestrator.lifecycle.resolve_paths",
+            "ductor_slack.orchestrator.lifecycle.resolve_paths",
             return_value=paths,
         ),
         patch(
-            "ductor_bot.cli.auth.check_all_auth",
+            "ductor_slack.cli.auth.check_all_auth",
             return_value={"claude": claude_auth, "codex": codex_auth},
         ),
         patch(
-            "ductor_bot.orchestrator.observers.watch_rule_files",
+            "ductor_slack.orchestrator.observers.watch_rule_files",
             new_callable=AsyncMock,
         ),
     ):
@@ -207,15 +207,15 @@ async def test_create_installed_but_not_authenticated(
 
     with (
         patch(
-            "ductor_bot.orchestrator.lifecycle.resolve_paths",
+            "ductor_slack.orchestrator.lifecycle.resolve_paths",
             return_value=paths,
         ),
         patch(
-            "ductor_bot.cli.auth.check_all_auth",
+            "ductor_slack.cli.auth.check_all_auth",
             return_value={"claude": claude_auth, "codex": codex_auth},
         ),
         patch(
-            "ductor_bot.orchestrator.observers.watch_rule_files",
+            "ductor_slack.orchestrator.observers.watch_rule_files",
             new_callable=AsyncMock,
         ),
     ):
@@ -233,15 +233,15 @@ async def test_create_both_providers_authenticated(
 
     with (
         patch(
-            "ductor_bot.orchestrator.lifecycle.resolve_paths",
+            "ductor_slack.orchestrator.lifecycle.resolve_paths",
             return_value=paths,
         ),
         patch(
-            "ductor_bot.cli.auth.check_all_auth",
+            "ductor_slack.cli.auth.check_all_auth",
             return_value={"claude": claude_auth, "codex": codex_auth},
         ),
         patch(
-            "ductor_bot.orchestrator.observers.watch_rule_files",
+            "ductor_slack.orchestrator.observers.watch_rule_files",
             new_callable=AsyncMock,
         ),
     ):
@@ -258,15 +258,15 @@ async def test_create_starts_cron_and_heartbeat(
 
     with (
         patch(
-            "ductor_bot.orchestrator.lifecycle.resolve_paths",
+            "ductor_slack.orchestrator.lifecycle.resolve_paths",
             return_value=paths,
         ),
         patch(
-            "ductor_bot.cli.auth.check_all_auth",
+            "ductor_slack.cli.auth.check_all_auth",
             return_value={"claude": claude_auth},
         ),
         patch(
-            "ductor_bot.orchestrator.observers.watch_rule_files",
+            "ductor_slack.orchestrator.observers.watch_rule_files",
             new_callable=AsyncMock,
         ),
     ):
@@ -437,7 +437,7 @@ async def test_streaming_cancelled_error_propagates(orch: Orchestrator) -> None:
 
 async def test_handle_heartbeat_delegates_to_flow(orch: Orchestrator) -> None:
     with patch(
-        "ductor_bot.orchestrator.core.heartbeat_flow",
+        "ductor_slack.orchestrator.core.heartbeat_flow",
         new_callable=AsyncMock,
         return_value="Alert: something happened",
     ) as mock_flow:
@@ -449,7 +449,7 @@ async def test_handle_heartbeat_delegates_to_flow(orch: Orchestrator) -> None:
 
 async def test_handle_heartbeat_returns_none_on_ack(orch: Orchestrator) -> None:
     with patch(
-        "ductor_bot.orchestrator.core.heartbeat_flow",
+        "ductor_slack.orchestrator.core.heartbeat_flow",
         new_callable=AsyncMock,
         return_value=None,
     ):

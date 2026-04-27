@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from ductor_bot.i18n import LANGUAGES, get_language, get_store, init, t, t_cmd, t_plural, t_rich
-from ductor_bot.i18n.loader import TranslationStore, _flatten, _load_toml
+from ductor_slack.i18n import LANGUAGES, get_language, get_store, init, t, t_cmd, t_plural, t_rich
+from ductor_slack.i18n.loader import TranslationStore, _flatten, _load_toml
 
 # -- _flatten ------------------------------------------------------------------
 
@@ -204,7 +204,7 @@ def test_languages_has_en() -> None:
 
 
 def test_all_language_dirs_exist() -> None:
-    i18n_dir = Path(__file__).resolve().parent.parent.parent / "ductor_bot" / "i18n"
+    i18n_dir = Path(__file__).resolve().parent.parent.parent / "ductor_slack" / "i18n"
     for lang_code in LANGUAGES:
         lang_dir = i18n_dir / lang_code
         assert lang_dir.is_dir(), f"Language dir missing: {lang_dir}"

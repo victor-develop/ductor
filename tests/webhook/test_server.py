@@ -13,10 +13,10 @@ import pytest
 from aiohttp import web
 from aiohttp.test_utils import TestClient, TestServer
 
-from ductor_bot.config import WebhookConfig
-from ductor_bot.webhook.manager import WebhookManager
-from ductor_bot.webhook.models import WebhookEntry, WebhookResult
-from ductor_bot.webhook.server import WebhookServer
+from ductor_slack.config import WebhookConfig
+from ductor_slack.webhook.manager import WebhookManager
+from ductor_slack.webhook.models import WebhookEntry, WebhookResult
+from ductor_slack.webhook.server import WebhookServer
 
 _TOKEN = "test-secret-token"
 _HOOK_TOKEN = "per-hook-secret-token"

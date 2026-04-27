@@ -7,8 +7,8 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 
-from ductor_bot.config import AgentConfig, NotificationsConfig, NotificationTarget
-from ductor_bot.messenger.telegram.sender import SendRichOpts
+from ductor_slack.config import AgentConfig, NotificationsConfig, NotificationTarget
+from ductor_slack.messenger.telegram.sender import SendRichOpts
 
 
 def _make_bot(
@@ -24,7 +24,7 @@ def _make_bot(
     AsyncMock. The shared ``NotificationService.notify_all`` is mocked so
     tests can assert the fallback path fired (or did not).
     """
-    from ductor_bot.messenger.telegram import app as app_module
+    from ductor_slack.messenger.telegram import app as app_module
 
     fake_send_rich = AsyncMock()
     monkeypatch.setattr(app_module, "send_rich", fake_send_rich)

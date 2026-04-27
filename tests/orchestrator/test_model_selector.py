@@ -10,18 +10,18 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from ductor_bot.cli.auth import AuthResult, AuthStatus
-from ductor_bot.cli.codex_cache import CodexModelCache
-from ductor_bot.cli.codex_discovery import CodexModelInfo
-from ductor_bot.config import reset_gemini_models, set_gemini_models
-from ductor_bot.orchestrator.core import Orchestrator
-from ductor_bot.orchestrator.selectors.model_selector import (
+from ductor_slack.cli.auth import AuthResult, AuthStatus
+from ductor_slack.cli.codex_cache import CodexModelCache
+from ductor_slack.cli.codex_discovery import CodexModelInfo
+from ductor_slack.config import reset_gemini_models, set_gemini_models
+from ductor_slack.orchestrator.core import Orchestrator
+from ductor_slack.orchestrator.selectors.model_selector import (
     handle_model_callback,
     is_model_selector_callback,
     model_selector_start,
     switch_model,
 )
-from ductor_bot.session.key import SessionKey
+from ductor_slack.session.key import SessionKey
 
 _AUTHED_CLAUDE = AuthResult("claude", AuthStatus.AUTHENTICATED)
 _AUTHED_CODEX = AuthResult("codex", AuthStatus.AUTHENTICATED)
@@ -52,7 +52,7 @@ _CODEX_MODELS = [
 
 def _patch_auth(auth_map: dict[str, AuthResult]) -> Any:
     return patch(
-        "ductor_bot.orchestrator.selectors.model_selector.check_all_auth",
+        "ductor_slack.orchestrator.selectors.model_selector.check_all_auth",
         return_value=auth_map,
     )
 

@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from ductor_bot.tasks.models import TaskSubmit
-from ductor_bot.tasks.registry import TaskRegistry
+from ductor_slack.tasks.models import TaskSubmit
+from ductor_slack.tasks.registry import TaskRegistry
 
 
 @pytest.fixture

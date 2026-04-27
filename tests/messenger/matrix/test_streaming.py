@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from unittest.mock import AsyncMock
 
-from ductor_bot.messenger.matrix.buttons import ButtonTracker
-from ductor_bot.messenger.matrix.streaming import MatrixStreamEditor
+from ductor_slack.messenger.matrix.buttons import ButtonTracker
+from ductor_slack.messenger.matrix.streaming import MatrixStreamEditor
 
 
 def _make_editor(

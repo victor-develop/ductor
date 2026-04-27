@@ -7,9 +7,9 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from ductor_bot.cli.codex_cache import CodexModelCache
-from ductor_bot.cli.codex_cache_observer import CodexCacheObserver
-from ductor_bot.cli.codex_discovery import CodexModelInfo
+from ductor_slack.cli.codex_cache import CodexModelCache
+from ductor_slack.cli.codex_cache_observer import CodexCacheObserver
+from ductor_slack.cli.codex_discovery import CodexModelInfo
 
 
 @pytest.fixture
@@ -43,7 +43,7 @@ class TestCodexCacheObserver:
         observer = CodexCacheObserver(cache_path)
 
         with patch(
-            "ductor_bot.cli.codex_cache_observer.CodexModelCache.load_or_refresh",
+            "ductor_slack.cli.codex_cache_observer.CodexModelCache.load_or_refresh",
             new_callable=AsyncMock,
         ) as mock_load:
             mock_load.return_value = mock_cache
@@ -69,7 +69,7 @@ class TestCodexCacheObserver:
         observer = CodexCacheObserver(cache_path)
 
         with patch(
-            "ductor_bot.cli.codex_cache_observer.CodexModelCache.load_or_refresh",
+            "ductor_slack.cli.codex_cache_observer.CodexModelCache.load_or_refresh",
             new_callable=AsyncMock,
         ) as mock_load:
             mock_load.return_value = mock_cache
@@ -96,6 +96,6 @@ class TestCodexCacheObserver:
 
     async def test_observer_verifies_60_minute_interval(self) -> None:
         """Verify observer uses the expected refresh interval."""
-        from ductor_bot.cli.model_cache import REFRESH_INTERVAL_S
+        from ductor_slack.cli.model_cache import REFRESH_INTERVAL_S
 
         assert REFRESH_INTERVAL_S == 3600

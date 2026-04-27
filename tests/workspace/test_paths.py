@@ -6,7 +6,7 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-from ductor_bot.workspace.paths import DuctorPaths, resolve_paths
+from ductor_slack.workspace.paths import DuctorPaths, resolve_paths
 
 
 def test_workspace_property() -> None:

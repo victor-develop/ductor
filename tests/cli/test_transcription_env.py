@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from ductor_bot.cli.base import CLIConfig
-from ductor_bot.cli.executor import _build_subprocess_env
+from ductor_slack.cli.base import CLIConfig
+from ductor_slack.cli.executor import _build_subprocess_env
 
 
 def test_transcribe_env_unset_not_injected(tmp_path: Path) -> None:

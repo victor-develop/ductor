@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from ductor_bot.messenger.matrix.id_map import MatrixIdMap
+from ductor_slack.messenger.matrix.id_map import MatrixIdMap
 
 
 class TestMatrixIdMap:

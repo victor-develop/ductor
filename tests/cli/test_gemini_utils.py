@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import pytest
 
-from ductor_bot.cli.gemini_utils import (
+from ductor_slack.cli.gemini_utils import (
     create_system_prompt_file,
     discover_gemini_models,
     find_gemini_cli,
@@ -19,7 +19,7 @@ from ductor_bot.cli.gemini_utils import (
 
 class TestFindGeminiCli:
     def test_found(self) -> None:
-        with patch("ductor_bot.cli.gemini_utils.which", return_value="/usr/bin/gemini"):
+        with patch("ductor_slack.cli.gemini_utils.which", return_value="/usr/bin/gemini"):
             assert find_gemini_cli() == "/usr/bin/gemini"
 
     def test_found_via_nvm_fallback(self, tmp_path: Path) -> None:
@@ -28,15 +28,15 @@ class TestFindGeminiCli:
         gemini.write_text("#!/usr/bin/env node\n")
 
         with (
-            patch("ductor_bot.cli.gemini_utils.which", return_value=None),
-            patch("ductor_bot.cli.gemini_utils.Path.home", return_value=tmp_path),
+            patch("ductor_slack.cli.gemini_utils.which", return_value=None),
+            patch("ductor_slack.cli.gemini_utils.Path.home", return_value=tmp_path),
         ):
             assert find_gemini_cli() == str(gemini)
 
     def test_not_found_raises(self, tmp_path: Path) -> None:
         with (
-            patch("ductor_bot.cli.gemini_utils.which", return_value=None),
-            patch("ductor_bot.cli.gemini_utils.Path.home", return_value=tmp_path),
+            patch("ductor_slack.cli.gemini_utils.which", return_value=None),
+            patch("ductor_slack.cli.gemini_utils.Path.home", return_value=tmp_path),
             pytest.raises(FileNotFoundError, match="gemini CLI not found"),
         ):
             find_gemini_cli()
@@ -47,9 +47,9 @@ class TestFindGeminiCli:
         gemini.write_text("@echo off\n")
 
         with (
-            patch("ductor_bot.cli.gemini_utils.which", return_value=None),
-            patch("ductor_bot.cli.gemini_utils.Path.home", return_value=tmp_path),
-            patch("ductor_bot.cli.gemini_utils.is_windows", return_value=True),
+            patch("ductor_slack.cli.gemini_utils.which", return_value=None),
+            patch("ductor_slack.cli.gemini_utils.Path.home", return_value=tmp_path),
+            patch("ductor_slack.cli.gemini_utils.is_windows", return_value=True),
             patch.dict(
                 "os.environ", {"APPDATA": str(tmp_path / "AppData" / "Roaming")}, clear=False
             ),
@@ -64,9 +64,9 @@ class TestFindGeminiCliJs:
         index_js.write_text("// entry")
 
         with (
-            patch("ductor_bot.cli.gemini_utils.which", return_value="/usr/bin/npm"),
+            patch("ductor_slack.cli.gemini_utils.which", return_value="/usr/bin/npm"),
             patch(
-                "ductor_bot.cli.gemini_utils.subprocess.check_output",
+                "ductor_slack.cli.gemini_utils.subprocess.check_output",
                 return_value=str(tmp_path),
             ),
         ):
@@ -75,16 +75,16 @@ class TestFindGeminiCliJs:
 
     def test_not_found_no_npm(self, tmp_path: Path) -> None:
         with (
-            patch("ductor_bot.cli.gemini_utils.which", return_value=None),
-            patch("ductor_bot.cli.gemini_utils.Path.home", return_value=tmp_path),
+            patch("ductor_slack.cli.gemini_utils.which", return_value=None),
+            patch("ductor_slack.cli.gemini_utils.Path.home", return_value=tmp_path),
         ):
             assert find_gemini_cli_js() is None
 
     def test_not_found_no_file(self, tmp_path: Path) -> None:
         with (
-            patch("ductor_bot.cli.gemini_utils.which", return_value="/usr/bin/npm"),
+            patch("ductor_slack.cli.gemini_utils.which", return_value="/usr/bin/npm"),
             patch(
-                "ductor_bot.cli.gemini_utils.subprocess.check_output",
+                "ductor_slack.cli.gemini_utils.subprocess.check_output",
                 return_value=str(tmp_path),
             ),
         ):
@@ -112,8 +112,8 @@ class TestFindGeminiCliJs:
         index_js.write_text("// entry")
 
         with (
-            patch("ductor_bot.cli.gemini_utils.which", return_value=None),
-            patch("ductor_bot.cli.gemini_utils.Path.home", return_value=tmp_path),
+            patch("ductor_slack.cli.gemini_utils.which", return_value=None),
+            patch("ductor_slack.cli.gemini_utils.Path.home", return_value=tmp_path),
         ):
             assert find_gemini_cli_js() == str(index_js)
 
@@ -128,9 +128,9 @@ class TestFindGeminiCliJs:
         index_js.write_text("// entry")
 
         with (
-            patch("ductor_bot.cli.gemini_utils.which", return_value=None),
-            patch("ductor_bot.cli.gemini_utils.Path.home", return_value=tmp_path),
-            patch("ductor_bot.cli.gemini_utils.is_windows", return_value=True),
+            patch("ductor_slack.cli.gemini_utils.which", return_value=None),
+            patch("ductor_slack.cli.gemini_utils.Path.home", return_value=tmp_path),
+            patch("ductor_slack.cli.gemini_utils.is_windows", return_value=True),
             patch.dict("os.environ", {"APPDATA": str(appdata)}, clear=False),
         ):
             assert find_gemini_cli_js() == str(index_js)
@@ -156,9 +156,9 @@ class TestDiscoverGeminiModels:
         )
 
         with (
-            patch("ductor_bot.cli.gemini_utils.which", return_value="/usr/bin/npm"),
+            patch("ductor_slack.cli.gemini_utils.which", return_value="/usr/bin/npm"),
             patch(
-                "ductor_bot.cli.gemini_utils.subprocess.check_output",
+                "ductor_slack.cli.gemini_utils.subprocess.check_output",
                 return_value=str(tmp_path),
             ),
         ):
@@ -169,17 +169,17 @@ class TestDiscoverGeminiModels:
 
     def test_fallback_when_no_npm(self, tmp_path: Path) -> None:
         with (
-            patch("ductor_bot.cli.gemini_utils.which", return_value=None),
-            patch("ductor_bot.cli.gemini_utils.Path.home", return_value=tmp_path),
+            patch("ductor_slack.cli.gemini_utils.which", return_value=None),
+            patch("ductor_slack.cli.gemini_utils.Path.home", return_value=tmp_path),
         ):
             result = discover_gemini_models()
             assert result == frozenset()
 
     def test_fallback_when_no_file(self, tmp_path: Path) -> None:
         with (
-            patch("ductor_bot.cli.gemini_utils.which", return_value="/usr/bin/npm"),
+            patch("ductor_slack.cli.gemini_utils.which", return_value="/usr/bin/npm"),
             patch(
-                "ductor_bot.cli.gemini_utils.subprocess.check_output",
+                "ductor_slack.cli.gemini_utils.subprocess.check_output",
                 return_value=str(tmp_path),
             ),
         ):
@@ -214,9 +214,9 @@ class TestDiscoverGeminiModels:
         (bundle_dir / "chunk-OTHER.js").write_text("// nothing relevant here\n")
 
         with (
-            patch("ductor_bot.cli.gemini_utils.which", return_value="/usr/bin/npm"),
+            patch("ductor_slack.cli.gemini_utils.which", return_value="/usr/bin/npm"),
             patch(
-                "ductor_bot.cli.gemini_utils.subprocess.check_output",
+                "ductor_slack.cli.gemini_utils.subprocess.check_output",
                 return_value=str(tmp_path),
             ),
         ):
@@ -237,7 +237,7 @@ class TestTrustWorkspace:
         gemini_home = tmp_path / ".gemini"
         trust_file = gemini_home / "trustedFolders.json"
 
-        with patch("ductor_bot.cli.gemini_utils.Path.home", return_value=tmp_path):
+        with patch("ductor_slack.cli.gemini_utils.Path.home", return_value=tmp_path):
             trust_workspace(tmp_path / "workspace")
 
         assert trust_file.exists()
@@ -250,7 +250,7 @@ class TestTrustWorkspace:
         trust_file = gemini_home / "trustedFolders.json"
         trust_file.write_text(json.dumps({"/existing": "TRUST_FOLDER"}))
 
-        with patch("ductor_bot.cli.gemini_utils.Path.home", return_value=tmp_path):
+        with patch("ductor_slack.cli.gemini_utils.Path.home", return_value=tmp_path):
             trust_workspace(tmp_path / "new_workspace")
 
         data = json.loads(trust_file.read_text())
@@ -264,7 +264,7 @@ class TestTrustWorkspace:
         ws_path = str(tmp_path / "workspace")
         trust_file.write_text(json.dumps({ws_path: "TRUST_FOLDER"}))
 
-        with patch("ductor_bot.cli.gemini_utils.Path.home", return_value=tmp_path):
+        with patch("ductor_slack.cli.gemini_utils.Path.home", return_value=tmp_path):
             trust_workspace(tmp_path / "workspace")
 
         data = json.loads(trust_file.read_text())

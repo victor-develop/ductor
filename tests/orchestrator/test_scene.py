@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from ductor_bot.cli.types import AgentResponse
-from ductor_bot.config import SceneConfig
-from ductor_bot.messenger.telegram.message_dispatch import _build_footer
-from ductor_bot.orchestrator.flows import _finish_normal
-from ductor_bot.orchestrator.registry import OrchestratorResult
+from ductor_slack.cli.types import AgentResponse
+from ductor_slack.config import SceneConfig
+from ductor_slack.messenger.telegram.message_dispatch import _build_footer
+from ductor_slack.orchestrator.flows import _finish_normal
+from ductor_slack.orchestrator.registry import OrchestratorResult
 
 
 class TestOrchestratorResultMetadata:

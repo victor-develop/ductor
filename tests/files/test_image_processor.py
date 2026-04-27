@@ -4,7 +4,7 @@ from pathlib import Path
 
 from PIL import Image
 
-from ductor_bot.files.image_processor import process_image
+from ductor_slack.files.image_processor import process_image
 
 
 def _create_image(

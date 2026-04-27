@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-from ductor_bot.cli.auth import (
+from ductor_slack.cli.auth import (
     AuthResult,
     AuthStatus,
     check_claude_auth,
@@ -70,7 +70,7 @@ def test_format_age_days() -> None:
 
 def _patch_claude_cli_fallback(monkeypatch: pytest.MonkeyPatch, *, logged_in: bool = False) -> None:
     """Disable the subprocess fallback so tests stay fast and deterministic."""
-    import ductor_bot.cli.auth as _auth_mod
+    import ductor_slack.cli.auth as _auth_mod
 
     monkeypatch.setattr(_auth_mod, "_claude_cli_logged_in", lambda: logged_in)
 
@@ -144,7 +144,7 @@ def test_check_claude_auth_cli_fallback_not_logged_in(
 def test_claude_cli_logged_in_parses_json(monkeypatch: pytest.MonkeyPatch) -> None:
     import subprocess
 
-    import ductor_bot.cli.auth as _auth_mod
+    import ductor_slack.cli.auth as _auth_mod
 
     class _FakeResult:
         stdout = '{"loggedIn": true, "authMethod": "claude.ai"}'
@@ -156,7 +156,7 @@ def test_claude_cli_logged_in_parses_json(monkeypatch: pytest.MonkeyPatch) -> No
 def test_claude_cli_logged_in_returns_false_on_error(monkeypatch: pytest.MonkeyPatch) -> None:
     import subprocess
 
-    import ductor_bot.cli.auth as _auth_mod
+    import ductor_slack.cli.auth as _auth_mod
 
     def _raise(*_a: object, **_kw: object) -> None:
         raise FileNotFoundError("claude not found")
@@ -170,7 +170,7 @@ def test_claude_cli_logged_in_returns_false_when_not_logged_in(
 ) -> None:
     import subprocess
 
-    import ductor_bot.cli.auth as _auth_mod
+    import ductor_slack.cli.auth as _auth_mod
 
     class _FakeResult:
         stdout = '{"loggedIn": false}'
@@ -252,7 +252,7 @@ def test_check_codex_auth_handles_home_runtime_error(
 
 
 def test_check_gemini_auth_not_found(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import ductor_bot.cli.auth as _auth_mod
+    import ductor_slack.cli.auth as _auth_mod
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.delenv("GEMINI_CLI_HOME", raising=False)
@@ -268,7 +268,7 @@ def test_check_gemini_auth_not_found(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
 
 def test_check_gemini_auth_installed(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import ductor_bot.cli.auth as _auth_mod
+    import ductor_slack.cli.auth as _auth_mod
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.setattr(_auth_mod, "find_gemini_cli", lambda: "/usr/bin/gemini")
@@ -282,7 +282,7 @@ def test_check_gemini_auth_installed(tmp_path: Path, monkeypatch: pytest.MonkeyP
 
 
 def test_check_gemini_auth_authenticated(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import ductor_bot.cli.auth as _auth_mod
+    import ductor_slack.cli.auth as _auth_mod
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.setattr(_auth_mod, "find_gemini_cli", lambda: "/usr/bin/gemini")
@@ -293,7 +293,7 @@ def test_check_gemini_auth_authenticated(tmp_path: Path, monkeypatch: pytest.Mon
 
 
 def test_check_gemini_auth_google_api_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import ductor_bot.cli.auth as _auth_mod
+    import ductor_slack.cli.auth as _auth_mod
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.setattr(_auth_mod, "find_gemini_cli", lambda: "/usr/bin/gemini")
@@ -307,7 +307,7 @@ def test_check_gemini_auth_google_api_key(tmp_path: Path, monkeypatch: pytest.Mo
 def test_check_gemini_auth_oauth_creds_file(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import ductor_bot.cli.auth as _auth_mod
+    import ductor_slack.cli.auth as _auth_mod
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.setattr(_auth_mod, "find_gemini_cli", lambda: "/usr/bin/gemini")
@@ -326,7 +326,7 @@ def test_check_gemini_auth_oauth_creds_file(
 
 
 def test_check_gemini_auth_dotenv_key(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
-    import ductor_bot.cli.auth as _auth_mod
+    import ductor_slack.cli.auth as _auth_mod
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.setattr(_auth_mod, "find_gemini_cli", lambda: "/usr/bin/gemini")
@@ -347,7 +347,7 @@ def test_check_gemini_auth_dotenv_key(tmp_path: Path, monkeypatch: pytest.Monkey
 def test_check_gemini_auth_uses_gemini_cli_home(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import ductor_bot.cli.auth as _auth_mod
+    import ductor_slack.cli.auth as _auth_mod
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path / "ignored-home")
     monkeypatch.setattr(_auth_mod, "find_gemini_cli", lambda: "/usr/bin/gemini")
@@ -369,7 +369,7 @@ def test_check_gemini_auth_uses_gemini_cli_home(
 def test_check_gemini_auth_oauth_selected_type_with_account(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import ductor_bot.cli.auth as _auth_mod
+    import ductor_slack.cli.auth as _auth_mod
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.setattr(_auth_mod, "find_gemini_cli", lambda: "/usr/bin/gemini")
@@ -393,7 +393,7 @@ def test_check_gemini_auth_oauth_selected_type_with_account(
 def test_check_gemini_auth_selected_type_gemini_api_key(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import ductor_bot.cli.auth as _auth_mod
+    import ductor_slack.cli.auth as _auth_mod
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.setattr(_auth_mod, "find_gemini_cli", lambda: "/usr/bin/gemini")
@@ -414,7 +414,7 @@ def test_check_gemini_auth_selected_type_gemini_api_key(
 def test_check_gemini_auth_ductor_config_key(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import ductor_bot.cli.auth as _auth_mod
+    import ductor_slack.cli.auth as _auth_mod
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.setattr(_auth_mod, "find_gemini_cli", lambda: "/usr/bin/gemini")
@@ -435,7 +435,7 @@ def test_check_gemini_auth_ductor_config_key(
 def test_check_gemini_auth_ductor_config_null_string_ignored(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    import ductor_bot.cli.auth as _auth_mod
+    import ductor_slack.cli.auth as _auth_mod
 
     monkeypatch.setattr(Path, "home", lambda: tmp_path)
     monkeypatch.setattr(_auth_mod, "find_gemini_cli", lambda: "/usr/bin/gemini")
