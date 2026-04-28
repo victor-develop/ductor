@@ -57,7 +57,7 @@ async def _handle_recovery(bot: TelegramBot, sentinel: dict[str, object] | None)
 
     planner = RecoveryPlanner(
         inflight=bot._orch.inflight_tracker,
-        named_sessions=bot._orch.named_sessions.pop_recovered_running(),
+        named_sessions=bot._orch.named_sessions.pop_recovered_running(transport="tg"),
         max_age_seconds=bot.config.timeouts.normal * 2,
     )
     for action in planner.plan():
