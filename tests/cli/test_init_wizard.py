@@ -102,6 +102,7 @@ def test_write_config_writes_slack_section(tmp_path: Path) -> None:
 
     data = json.loads(paths.config_path.read_text(encoding="utf-8"))
     assert data["transport"] == "slack"
+    assert data["transports"] == ["slack"]
     assert data["slack"]["bot_token"] == "xoxb-test-bot-token"
     assert data["slack"]["app_token"] == "xapp-test-app-token"
     assert data["slack"]["allowed_channels"] == ["C0123456789", "G0123456789"]
@@ -125,8 +126,6 @@ def test_ask_transport_offers_slack() -> None:
         assert _ask_transport(console) == "slack"
 
     assert captured["choices"] == ["Telegram", "Matrix", "Slack"]
-
-
 def test_run_onboarding_returns_false_when_service_install_fails(tmp_path: Path) -> None:
     paths = _make_paths(tmp_path)
 
