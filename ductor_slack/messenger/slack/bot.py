@@ -112,7 +112,7 @@ class SlackBot:
         if not _SLACK_AVAILABLE:
             raise ImportError(
                 "slack-bolt is required for Slack transport. "
-                "Install with: pip install 'ductor[slack]'"
+                "Install with: pip install 'ductor-slack[slack]'"
             ) from None
 
         self._config = config
