@@ -745,6 +745,7 @@ def _write_config(cfg: _WizardConfig) -> Path:
         merged["gemini_api_key"] = DEFAULT_EMPTY_GEMINI_API_KEY
 
     merged["transport"] = cfg.get("transport", "telegram")
+    merged["transports"] = [merged["transport"]]
     merged["user_timezone"] = cfg.get("user_timezone", "UTC")
     raw_docker = merged.get("docker")
     if isinstance(raw_docker, dict):
