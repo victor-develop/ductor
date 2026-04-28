@@ -130,7 +130,7 @@ async def _handle_recovery(bot: MatrixBot) -> None:
         return
     planner = RecoveryPlanner(
         inflight=orch.inflight_tracker,
-        named_sessions=orch.named_sessions.pop_recovered_running(),
+        named_sessions=orch.named_sessions.pop_recovered_running(transport="mx"),
         max_age_seconds=bot._config.timeouts.normal * 2,
     )
     for action in planner.plan():
