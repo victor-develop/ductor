@@ -4,6 +4,7 @@ import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
+from ductor_slack.cli.stream_events import ToolUseEvent
 from ductor_slack.config import AgentConfig
 from ductor_slack.messenger.slack.bot import SlackBot, _ThreadContextCache
 from ductor_slack.orchestrator.registry import OrchestratorResult
@@ -321,8 +322,20 @@ class TestMessageRouting:
             assert on_thinking_delta is not None
             assert on_text_delta is not None
             await on_thinking_delta("step 1")
-            await on_tool_activity("bash")
-            await on_tool_activity("read")
+            await on_tool_activity(
+                ToolUseEvent(
+                    type="assistant",
+                    tool_name="ToolSearch",
+                    parameters={"query": "slack thinking steps ai agents"},
+                )
+            )
+            await on_tool_activity(
+                ToolUseEvent(
+                    type="assistant",
+                    tool_name="WebFetch",
+                    parameters={"url": "https://slack.dev/slack-thinking-steps-ai-agents/"},
+                )
+            )
             await on_text_delta("final")
             await on_system_status(None)
             return OrchestratorResult(text="final")
@@ -342,23 +355,78 @@ class TestMessageRouting:
             thread_ts="1710000000.123",
             recipient_team_id="T123",
             recipient_user_id="U123",
-            task_display_mode="timeline",
+            task_display_mode="plan",
             buffer_size=64,
         )
         assert any(
             "💭 *Thinking*" in call.kwargs.get("markdown_text", "")
             for call in streamer.append.await_args_list
         )
-        task_updates = [
-            call.kwargs["chunks"][0]
+        chunk_batches = [
+            call.kwargs["chunks"]
             for call in streamer.append.await_args_list
-            if call.kwargs.get("chunks") and call.kwargs["chunks"][0]["type"] == "task_update"
+            if call.kwargs.get("chunks")
         ]
-        assert [chunk["id"] for chunk in task_updates] == ["tools", "tools"]
-        assert task_updates[-1]["details"] == "Shell -> read"
+        assert chunk_batches[0][0] == {"type": "plan_update", "title": "Working on your request"}
+        assert [chunk["id"] for chunk in chunk_batches[0][1:]] == ["analyze", "tools", "respond"]
+        assert chunk_batches[0][1]["status"] == "in_progress"
+        assert chunk_batches[0][2]["status"] == "pending"
+        assert chunk_batches[0][3]["status"] == "pending"
+        assert chunk_batches[1] == [
+            {
+                "type": "task_update",
+                "id": "analyze",
+                "title": "Understand request",
+                "status": "complete",
+                "details": "step 1",
+            },
+            {
+                "type": "task_update",
+                "id": "tools",
+                "title": "Use tools if needed",
+                "status": "in_progress",
+                "details": "- Search: slack thinking steps ai agents",
+            },
+        ]
+        assert chunk_batches[2] == [
+            {
+                "type": "task_update",
+                "id": "tools",
+                "title": "Use tools if needed",
+                "status": "in_progress",
+                "details": (
+                    "- Search: slack thinking steps ai agents\n"
+                    "- Web fetch: slack.dev/slack-thinking-steps-ai-agents"
+                ),
+            }
+        ]
+        assert chunk_batches[3] == [
+            {
+                "type": "task_update",
+                "id": "tools",
+                "title": "Use tools if needed",
+                "status": "complete",
+                "details": (
+                    "- Search: slack thinking steps ai agents\n"
+                    "- Web fetch: slack.dev/slack-thinking-steps-ai-agents"
+                ),
+            },
+            {
+                "type": "task_update",
+                "id": "respond",
+                "title": "Draft response",
+                "status": "in_progress",
+            },
+        ]
         streamer.stop.assert_awaited_once()
-        assert streamer.stop.await_args.kwargs["chunks"][0]["id"] == "tools"
-        assert streamer.stop.await_args.kwargs["chunks"][0]["status"] == "complete"
+        assert streamer.stop.await_args.kwargs["chunks"] == [
+            {
+                "type": "task_update",
+                "id": "respond",
+                "title": "Draft response",
+                "status": "complete",
+            }
+        ]
 
     async def test_run_streaming_in_dm_omits_recipient_context(self) -> None:
         bot = _make_bot()
@@ -381,6 +449,54 @@ class TestMessageRouting:
         bot._app.client.chat_stream.assert_awaited_once_with(
             channel="D123",
             thread_ts="1710000000.123",
-            task_display_mode="timeline",
+            task_display_mode="plan",
             buffer_size=64,
         )
+
+    async def test_run_streaming_falls_back_when_native_streaming_fails(self) -> None:
+        bot = _make_bot()
+        streamer = MagicMock()
+        streamer.append = AsyncMock(side_effect=RuntimeError("boom"))
+        streamer.stop = AsyncMock()
+        bot._app.client.chat_stream = AsyncMock(return_value=streamer)
+
+        async def _fake_stream(
+            key: object,
+            text: str,
+            *,
+            on_text_delta: object = None,
+            on_thinking_delta: object = None,
+            on_tool_activity: object = None,
+            on_system_status: object = None,
+        ) -> OrchestratorResult:
+            assert key is not None
+            assert text == "hello"
+            assert on_thinking_delta is not None
+            assert on_text_delta is not None
+            await on_thinking_delta("step 1")
+            await on_tool_activity(
+                ToolUseEvent(type="assistant", tool_name="bash", parameters={"cmd": "pwd"})
+            )
+            await on_text_delta("final")
+            await on_system_status(None)
+            return OrchestratorResult(text="final")
+
+        bot._orchestrator.handle_message_streaming = _fake_stream
+
+        with patch(
+            "ductor_slack.messenger.slack.streaming.send_rich",
+            new_callable=AsyncMock,
+        ) as mock_send_rich:
+            await bot._run_streaming(
+                MagicMock(),
+                "hello",
+                "C123",
+                "1710000000.123",
+                recipient_user_id="U123",
+            )
+
+        mock_send_rich.assert_awaited_once()
+        sent_text = mock_send_rich.await_args.args[2]
+        assert "💭 *Thinking*" in sent_text
+        assert "final" in sent_text
+        streamer.stop.assert_not_awaited()

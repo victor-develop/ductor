@@ -15,6 +15,7 @@ from ductor_slack.background import (
 )
 from ductor_slack.cli.process_registry import ProcessRegistry
 from ductor_slack.cli.service import CLIService, CLIServiceConfig
+from ductor_slack.cli.stream_events import ToolUseEvent
 from ductor_slack.config import AgentConfig
 from ductor_slack.cron.manager import CronManager
 from ductor_slack.errors import (
@@ -78,6 +79,7 @@ logger = logging.getLogger(__name__)
 
 
 _TextCallback = Callable[[str], Awaitable[None]]
+_ToolCallback = Callable[[ToolUseEvent], Awaitable[None]]
 _SystemStatusCallback = Callable[[str | None], Awaitable[None]]
 
 
@@ -102,7 +104,7 @@ class _MessageDispatch:
     streaming: bool = False
     on_text_delta: _TextCallback | None = None
     on_thinking_delta: _TextCallback | None = None
-    on_tool_activity: _TextCallback | None = None
+    on_tool_activity: _ToolCallback | None = None
     on_system_status: _SystemStatusCallback | None = None
 
     def streaming_callbacks(self) -> StreamingCallbacks:
@@ -308,7 +310,7 @@ class Orchestrator:
         *,
         on_text_delta: _TextCallback | None = None,
         on_thinking_delta: _TextCallback | None = None,
-        on_tool_activity: _TextCallback | None = None,
+        on_tool_activity: _ToolCallback | None = None,
         on_system_status: _SystemStatusCallback | None = None,
     ) -> OrchestratorResult:
         """Main entry point with streaming support."""

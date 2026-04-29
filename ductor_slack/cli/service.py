@@ -34,6 +34,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_ToolCallback = Callable[[ToolUseEvent], Awaitable[None]]
+
 
 class _StreamCallbacks:
     """Dispatch stream events to the appropriate callbacks."""
@@ -42,7 +44,7 @@ class _StreamCallbacks:
         self,
         on_text: Callable[[str], Awaitable[None]] | None,
         on_thinking: Callable[[str], Awaitable[None]] | None,
-        on_tool: Callable[[str], Awaitable[None]] | None,
+        on_tool: _ToolCallback | None,
         on_status: Callable[[str | None], Awaitable[None]] | None,
         on_compact_boundary: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
@@ -68,7 +70,7 @@ class _StreamCallbacks:
             if self._on_status is not None:
                 await self._on_status("thinking")
         elif isinstance(event, ToolUseEvent) and self._on_tool is not None:
-            await self._on_tool(event.tool_name)
+            await self._on_tool(event)
         elif isinstance(event, SystemStatusEvent) and self._on_status is not None:
             await self._on_status(event.status)
         elif isinstance(event, CompactBoundaryEvent):
@@ -190,7 +192,7 @@ class CLIService:
         request: AgentRequest,
         on_text_delta: Callable[[str], Awaitable[None]] | None = None,
         on_thinking_delta: Callable[[str], Awaitable[None]] | None = None,
-        on_tool_activity: Callable[[str], Awaitable[None]] | None = None,
+        on_tool_activity: _ToolCallback | None = None,
         on_system_status: Callable[[str | None], Awaitable[None]] | None = None,
         on_compact_boundary: Callable[[], Awaitable[None]] | None = None,
     ) -> AgentResponse:

@@ -11,6 +11,7 @@ import logging
 from collections.abc import Awaitable, Callable
 from typing import TYPE_CHECKING
 
+from ductor_slack.cli.stream_events import ToolUseEvent
 from ductor_slack.text.response_format import normalize_tool_name
 
 if TYPE_CHECKING:
@@ -57,9 +58,9 @@ class MatrixStreamEditor:
         """Append text to the current segment buffer."""
         self._buffer += delta
 
-    async def on_tool(self, tool_name: str) -> None:
+    async def on_tool(self, tool: ToolUseEvent | str) -> None:
         """Flush the buffer on tool activity and log the segment."""
-        tool_name = normalize_tool_name(tool_name)
+        tool_name = normalize_tool_name(str(getattr(tool, "tool_name", tool)))
         self._segment_count += 1
         logger.info(
             "Matrix streaming: tool=%s segment=%d buf_len=%d",

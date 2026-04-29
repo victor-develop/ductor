@@ -23,7 +23,10 @@ from ductor_slack.text.response_format import normalize_tool_name
         ("Shell", "Shell"),
         ("Read", "Read"),
         ("Write", "Write"),
-        ("SearchTool", "SearchTool"),
+        ("SearchTool", "Search"),
+        ("ToolSearch", "Search"),
+        ("WebFetch", "Web fetch"),
+        ("WebSearch", "Web search"),
         ("Grep", "Grep"),
         ("Edit", "Edit"),
     ],
@@ -33,5 +36,5 @@ def test_normalize_tool_name(raw: str, expected: str) -> None:
 
 
 def test_non_shell_tools_unchanged() -> None:
-    for name in ("Read", "Write", "Grep", "Edit", "WebSearch", "ComputerTool"):
+    for name in ("Read", "Write", "Grep", "Edit", "ComputerTool"):
         assert normalize_tool_name(name) == name

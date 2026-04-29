@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from ductor_slack.cli.stream_events import ToolUseEvent
 from ductor_slack.cli.timeout_controller import TimeoutConfig as TCConfig
 from ductor_slack.cli.timeout_controller import TimeoutController
 from ductor_slack.cli.types import AgentRequest, AgentResponse
@@ -35,7 +36,7 @@ class StreamingCallbacks:
 
     on_text_delta: Callable[[str], Awaitable[None]] | None = field(default=None)
     on_thinking_delta: Callable[[str], Awaitable[None]] | None = field(default=None)
-    on_tool_activity: Callable[[str], Awaitable[None]] | None = field(default=None)
+    on_tool_activity: Callable[[ToolUseEvent], Awaitable[None]] | None = field(default=None)
     on_system_status: Callable[[str | None], Awaitable[None]] | None = field(default=None)
 
 

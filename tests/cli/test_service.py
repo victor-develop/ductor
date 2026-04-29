@@ -8,7 +8,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from ductor_slack.cli.process_registry import ProcessRegistry
 from ductor_slack.cli.service import CLIService, CLIServiceConfig
-from ductor_slack.cli.stream_events import StreamEvent
+from ductor_slack.cli.stream_events import StreamEvent, ToolUseEvent
 from ductor_slack.cli.types import AgentRequest, CLIResponse
 from ductor_slack.config import ModelRegistry
 
@@ -193,3 +193,29 @@ async def test_stream_callbacks_dispatches_thinking_text() -> None:
     assert result is None
     assert seen == ["step 1"]
     assert statuses == ["thinking"]
+
+
+async def test_stream_callbacks_dispatch_tool_event() -> None:
+    from ductor_slack.cli.service import _StreamCallbacks
+
+    seen: list[ToolUseEvent] = []
+
+    async def on_tool(event: ToolUseEvent) -> None:
+        seen.append(event)
+
+    cbs = _StreamCallbacks(
+        on_text=None,
+        on_thinking=None,
+        on_tool=on_tool,
+        on_status=None,
+    )
+    event = ToolUseEvent(
+        type="assistant",
+        tool_name="WebFetch",
+        parameters={"url": "https://slack.dev/slack-thinking-steps-ai-agents/"},
+    )
+    text, result = await cbs.dispatch(event)
+
+    assert text == ""
+    assert result is None
+    assert seen == [event]
