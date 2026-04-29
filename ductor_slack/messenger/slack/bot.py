@@ -930,16 +930,33 @@ class SlackBot:
     async def _add_processing_reaction(self, channel_id: str, message_ts: str) -> bool:
         try:
             await slack_add_reaction(self.client, channel_id, message_ts, "eyes")
-        except Exception:
-            logger.debug("Failed to add processing reaction", exc_info=True)
+        except Exception as exc:
+            self._log_reaction_error("add", exc)
             return False
         return True
 
     async def _remove_processing_reaction(self, channel_id: str, message_ts: str) -> None:
         try:
             await slack_remove_reaction(self.client, channel_id, message_ts, "eyes")
-        except Exception:
-            logger.debug("Failed to remove processing reaction", exc_info=True)
+        except Exception as exc:
+            self._log_reaction_error("remove", exc)
+
+    def _log_reaction_error(self, action: str, exc: Exception) -> None:
+        response = getattr(exc, "response", None)
+        error_code = None
+        if isinstance(response, dict):
+            error_code = response.get("error")
+        elif response is not None:
+            data = getattr(response, "data", None)
+            if isinstance(data, dict):
+                error_code = data.get("error")
+        if error_code == "missing_scope":
+            logger.warning(
+                "Slack reactions.%s failed: missing reactions:write scope",
+                action,
+            )
+            return
+        logger.debug("Failed to %s processing reaction: %r", action, exc)
 
     def _broadcast_channels(self) -> list[str]:
         channels = list(self._config.slack.allowed_channels)
