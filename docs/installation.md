@@ -83,6 +83,7 @@ In **OAuth & Permissions → Scopes → Bot Token Scopes**, add:
 | Scope | Required | Purpose |
 |---|---|---|
 | `chat:write` | yes | send bot replies |
+| `reactions:write` | yes | show/remove the `:eyes:` receipt reaction while a turn is processing |
 | `app_mentions:read` | yes | detect `@bot` in channels |
 | `channels:history` | yes | read public-channel messages and thread history |
 | `channels:read` | yes | resolve public channel metadata |
@@ -94,6 +95,8 @@ In **OAuth & Permissions → Scopes → Bot Token Scopes**, add:
 | `files:read` | yes | download attached files |
 | `files:write` | yes | upload files back to Slack |
 | `groups:read` | optional | resolve private-channel metadata |
+
+Without `reactions:write`, the bot will still answer, but Slack will not show the `:eyes:` acknowledgement reaction. If you add this scope later, reinstall the app to the workspace so the bot token is refreshed.
 
 Without `channels:history` / `message.channels`, the bot will work in DMs but not in public channels. Without `groups:history` / `message.groups`, it will not work in private channels.
 

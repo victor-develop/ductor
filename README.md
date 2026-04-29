@@ -307,6 +307,7 @@ Create a Slack app, then configure these permissions before installing it to you
 | Scope | Why ductor needs it |
 |---|---|
 | `chat:write` | send replies as the bot |
+| `reactions:write` | add/remove the `:eyes:` receipt reaction while a turn is processing |
 | `app_mentions:read` | detect `@bot` in channels |
 | `channels:history` | read public-channel messages and thread history |
 | `channels:read` | resolve public channel metadata |
@@ -323,6 +324,8 @@ Create a Slack app, then configure these permissions before installing it to you
 | Scope | When to add it |
 |---|---|
 | `groups:read` | if you want private-channel metadata lookups beyond history access |
+
+If you skip `reactions:write`, the bot still replies normally, but you will not see the Slack `:eyes:` acknowledgement reaction.
 
 **App-level token scope**
 
