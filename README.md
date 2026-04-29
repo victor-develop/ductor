@@ -298,7 +298,7 @@ The bot logs in with password on first start, then persists `access_token` and `
 
 ### Slack
 
-Slack runs through **Socket Mode**, so ductor does not need a public webhook URL.
+Slack runs through **Socket Mode** and now uses Slack's native **chat streaming / Thinking Steps** APIs for streaming replies, so ductor does not need a public webhook URL.
 
 Create a Slack app, then configure these permissions before installing it to your workspace. If you prefer Slack's **manifest import** flow, use [`docs/slack-app-manifest.example.yaml`](docs/slack-app-manifest.example.yaml) as a starting template.
 

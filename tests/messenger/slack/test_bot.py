@@ -34,6 +34,7 @@ def _make_bot() -> SlackBot:
     bot._startup_hooks = []
     bot._bot_user_id = "B123"
     bot._bot_name = "ductor"
+    bot._team_id = "T123"
     bot._last_active_channel = None
     bot._mentioned_threads = {}
     bot._user_name_cache = {}
@@ -301,6 +302,10 @@ class TestMessageRouting:
     async def test_run_streaming_updates_single_slack_message(self) -> None:
         bot = _make_bot()
         bot._config.streaming.edit_interval_seconds = 0.0
+        streamer = MagicMock()
+        streamer.append = AsyncMock()
+        streamer.stop = AsyncMock()
+        bot._app.client.chat_stream = AsyncMock(return_value=streamer)
 
         async def _fake_stream(
             key: object,
@@ -322,10 +327,54 @@ class TestMessageRouting:
             return OrchestratorResult(text="final")
 
         bot._orchestrator.handle_message_streaming = _fake_stream
-        bot._app.client.chat_postMessage.return_value = {"ts": "2.0"}
 
-        await bot._run_streaming(MagicMock(), "hello", "C123", "1710000000.123")
+        await bot._run_streaming(
+            MagicMock(),
+            "hello",
+            "C123",
+            "1710000000.123",
+            recipient_user_id="U123",
+        )
 
-        bot._app.client.chat_postMessage.assert_awaited_once()
-        assert "💭 *Thinking*" in bot._app.client.chat_postMessage.await_args.kwargs["text"]
-        bot._app.client.chat_update.assert_awaited()
+        bot._app.client.chat_stream.assert_awaited_once_with(
+            channel="C123",
+            thread_ts="1710000000.123",
+            recipient_team_id="T123",
+            recipient_user_id="U123",
+            task_display_mode="timeline",
+            buffer_size=64,
+        )
+        assert any(
+            "💭 *Thinking*" in call.kwargs.get("markdown_text", "")
+            for call in streamer.append.await_args_list
+        )
+        assert any(
+            call.kwargs.get("chunks") and call.kwargs["chunks"][0]["type"] == "task_update"
+            for call in streamer.append.await_args_list
+        )
+        streamer.stop.assert_awaited_once()
+
+    async def test_run_streaming_in_dm_omits_recipient_context(self) -> None:
+        bot = _make_bot()
+        streamer = MagicMock()
+        streamer.append = AsyncMock()
+        streamer.stop = AsyncMock()
+        bot._app.client.chat_stream = AsyncMock(return_value=streamer)
+        bot._orchestrator.handle_message_streaming = AsyncMock(
+            return_value=OrchestratorResult(text="ok")
+        )
+
+        await bot._run_streaming(
+            MagicMock(),
+            "hello",
+            "D123",
+            "1710000000.123",
+            recipient_user_id="U123",
+        )
+
+        bot._app.client.chat_stream.assert_awaited_once_with(
+            channel="D123",
+            thread_ts="1710000000.123",
+            task_display_mode="timeline",
+            buffer_size=64,
+        )

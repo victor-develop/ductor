@@ -61,7 +61,7 @@ If service install succeeds, onboarding returns without starting foreground bot.
 
 ## Slack setup
 
-ductor's Slack transport follows the same modern pattern Hermes uses: **Slack Bolt + Socket Mode**. That means no public webhook URL is needed.
+ductor's Slack transport follows the same modern pattern Hermes uses: **Slack Bolt + Socket Mode**, and uses Slack's native **chat streaming / Thinking Steps** APIs for streamed replies. That means no public webhook URL is needed.
 
 ### 1. Install the Slack extra
 
