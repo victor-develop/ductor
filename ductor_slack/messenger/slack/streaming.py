@@ -11,6 +11,9 @@ from ductor_slack.text.response_format import normalize_tool_name
 logger = logging.getLogger(__name__)
 
 _STREAM_BUFFER_SIZE = 64
+_TOOLS_TASK_ID = "tools"
+_TOOLS_TASK_TITLE = "Working with tools"
+_MAX_TOOL_HISTORY = 6
 _SYSTEM_LABELS: dict[str, str] = {
     "thinking": "Thinking",
     "compacting": "Compacting",
@@ -46,9 +49,8 @@ class SlackStreamEditor:
         self._status: str | None = None
         self._thinking_started = False
         self._answer_started = False
-        self._tool_counter = 0
-        self._active_task_id: str | None = None
-        self._active_task_title: str | None = None
+        self._tool_history: list[str] = []
+        self._tools_task_started = False
 
     async def on_thinking(self, text: str) -> None:
         """Append streamed reasoning text."""
@@ -64,7 +66,6 @@ class SlackStreamEditor:
         """Append assistant answer text."""
         if not text:
             return
-        await self._complete_active_task()
         self._answer_parts.append(text)
         prefix = ""
         if not self._answer_started:
@@ -76,18 +77,17 @@ class SlackStreamEditor:
         """Show tool activity using Slack's task timeline."""
         label = normalize_tool_name(tool_name)
         self._thinking_parts.append(f"\n[TOOL: {label}]\n")
-        await self._complete_active_task()
-        task_id = f"tool_{self._tool_counter}"
-        self._tool_counter += 1
-        self._active_task_id = task_id
-        self._active_task_title = f"Running {label}"
+        self._tool_history.append(label)
+        self._tool_history = self._tool_history[-_MAX_TOOL_HISTORY:]
+        self._tools_task_started = True
         await self._append_chunks(
             [
                 {
                     "type": "task_update",
-                    "id": task_id,
-                    "title": self._active_task_title,
+                    "id": _TOOLS_TASK_ID,
+                    "title": _TOOLS_TASK_TITLE,
                     "status": "in_progress",
+                    "details": self._tool_details(),
                 }
             ]
         )
@@ -116,12 +116,23 @@ class SlackStreamEditor:
                 )
             return
 
-        await self._complete_active_task()
         stream = await self._ensure_stream()
         stop_text = None
         if final_text and not self._answer_started:
             stop_text = final_text
-        await stream.stop(markdown_text=stop_text)
+        stop_chunks = None
+        if self._tools_task_started:
+            stop_chunks = [
+                {
+                    "type": "task_update",
+                    "id": _TOOLS_TASK_ID,
+                    "title": _TOOLS_TASK_TITLE,
+                    "status": "complete",
+                    "details": self._tool_details(),
+                }
+            ]
+        await stream.stop(markdown_text=stop_text, chunks=stop_chunks)
+        self._tools_task_started = False
 
     async def _append_markdown(self, text: str) -> None:
         if not text or self._native_failed:
@@ -140,24 +151,6 @@ class SlackStreamEditor:
             await stream.append(chunks=chunks)
         except Exception as exc:
             self._mark_native_failure(exc)
-
-    async def _complete_active_task(self) -> None:
-        if self._active_task_id is None or self._active_task_title is None:
-            return
-        task_id = self._active_task_id
-        title = self._active_task_title
-        self._active_task_id = None
-        self._active_task_title = None
-        await self._append_chunks(
-            [
-                {
-                    "type": "task_update",
-                    "id": task_id,
-                    "title": title,
-                    "status": "complete",
-                }
-            ]
-        )
 
     async def _ensure_stream(self) -> Any:
         if self._stream is not None:
@@ -180,6 +173,12 @@ class SlackStreamEditor:
             return
         self._native_failed = True
         logger.warning("Slack native stream failed; falling back to plain reply: %r", exc)
+
+    def _tool_details(self) -> str:
+        details = " -> ".join(self._tool_history)
+        if len(details) > 240:
+            details = "..." + details[-237:]
+        return details
 
     def _render_fallback(self, final_text: str | None) -> str:
         sections: list[str] = []

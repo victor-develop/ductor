@@ -322,6 +322,7 @@ class TestMessageRouting:
             assert on_text_delta is not None
             await on_thinking_delta("step 1")
             await on_tool_activity("bash")
+            await on_tool_activity("read")
             await on_text_delta("final")
             await on_system_status(None)
             return OrchestratorResult(text="final")
@@ -348,11 +349,16 @@ class TestMessageRouting:
             "💭 *Thinking*" in call.kwargs.get("markdown_text", "")
             for call in streamer.append.await_args_list
         )
-        assert any(
-            call.kwargs.get("chunks") and call.kwargs["chunks"][0]["type"] == "task_update"
+        task_updates = [
+            call.kwargs["chunks"][0]
             for call in streamer.append.await_args_list
-        )
+            if call.kwargs.get("chunks") and call.kwargs["chunks"][0]["type"] == "task_update"
+        ]
+        assert [chunk["id"] for chunk in task_updates] == ["tools", "tools"]
+        assert task_updates[-1]["details"] == "Shell -> read"
         streamer.stop.assert_awaited_once()
+        assert streamer.stop.await_args.kwargs["chunks"][0]["id"] == "tools"
+        assert streamer.stop.await_args.kwargs["chunks"][0]["status"] == "complete"
 
     async def test_run_streaming_in_dm_omits_recipient_context(self) -> None:
         bot = _make_bot()
