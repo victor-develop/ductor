@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from ductor_slack.config import AgentConfig
 from ductor_slack.messenger.slack.bot import SlackBot, _ThreadContextCache
+from ductor_slack.orchestrator.registry import OrchestratorResult
 from ductor_slack.session.manager import SessionData
 
 
@@ -174,6 +175,24 @@ class TestCommandPresentation:
 
 
 class TestMessageRouting:
+    async def test_on_message_wraps_processing_reaction(self) -> None:
+        bot = _make_bot()
+        bot._add_processing_reaction = AsyncMock(return_value=True)
+        bot._remove_processing_reaction = AsyncMock()
+
+        await bot._on_message(
+            {
+                "user": "U123",
+                "channel": "C123",
+                "channel_type": "im",
+                "ts": "1710000000.456",
+                "text": "hello",
+            }
+        )
+
+        bot._add_processing_reaction.assert_awaited_once_with("C123", "1710000000.456")
+        bot._remove_processing_reaction.assert_awaited_once_with("C123", "1710000000.456")
+
     async def test_app_mention_event_routes_like_message(self) -> None:
         bot = _make_bot()
         bot._on_message = AsyncMock()
@@ -278,3 +297,35 @@ class TestMessageRouting:
 
         bot._handle_command.assert_not_awaited()
         bot._dispatch_with_lock.assert_awaited_once()
+
+    async def test_run_streaming_updates_single_slack_message(self) -> None:
+        bot = _make_bot()
+        bot._config.streaming.edit_interval_seconds = 0.0
+
+        async def _fake_stream(
+            key: object,
+            text: str,
+            *,
+            on_text_delta: object = None,
+            on_thinking_delta: object = None,
+            on_tool_activity: object = None,
+            on_system_status: object = None,
+        ) -> OrchestratorResult:
+            assert key is not None
+            assert text == "hello"
+            assert on_thinking_delta is not None
+            assert on_text_delta is not None
+            await on_thinking_delta("step 1")
+            await on_tool_activity("bash")
+            await on_text_delta("final")
+            await on_system_status(None)
+            return OrchestratorResult(text="final")
+
+        bot._orchestrator.handle_message_streaming = _fake_stream
+        bot._app.client.chat_postMessage.return_value = {"ts": "2.0"}
+
+        await bot._run_streaming(MagicMock(), "hello", "C123", "1710000000.123")
+
+        bot._app.client.chat_postMessage.assert_awaited_once()
+        assert "💭 *Thinking*" in bot._app.client.chat_postMessage.await_args.kwargs["text"]
+        bot._app.client.chat_update.assert_awaited()

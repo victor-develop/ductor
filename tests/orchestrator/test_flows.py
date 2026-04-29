@@ -339,9 +339,13 @@ async def test_streaming_delegates_correctly(orch: Orchestrator) -> None:
     mock_streaming = AsyncMock(return_value=_mock_response())
     object.__setattr__(orch._cli_service, "execute_streaming", mock_streaming)
     on_delta = AsyncMock()
+    on_thinking = AsyncMock()
 
     result = await normal_streaming(
-        orch, SessionKey(chat_id=1), "Hello", cbs=StreamingCallbacks(on_text_delta=on_delta)
+        orch,
+        SessionKey(chat_id=1),
+        "Hello",
+        cbs=StreamingCallbacks(on_text_delta=on_delta, on_thinking_delta=on_thinking),
     )
     assert result.text == "Hello from agent"
     mock_streaming.assert_called_once()

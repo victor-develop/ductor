@@ -116,9 +116,10 @@ async def test_streaming_routes_correctly(orch: Orchestrator) -> None:
     mock_streaming = AsyncMock(return_value=_mock_response())
     object.__setattr__(orch._cli_service, "execute_streaming", mock_streaming)
     on_delta = AsyncMock()
+    on_thinking = AsyncMock()
 
     result = await orch.handle_message_streaming(
-        SessionKey(chat_id=1), "Hello", on_text_delta=on_delta
+        SessionKey(chat_id=1), "Hello", on_text_delta=on_delta, on_thinking_delta=on_thinking
     )
     assert result.text == "Response text"
     mock_streaming.assert_called_once()
@@ -482,7 +483,9 @@ async def test_submit_named_session_persists_transport_and_topic(orch: Orchestra
     assert sub.thread_id == 99
 
 
-async def test_submit_named_followup_bg_reuses_saved_transport_and_topic(orch: Orchestrator) -> None:
+async def test_submit_named_followup_bg_reuses_saved_transport_and_topic(
+    orch: Orchestrator,
+) -> None:
     orch._observers.background = MagicMock()
     orch._observers.background.submit.return_value = "task-2"
     session = orch.named_sessions.create(
@@ -499,7 +502,9 @@ async def test_submit_named_followup_bg_reuses_saved_transport_and_topic(orch: O
         "ductor_slack.cli.param_resolver.resolve_cli_config",
         new=MagicMock(return_value=MagicMock()),
     ):
-        task_id = orch.submit_named_followup_bg(42, session.name, "follow up", message_id=7, thread_id=None)
+        task_id = orch.submit_named_followup_bg(
+            42, session.name, "follow up", message_id=7, thread_id=None
+        )
 
     assert task_id == "task-2"
     sub = orch._observers.background.submit.call_args.args[0]

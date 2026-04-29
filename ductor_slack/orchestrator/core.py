@@ -101,6 +101,7 @@ class _MessageDispatch:
     cmd: str
     streaming: bool = False
     on_text_delta: _TextCallback | None = None
+    on_thinking_delta: _TextCallback | None = None
     on_tool_activity: _TextCallback | None = None
     on_system_status: _SystemStatusCallback | None = None
 
@@ -108,6 +109,7 @@ class _MessageDispatch:
         """Bundle the streaming callbacks into a StreamingCallbacks instance."""
         return StreamingCallbacks(
             on_text_delta=self.on_text_delta,
+            on_thinking_delta=self.on_thinking_delta,
             on_tool_activity=self.on_tool_activity,
             on_system_status=self.on_system_status,
         )
@@ -299,12 +301,13 @@ class Orchestrator:
         dispatch = _MessageDispatch(key=key, text=text, cmd=text.strip().lower())
         return await self._handle_message_impl(dispatch)
 
-    async def handle_message_streaming(
+    async def handle_message_streaming(  # noqa: PLR0913
         self,
         key: SessionKey,
         text: str,
         *,
         on_text_delta: _TextCallback | None = None,
+        on_thinking_delta: _TextCallback | None = None,
         on_tool_activity: _TextCallback | None = None,
         on_system_status: _SystemStatusCallback | None = None,
     ) -> OrchestratorResult:
@@ -315,6 +318,7 @@ class Orchestrator:
             cmd=text.strip().lower(),
             streaming=True,
             on_text_delta=on_text_delta,
+            on_thinking_delta=on_thinking_delta,
             on_tool_activity=on_tool_activity,
             on_system_status=on_system_status,
         )

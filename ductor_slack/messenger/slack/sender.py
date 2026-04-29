@@ -84,6 +84,16 @@ async def update_message(
     )
 
 
+async def add_reaction(client: Any, channel_id: str, message_ts: str, emoji: str) -> None:
+    """Add a reaction to an existing Slack message."""
+    await client.reactions_add(channel=channel_id, timestamp=message_ts, name=emoji)
+
+
+async def remove_reaction(client: Any, channel_id: str, message_ts: str, emoji: str) -> None:
+    """Remove a reaction from an existing Slack message."""
+    await client.reactions_remove(channel=channel_id, timestamp=message_ts, name=emoji)
+
+
 def _response_value(response: object, key: str) -> str | None:
     if isinstance(response, dict):
         value = response.get(key)

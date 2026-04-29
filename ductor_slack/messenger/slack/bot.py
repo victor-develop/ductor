@@ -22,7 +22,16 @@ from ductor_slack.infra.version import get_current_version
 from ductor_slack.messenger.commands import classify_command
 from ductor_slack.messenger.notifications import NotificationService
 from ductor_slack.messenger.slack.id_map import SlackIdMap
-from ductor_slack.messenger.slack.sender import SlackSendOpts, send_rich
+from ductor_slack.messenger.slack.sender import (
+    SlackSendOpts,
+    send_rich,
+)
+from ductor_slack.messenger.slack.sender import (
+    add_reaction as slack_add_reaction,
+)
+from ductor_slack.messenger.slack.sender import (
+    remove_reaction as slack_remove_reaction,
+)
 from ductor_slack.session.key import SessionKey
 from ductor_slack.text.response_format import SEP, fmt
 
@@ -286,20 +295,21 @@ class SlackBot:
         self._last_active_channel = channel_id
 
         command_text = self._normalize_command_text(text)
-        if command_text is not None:
-            await self._handle_command(command_text, channel_id, key, reply_thread_ts or None)
-            return
+        async with self._processing_reaction(channel_id, ts):
+            if command_text is not None:
+                await self._handle_command(command_text, channel_id, key, reply_thread_ts or None)
+                return
 
-        if is_thread_reply and reply_thread_ts and not has_thread_session:
-            thread_context = await self._fetch_thread_context(
-                channel_id=channel_id,
-                thread_ts=reply_thread_ts,
-                current_ts=ts,
-            )
-            if thread_context:
-                text = thread_context + text
+            if is_thread_reply and reply_thread_ts and not has_thread_session:
+                thread_context = await self._fetch_thread_context(
+                    channel_id=channel_id,
+                    thread_ts=reply_thread_ts,
+                    current_ts=ts,
+                )
+                if thread_context:
+                    text = thread_context + text
 
-        await self._dispatch_with_lock(key, text, channel_id, reply_thread_ts or None)
+            await self._dispatch_with_lock(key, text, channel_id, reply_thread_ts or None)
 
     async def _handle_command(
         self,
@@ -369,7 +379,28 @@ class SlackBot:
         channel_id: str,
         thread_ts: str | None,
     ) -> None:
-        await self._run_non_streaming(key, text, channel_id, thread_ts)
+        orch = self._orchestrator
+        if orch is None:
+            return
+
+        from ductor_slack.messenger.slack.streaming import SlackStreamEditor
+
+        editor = SlackStreamEditor(
+            self.client,
+            channel_id,
+            thread_ts=thread_ts,
+            edit_interval_seconds=self._config.streaming.edit_interval_seconds,
+        )
+        result = await orch.handle_message_streaming(
+            key,
+            text,
+            on_text_delta=editor.on_delta,
+            on_thinking_delta=editor.on_thinking,
+            on_tool_activity=editor.on_tool,
+            on_system_status=editor.on_system,
+        )
+        self._maybe_append_footer(result)
+        await editor.finalize(result.text)
 
     async def _run_non_streaming(
         self,
@@ -886,6 +917,29 @@ class SlackBot:
         thread_ts: str | None = None,
     ) -> str | None:
         return await send_rich(self.client, channel_id, text, SlackSendOpts(thread_ts=thread_ts))
+
+    @contextlib.asynccontextmanager
+    async def _processing_reaction(self, channel_id: str, message_ts: str) -> Any:
+        added = await self._add_processing_reaction(channel_id, message_ts)
+        try:
+            yield
+        finally:
+            if added:
+                await self._remove_processing_reaction(channel_id, message_ts)
+
+    async def _add_processing_reaction(self, channel_id: str, message_ts: str) -> bool:
+        try:
+            await slack_add_reaction(self.client, channel_id, message_ts, "eyes")
+        except Exception:
+            logger.debug("Failed to add processing reaction", exc_info=True)
+            return False
+        return True
+
+    async def _remove_processing_reaction(self, channel_id: str, message_ts: str) -> None:
+        try:
+            await slack_remove_reaction(self.client, channel_id, message_ts, "eyes")
+        except Exception:
+            logger.debug("Failed to remove processing reaction", exc_info=True)
 
     def _broadcast_channels(self) -> list[str]:
         channels = list(self._config.slack.allowed_channels)

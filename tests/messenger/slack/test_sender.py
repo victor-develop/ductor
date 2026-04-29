@@ -3,7 +3,14 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import AsyncMock
 
-from ductor_slack.messenger.slack.sender import SlackSendOpts, _split_text, send_rich
+from ductor_slack.messenger.slack.sender import (
+    SlackSendOpts,
+    _split_text,
+    add_reaction,
+    remove_reaction,
+    send_rich,
+    update_message,
+)
 
 
 class TestSendRich:
@@ -34,6 +41,25 @@ class TestSendRich:
 
         client.files_upload_v2.assert_awaited_once()
         assert client.files_upload_v2.call_args.kwargs["channel"] == "C123"
+
+    async def test_updates_existing_message(self) -> None:
+        client = AsyncMock()
+
+        await update_message(client, "C123", "1.0", "Hello **world**", thread_ts="1.0")
+
+        client.chat_update.assert_awaited_once()
+        assert client.chat_update.call_args.kwargs["text"] == "Hello *world*"
+
+    async def test_adds_and_removes_reaction(self) -> None:
+        client = AsyncMock()
+
+        await add_reaction(client, "C123", "1.0", "eyes")
+        await remove_reaction(client, "C123", "1.0", "eyes")
+
+        client.reactions_add.assert_awaited_once_with(channel="C123", timestamp="1.0", name="eyes")
+        client.reactions_remove.assert_awaited_once_with(
+            channel="C123", timestamp="1.0", name="eyes"
+        )
 
 
 def test_split_text_splits_long_messages() -> None:
