@@ -300,7 +300,7 @@ The bot logs in with password on first start, then persists `access_token` and `
 
 Slack runs through **Socket Mode**, so ductor does not need a public webhook URL.
 
-Create a Slack app, then configure these permissions before installing it to your workspace.
+Create a Slack app, then configure these permissions before installing it to your workspace. If you prefer Slack's **manifest import** flow, use [`docs/slack-app-manifest.example.yaml`](docs/slack-app-manifest.example.yaml) as a starting template.
 
 **Bot token scopes**
 

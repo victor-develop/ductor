@@ -73,8 +73,12 @@ pip install "ductor-slack[slack]"
 
 1. Go to <https://api.slack.com/apps>
 2. Click **Create New App**
-3. Choose **From scratch**
+3. Choose one of:
+   - **From scratch**, then configure the scopes/events below manually
+   - **From an app manifest**, then paste [`docs/slack-app-manifest.example.yaml`](slack-app-manifest.example.yaml) after replacing the display name if you want
 4. Pick a name and workspace
+
+The manifest template already includes the recommended bot scopes, bot events, App Home DM support, and Socket Mode toggle for `ductor-slack`.
 
 ### 3. Add bot token scopes
 
@@ -101,6 +105,8 @@ Without `reactions:write`, the bot will still answer, but Slack will not show th
 Without `channels:history` / `message.channels`, the bot will work in DMs but not in public channels. Without `groups:history` / `message.groups`, it will not work in private channels.
 
 ### 4. Enable Socket Mode
+
+If you imported the provided manifest, Socket Mode is already enabled. You still need to create the app-level token manually.
 
 In **Settings → Socket Mode**:
 
