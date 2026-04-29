@@ -14,6 +14,7 @@ from ductor_bot.background import (
 )
 from ductor_bot.cli.process_registry import ProcessRegistry
 from ductor_bot.cli.service import CLIService, CLIServiceConfig
+from ductor_bot.cli.stream_events import ToolUseEvent
 from ductor_bot.config import AgentConfig
 from ductor_bot.cron.manager import CronManager
 from ductor_bot.errors import (
@@ -77,6 +78,7 @@ logger = logging.getLogger(__name__)
 
 
 _TextCallback = Callable[[str], Awaitable[None]]
+_ToolCallback = Callable[[ToolUseEvent], Awaitable[None]]
 _SystemStatusCallback = Callable[[str | None], Awaitable[None]]
 
 
@@ -100,13 +102,15 @@ class _MessageDispatch:
     cmd: str
     streaming: bool = False
     on_text_delta: _TextCallback | None = None
-    on_tool_activity: _TextCallback | None = None
+    on_thinking_delta: _TextCallback | None = None
+    on_tool_activity: _ToolCallback | None = None
     on_system_status: _SystemStatusCallback | None = None
 
     def streaming_callbacks(self) -> StreamingCallbacks:
         """Bundle the streaming callbacks into a StreamingCallbacks instance."""
         return StreamingCallbacks(
             on_text_delta=self.on_text_delta,
+            on_thinking_delta=self.on_thinking_delta,
             on_tool_activity=self.on_tool_activity,
             on_system_status=self.on_system_status,
         )
@@ -298,13 +302,14 @@ class Orchestrator:
         dispatch = _MessageDispatch(key=key, text=text, cmd=text.strip().lower())
         return await self._handle_message_impl(dispatch)
 
-    async def handle_message_streaming(
+    async def handle_message_streaming(  # noqa: PLR0913
         self,
         key: SessionKey,
         text: str,
         *,
         on_text_delta: _TextCallback | None = None,
-        on_tool_activity: _TextCallback | None = None,
+        on_thinking_delta: _TextCallback | None = None,
+        on_tool_activity: _ToolCallback | None = None,
         on_system_status: _SystemStatusCallback | None = None,
     ) -> OrchestratorResult:
         """Main entry point with streaming support."""
@@ -314,6 +319,7 @@ class Orchestrator:
             cmd=text.strip().lower(),
             streaming=True,
             on_text_delta=on_text_delta,
+            on_thinking_delta=on_thinking_delta,
             on_tool_activity=on_tool_activity,
             on_system_status=on_system_status,
         )

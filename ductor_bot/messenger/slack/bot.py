@@ -41,6 +41,7 @@ try:
         AsyncSocketModeHandler as _SlackSocketModeHandler,
     )
     from slack_bolt.async_app import AsyncApp as _SlackAsyncApp
+
     _SLACK_AVAILABLE = True
 except ImportError:  # pragma: no cover - import fallback
     _SLACK_AVAILABLE = False
@@ -138,6 +139,7 @@ class SlackBot:
         self._restart_watcher: asyncio.Task[None] | None = None
         self._bot_user_id = ""
         self._bot_name = "slack-bot"
+        self._team_id = ""
         self._last_active_channel: str | None = None
         self._mentioned_threads: dict[tuple[str, str], float] = {}
         self._user_name_cache: dict[str, str] = {}
@@ -186,6 +188,7 @@ class SlackBot:
         auth = await self.client.auth_test()
         self._bot_user_id = str(auth.get("user_id", ""))
         self._bot_name = str(auth.get("user", "slack-bot"))
+        self._team_id = str(auth.get("team_id", ""))
 
         from ductor_bot.messenger.slack.startup import run_slack_startup
 
@@ -261,7 +264,8 @@ class SlackBot:
         reply_thread_ts = thread_ts or (ts if not is_dm else "")
         is_thread_reply = bool(reply_thread_ts and reply_thread_ts != ts)
         has_thread_session = bool(
-            reply_thread_ts and await self._has_active_session_for_thread(channel_id, reply_thread_ts)
+            reply_thread_ts
+            and await self._has_active_session_for_thread(channel_id, reply_thread_ts)
         )
         if not is_dm and self._config.group_mention_only:
             is_mentioned = bool(self._bot_user_id and f"<@{self._bot_user_id}>" in text)
@@ -277,13 +281,22 @@ class SlackBot:
                 self._mark_mentioned_thread(channel_id, reply_thread_ts)
 
         chat_id = self._id_map.channel_to_int(channel_id)
-        topic_id = self._id_map.thread_to_int(channel_id, reply_thread_ts) if reply_thread_ts else None
+        topic_id = (
+            self._id_map.thread_to_int(channel_id, reply_thread_ts) if reply_thread_ts else None
+        )
         key = SessionKey.for_transport("sl", chat_id, topic_id)
         self._last_active_channel = channel_id
 
         command_text = self._normalize_command_text(text)
         if command_text is not None:
-            await self._handle_command(command_text, channel_id, key, reply_thread_ts or None)
+            await self._handle_command(
+                command_text,
+                channel_id,
+                key,
+                reply_thread_ts or None,
+                stream_thread_ts=reply_thread_ts or ts,
+                recipient_user_id=user_id,
+            )
             return
 
         if is_thread_reply and reply_thread_ts and not has_thread_session:
@@ -295,14 +308,24 @@ class SlackBot:
             if thread_context:
                 text = thread_context + text
 
-        await self._dispatch_with_lock(key, text, channel_id, reply_thread_ts or None)
+        await self._dispatch_with_lock(
+            key,
+            text,
+            channel_id,
+            reply_thread_ts or None,
+            stream_thread_ts=reply_thread_ts or ts,
+            recipient_user_id=user_id,
+        )
 
-    async def _handle_command(
+    async def _handle_command(  # noqa: PLR0913
         self,
         text: str,
         channel_id: str,
         key: SessionKey,
         thread_ts: str | None,
+        *,
+        stream_thread_ts: str | None = None,
+        recipient_user_id: str | None = None,
     ) -> None:
         cmd = text.split(maxsplit=1)[0].lower().lstrip("/")
         handler = self._COMMAND_DISPATCH.get(cmd)
@@ -318,20 +341,39 @@ class SlackBot:
                     thread_ts=thread_ts,
                 )
         elif classify_command(cmd) in ("orchestrator", "multiagent"):
-            await self._cmd_orchestrator(text=text, channel_id=channel_id, key=key, thread_ts=thread_ts)
+            await self._cmd_orchestrator(
+                text=text, channel_id=channel_id, key=key, thread_ts=thread_ts
+            )
         else:
-            await self._dispatch_with_lock(key, text, channel_id, thread_ts)
+            await self._dispatch_with_lock(
+                key,
+                text,
+                channel_id,
+                thread_ts,
+                stream_thread_ts=stream_thread_ts,
+                recipient_user_id=recipient_user_id,
+            )
 
-    async def _dispatch_with_lock(
+    async def _dispatch_with_lock(  # noqa: PLR0913
         self,
         key: SessionKey,
         text: str,
         channel_id: str,
         thread_ts: str | None,
+        *,
+        stream_thread_ts: str | None = None,
+        recipient_user_id: str | None = None,
     ) -> None:
         lock = self._lock_pool.get(key.lock_key)
         async with lock:
-            await self._dispatch_message(key, text, channel_id, thread_ts)
+            await self._dispatch_message(
+                key,
+                text,
+                channel_id,
+                thread_ts,
+                stream_thread_ts=stream_thread_ts,
+                recipient_user_id=recipient_user_id,
+            )
 
     async def _run_handler_with_lock(
         self,
@@ -344,15 +386,24 @@ class SlackBot:
         async with lock:
             await handler(self, **kwargs)
 
-    async def _dispatch_message(
+    async def _dispatch_message(  # noqa: PLR0913
         self,
         key: SessionKey,
         text: str,
         channel_id: str,
         thread_ts: str | None,
+        *,
+        stream_thread_ts: str | None = None,
+        recipient_user_id: str | None = None,
     ) -> None:
         if self._config.streaming.enabled:
-            await self._run_streaming(key, text, channel_id, thread_ts)
+            await self._run_streaming(
+                key,
+                text,
+                channel_id,
+                stream_thread_ts or thread_ts,
+                recipient_user_id=recipient_user_id,
+            )
             return
         await self._run_non_streaming(key, text, channel_id, thread_ts)
 
@@ -362,8 +413,36 @@ class SlackBot:
         text: str,
         channel_id: str,
         thread_ts: str | None,
+        *,
+        recipient_user_id: str | None = None,
     ) -> None:
-        await self._run_non_streaming(key, text, channel_id, thread_ts)
+        orch = self._orchestrator
+        if orch is None:
+            return
+        if thread_ts is None:
+            await self._run_non_streaming(key, text, channel_id, thread_ts)
+            return
+
+        from ductor_bot.messenger.slack.streaming import SlackStreamEditor
+
+        editor = SlackStreamEditor(
+            self.client,
+            channel_id,
+            thread_ts=thread_ts,
+            recipient_user_id=recipient_user_id if not channel_id.startswith("D") else None,
+            recipient_team_id=self._team_id or None if not channel_id.startswith("D") else None,
+            edit_interval_seconds=self._config.streaming.edit_interval_seconds,
+        )
+        result = await orch.handle_message_streaming(
+            key,
+            text,
+            on_text_delta=editor.on_delta,
+            on_thinking_delta=editor.on_thinking,
+            on_tool_activity=editor.on_tool,
+            on_system_status=editor.on_system,
+        )
+        self._maybe_append_footer(result)
+        await editor.finalize(result.text)
 
     async def _run_non_streaming(
         self,
@@ -715,7 +794,9 @@ class SlackBot:
                 or user_id
             )
         except Exception:
-            logger.debug("Failed to resolve Slack user name in channel %s", channel_id, exc_info=True)
+            logger.debug(
+                "Failed to resolve Slack user name in channel %s", channel_id, exc_info=True
+            )
             name = user_id
         resolved = str(name).strip() or user_id
         self._user_name_cache[user_id] = resolved

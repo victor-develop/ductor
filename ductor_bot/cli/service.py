@@ -33,6 +33,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_ToolCallback = Callable[[ToolUseEvent], Awaitable[None]]
+
 
 class _StreamCallbacks:
     """Dispatch stream events to the appropriate callbacks."""
@@ -40,17 +42,19 @@ class _StreamCallbacks:
     def __init__(
         self,
         on_text: Callable[[str], Awaitable[None]] | None,
-        on_tool: Callable[[str], Awaitable[None]] | None,
+        on_thinking: Callable[[str], Awaitable[None]] | None,
+        on_tool: _ToolCallback | None,
         on_status: Callable[[str | None], Awaitable[None]] | None,
         on_compact_boundary: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
         self._on_text = on_text
+        self._on_thinking = on_thinking
         self._on_tool = on_tool
         self._on_status = on_status
         self._on_compact_boundary = on_compact_boundary
         self.init_session_id: str | None = None
 
-    async def dispatch(self, event: StreamEvent) -> tuple[str, ResultEvent | None]:
+    async def dispatch(self, event: StreamEvent) -> tuple[str, ResultEvent | None]:  # noqa: C901
         """Handle one event. Returns (accumulated_text_chunk, result_or_none)."""
         if isinstance(event, SystemInitEvent) and event.session_id:
             self.init_session_id = event.session_id
@@ -59,10 +63,13 @@ class _StreamCallbacks:
             if self._on_text is not None:
                 await self._on_text(event.text)
             return event.text, None
-        if isinstance(event, ThinkingEvent) and self._on_status is not None:
-            await self._on_status("thinking")
+        if isinstance(event, ThinkingEvent):
+            if event.text and self._on_thinking is not None:
+                await self._on_thinking(event.text)
+            if self._on_status is not None:
+                await self._on_status("thinking")
         elif isinstance(event, ToolUseEvent) and self._on_tool is not None:
-            await self._on_tool(event.tool_name)
+            await self._on_tool(event)
         elif isinstance(event, SystemStatusEvent) and self._on_status is not None:
             await self._on_status(event.status)
         elif isinstance(event, CompactBoundaryEvent):
@@ -179,11 +186,12 @@ class CLIService:
         self._log_call(request, agent_resp, elapsed_ms)
         return agent_resp
 
-    async def execute_streaming(
+    async def execute_streaming(  # noqa: PLR0913
         self,
         request: AgentRequest,
         on_text_delta: Callable[[str], Awaitable[None]] | None = None,
-        on_tool_activity: Callable[[str], Awaitable[None]] | None = None,
+        on_thinking_delta: Callable[[str], Awaitable[None]] | None = None,
+        on_tool_activity: _ToolCallback | None = None,
         on_system_status: Callable[[str | None], Awaitable[None]] | None = None,
         on_compact_boundary: Callable[[], Awaitable[None]] | None = None,
     ) -> AgentResponse:
@@ -200,7 +208,11 @@ class CLIService:
         stream_error = False
 
         callbacks = _StreamCallbacks(
-            on_text_delta, on_tool_activity, on_system_status, on_compact_boundary
+            on_text_delta,
+            on_thinking_delta,
+            on_tool_activity,
+            on_system_status,
+            on_compact_boundary,
         )
 
         try:

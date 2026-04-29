@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
+from ductor_bot.cli.stream_events import ToolUseEvent
 from ductor_bot.cli.timeout_controller import TimeoutConfig as TCConfig
 from ductor_bot.cli.timeout_controller import TimeoutController
 from ductor_bot.cli.types import AgentRequest, AgentResponse
@@ -34,7 +35,8 @@ class StreamingCallbacks:
     """Bundle of optional streaming callbacks passed through flow functions."""
 
     on_text_delta: Callable[[str], Awaitable[None]] | None = field(default=None)
-    on_tool_activity: Callable[[str], Awaitable[None]] | None = field(default=None)
+    on_thinking_delta: Callable[[str], Awaitable[None]] | None = field(default=None)
+    on_tool_activity: Callable[[ToolUseEvent], Awaitable[None]] | None = field(default=None)
     on_system_status: Callable[[str | None], Awaitable[None]] | None = field(default=None)
 
 
@@ -345,6 +347,7 @@ async def _recover_session(
         response = await orch._cli_service.execute_streaming(
             request,
             on_text_delta=cb.on_text_delta,
+            on_thinking_delta=cb.on_thinking_delta,
             on_tool_activity=cb.on_tool_activity,
             on_system_status=cb.on_system_status,
         )
@@ -494,6 +497,7 @@ async def normal_streaming(  # noqa: PLR0911
         response = await orch._cli_service.execute_streaming(
             request,
             on_text_delta=cb.on_text_delta,
+            on_thinking_delta=cb.on_thinking_delta,
             on_tool_activity=cb.on_tool_activity,
             on_system_status=cb.on_system_status,
             on_compact_boundary=_on_compact if orch._memory_flusher is not None else None,
@@ -748,6 +752,7 @@ async def named_session_streaming(
     response = await orch._cli_service.execute_streaming(
         request,
         on_text_delta=_tagged_text_delta,
+        on_thinking_delta=cb.on_thinking_delta,
         on_tool_activity=cb.on_tool_activity,
         on_system_status=cb.on_system_status,
     )
