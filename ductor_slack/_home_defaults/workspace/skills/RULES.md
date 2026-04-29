@@ -5,7 +5,7 @@ This directory is part of ductor's three-way skill sync.
 ## Sync Topology
 
 ```text
-~/.ductor/workspace/skills/
+~/.ductor-slack/workspace/skills/
 <-> ~/.claude/skills/
 <-> $CODEX_HOME/skills (default: ~/.codex/skills)
 ```

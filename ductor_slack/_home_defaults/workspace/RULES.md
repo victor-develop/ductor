@@ -54,7 +54,7 @@ Custom skills live in `skills/`. See `skills/CLAUDE/GEMINI/AGENTS.md` for sync r
 
 ## External API Secrets
 
-Store external API keys in `~/.ductor/.env`:
+Store external API keys in `~/.ductor-slack/.env`:
 
 ```env
 PPLX_API_KEY=sk-xxx
@@ -70,7 +70,7 @@ Changes take effect on the next CLI invocation (no restart needed).
 If you need the bot to restart (e.g. after config changes, updates, or recovery):
 
 ```bash
-touch ~/.ductor/restart-requested
+touch ~/.ductor-slack/restart-requested
 ```
 
 The bot detects this marker within seconds and performs a clean restart.

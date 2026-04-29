@@ -20,7 +20,7 @@ This is the navigation index for workspace tools.
 
 ## External API Secrets
 
-External API keys are loaded from `~/.ductor/.env` and injected into all
+External API keys are loaded from `~/.ductor-slack/.env` and injected into all
 CLI subprocesses (host and Docker). Standard dotenv syntax:
 
 ```env
@@ -36,7 +36,7 @@ Existing environment variables are never overridden by `.env` values.
 To restart the bot (e.g. after config changes or recovery):
 
 ```bash
-touch ~/.ductor/restart-requested
+touch ~/.ductor-slack/restart-requested
 ```
 
 The bot picks up this marker within seconds and restarts cleanly.

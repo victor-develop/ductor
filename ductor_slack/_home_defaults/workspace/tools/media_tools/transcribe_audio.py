@@ -21,7 +21,7 @@ import sys
 from pathlib import Path
 
 _TELEGRAM_FILES = Path(
-    os.environ.get("DUCTOR_HOME", str(Path.home() / ".ductor"))
+    os.environ.get("DUCTOR_HOME", str(Path.home() / ".ductor-slack"))
 ).expanduser() / "workspace" / "telegram_files"
 
 

@@ -1,6 +1,6 @@
 # Ductor Home
 
-This is the top-level `~/.ductor` directory.
+This is the top-level `~/.ductor-slack` directory.
 The main Telegram assistant usually runs with cwd `workspace/`.
 
 ## Cold Start (No Context)
@@ -27,7 +27,7 @@ You are one agent in a multi-agent system managed by a central Supervisor.
 
 ### Token Management
 
-- `~/.ductor/agents.json` is the single source of truth for all sub-agent
+- `~/.ductor-slack/agents.json` is the single source of truth for all sub-agent
   bot tokens, allowed users, and model settings.
 - The Supervisor reads `agents.json` at startup and merges each agent's
   token into its runtime config. **Your Telegram bot token comes from
@@ -53,7 +53,7 @@ See `workspace/tools/agent_tools/CLAUDE.md` for all agent management tools.
 
 ### Shared Knowledge
 
-`~/.ductor/SHAREDMEMORY.md` contains facts shared across all agents
+`~/.ductor-slack/SHAREDMEMORY.md` contains facts shared across all agents
 (server info, user preferences, infrastructure). Changes are automatically
 synced into every agent's `MAINMEMORY.md` by the Supervisor.
 

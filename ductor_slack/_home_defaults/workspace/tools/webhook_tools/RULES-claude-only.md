@@ -32,7 +32,7 @@ Do NOT suggest `--cli-parameters` proactively. Only mention it exists if the use
 ## Mandatory Rules
 
 1. Use webhook tool scripts for create/list/edit/remove/test/rotate.
-2. Do not manually edit `~/.ductor/webhooks.json` for normal operations.
+2. Do not manually edit `~/.ductor-slack/webhooks.json` for normal operations.
 3. Use exact hook IDs from `webhook_list.py` output.
 4. Run tools with `python3`.
 

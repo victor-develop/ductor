@@ -127,7 +127,7 @@ def main() -> None:
         result["json_error"] = json_error  # type: ignore[possibly-undefined]
         result["action_required"] = (
             f"The job '{actual_id}' is still in cron_jobs.json and will keep running! "
-            "Manually remove the entry from ~/.ductor/cron_jobs.json."
+            "Manually remove the entry from ~/.ductor-slack/cron_jobs.json."
         )
 
     if folder_error:

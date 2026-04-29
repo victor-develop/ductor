@@ -13,8 +13,8 @@ from pathlib import Path
 def detect_agent_name() -> str:
     """Detect the agent name from script path or env var.
 
-    Sub-agent tools live at ``~/.ductor/agents/<name>/workspace/tools/task_tools/``.
-    Main agent tools live at ``~/.ductor/workspace/tools/task_tools/``.
+    Sub-agent tools live at ``~/.ductor-slack/agents/<name>/workspace/tools/task_tools/``.
+    Main agent tools live at ``~/.ductor-slack/workspace/tools/task_tools/``.
     The path is the most reliable source — env var is used as fallback.
     """
     # Derive from script path: .../agents/<name>/workspace/tools/task_tools/

@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 _DUCTOR_HOME = Path(
-    os.environ.get("DUCTOR_HOME", str(Path.home() / ".ductor"))
+    os.environ.get("DUCTOR_HOME", str(Path.home() / ".ductor-slack"))
 ).expanduser()
 
 _MEDIA_DIRS = (

@@ -47,7 +47,7 @@ Do NOT suggest `--cli-parameters` proactively. Only mention it exists if the use
 Before creating time-based jobs:
 
 1. Run `python3 tools/cron_tools/cron_time.py`.
-2. If `user_timezone` is empty, ask the user and set it in `~/.ductor/config/config.json`.
+2. If `user_timezone` is empty, ask the user and set it in `~/.ductor-slack/config/config.json`.
 3. Tell the user to run `/restart` after timezone edits.
 
 Runtime timezone resolution is:

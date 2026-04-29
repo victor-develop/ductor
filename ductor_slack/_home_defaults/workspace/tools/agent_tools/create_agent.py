@@ -25,12 +25,12 @@ from pathlib import Path
 def _agents_path() -> Path:
     """Resolve agents.json path (always in main agent home).
 
-    Sub-agents have DUCTOR_HOME = ~/.ductor/agents/<name>/, so we navigate
-    up to the main home. Main agent's DUCTOR_HOME points directly to ~/.ductor/.
+    Sub-agents have DUCTOR_HOME = ~/.ductor-slack/agents/<name>/, so we navigate
+    up to the main home. Main agent's DUCTOR_HOME points directly to ~/.ductor-slack/.
     """
     import os
 
-    home = Path(os.environ.get("DUCTOR_HOME", str(Path.home() / ".ductor")))
+    home = Path(os.environ.get("DUCTOR_HOME", str(Path.home() / ".ductor-slack")))
     direct = home / "agents.json"
     if direct.is_file():
         return direct
@@ -49,8 +49,8 @@ def _main_home() -> Path:
     """Resolve the main agent's DUCTOR_HOME."""
     import os
 
-    home = Path(os.environ.get("DUCTOR_HOME", str(Path.home() / ".ductor")))
-    if home.name != ".ductor" and (home.parent.parent / "config").is_dir():
+    home = Path(os.environ.get("DUCTOR_HOME", str(Path.home() / ".ductor-slack")))
+    if home.name != ".ductor-slack" and (home.parent.parent / "config").is_dir():
         return home.parent.parent
     return home
 

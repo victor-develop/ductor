@@ -31,12 +31,12 @@ def _shared_path() -> Path:
     if env_path:
         return Path(env_path)
 
-    home = Path(os.environ.get("DUCTOR_HOME", str(Path.home() / ".ductor")))
+    home = Path(os.environ.get("DUCTOR_HOME", str(Path.home() / ".ductor-slack")))
     direct = home / "SHAREDMEMORY.md"
     if direct.is_file():
         return direct
 
-    # Sub-agent: home is ~/.ductor/agents/<name>/, shared is at ~/.ductor/SHAREDMEMORY.md
+    # Sub-agent: home is ~/.ductor-slack/agents/<name>/, shared is at ~/.ductor-slack/SHAREDMEMORY.md
     parent_home = home.parent.parent
     parent_path = parent_home / "SHAREDMEMORY.md"
     if parent_path.is_file():
