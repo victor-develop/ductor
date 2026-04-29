@@ -664,7 +664,13 @@ async def named_session_flow(
         return OrchestratorResult(text=t("session.still_running", name=session_name))
 
     tag = f"**[{session_name} | {ns.provider}]**\n"
-    orch._named_sessions.mark_running(key.chat_id, session_name, text)
+    orch._named_sessions.mark_running(
+        key.chat_id,
+        session_name,
+        text,
+        transport=key.transport,
+        topic_id=key.topic_id,
+    )
     request = AgentRequest(
         prompt=text,
         model_override=ns.model,
@@ -710,7 +716,13 @@ async def named_session_streaming(
 
     cb = cbs or StreamingCallbacks()
     tag = f"**[{session_name} | {ns.provider}]**\n"
-    orch._named_sessions.mark_running(key.chat_id, session_name, text)
+    orch._named_sessions.mark_running(
+        key.chat_id,
+        session_name,
+        text,
+        transport=key.transport,
+        topic_id=key.topic_id,
+    )
     request = AgentRequest(
         prompt=text,
         model_override=ns.model,

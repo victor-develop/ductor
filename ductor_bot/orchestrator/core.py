@@ -86,6 +86,7 @@ class NamedSessionRequest:
 
     message_id: int
     thread_id: int | None
+    transport: str = "tg"
     provider_override: str | None = None
     model_override: str | None = None
 
@@ -162,9 +163,10 @@ class Orchestrator:
             topic_id: int | None = None,
             prompt: str | None = None,
             ack_token: str | None = None,
+            transport: str = "tg",
         ) -> str | None:
             return await self.handle_heartbeat(
-                SessionKey(chat_id=chat_id, topic_id=topic_id),
+                SessionKey.for_transport(transport, chat_id, topic_id),
                 prompt=prompt,
                 ack_token=ack_token,
             )
@@ -527,13 +529,20 @@ class Orchestrator:
                 request.provider_override
             )
 
-        ns = self._named_sessions.create(chat_id, provider_name, model_name, prompt)
+        ns = self._named_sessions.create(
+            chat_id,
+            provider_name,
+            model_name,
+            prompt,
+            key=SessionKey.for_transport(request.transport, chat_id, request.thread_id),
+        )
         exec_config = resolve_cli_config(self._config, self._observers.codex_cache)
         sub = BackgroundSubmit(
             chat_id=chat_id,
             prompt=prompt,
             message_id=request.message_id,
             thread_id=request.thread_id,
+            transport=request.transport,
             session_name=ns.name,
             provider_override=provider_name,
             model_override=model_name,
@@ -567,13 +576,20 @@ class Orchestrator:
             msg = f"Session '{session_name}' is still processing"
             raise ValueError(msg)
 
-        self._named_sessions.mark_running(chat_id, session_name, prompt)
+        self._named_sessions.mark_running(
+            chat_id,
+            session_name,
+            prompt,
+            transport=ns.transport,
+            topic_id=thread_id,
+        )
         exec_config = resolve_cli_config(self._config, self._observers.codex_cache)
         sub = BackgroundSubmit(
             chat_id=chat_id,
             prompt=prompt,
             message_id=message_id,
-            thread_id=thread_id,
+            thread_id=thread_id if thread_id is not None else ns.topic_id,
+            transport=ns.transport,
             session_name=session_name,
             resume_session_id=ns.session_id,
             provider_override=ns.provider,

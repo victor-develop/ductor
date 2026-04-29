@@ -58,3 +58,25 @@ class TestTaskQuestionDelivery:
         mock_send.assert_awaited_once()
         assert mock_send.call_args.args[1] == "C123"
         assert "Task `t1` has a question" in mock_send.call_args.args[2]
+
+
+class TestBackgroundDelivery:
+    async def test_delivers_background_result_into_thread(self) -> None:
+        transport, _bot = _make_transport()
+        env = _env(
+            origin=Origin.BACKGROUND,
+            result_text="Done",
+            status="success",
+            elapsed_seconds=2.0,
+            topic_id=9,
+            metadata={"task_id": "bg1"},
+        )
+
+        with patch(
+            "ductor_bot.messenger.slack.transport.slack_send_rich", new_callable=AsyncMock
+        ) as mock_send:
+            await transport.deliver(env)
+
+        mock_send.assert_awaited_once()
+        opts = mock_send.call_args.args[3]
+        assert opts.thread_ts == "1710000000.123"

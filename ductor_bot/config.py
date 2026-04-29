@@ -123,6 +123,7 @@ class HeartbeatTarget(BaseModel):
     """
 
     enabled: bool = True
+    transport: str = "tg"
     chat_id: int | None = None
     topic_id: int | None = None
     prompt: str | None = None

@@ -174,6 +174,22 @@ class TestCommandPresentation:
 
 
 class TestMessageRouting:
+    async def test_app_mention_event_routes_like_message(self) -> None:
+        bot = _make_bot()
+        bot._on_message = AsyncMock()
+
+        event = {
+            "user": "U123",
+            "channel": "C123",
+            "channel_type": "channel",
+            "ts": "1710000000.456",
+            "text": "<@B123> status",
+        }
+
+        await bot._handle_mention_event(event, object())
+
+        bot._on_message.assert_awaited_once_with(event)
+
     async def test_backfills_first_thread_reply_after_mention(self) -> None:
         bot = _make_bot()
         bot._fetch_thread_context = AsyncMock(return_value="[ctx]\n")

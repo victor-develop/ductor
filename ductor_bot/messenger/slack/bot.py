@@ -235,8 +235,8 @@ class SlackBot:
     async def _handle_message_event(self, event: dict[str, Any], _say: object) -> None:
         await self._on_message(event)
 
-    async def _handle_mention_event(self, _event: dict[str, Any], _say: object) -> None:
-        return None
+    async def _handle_mention_event(self, event: dict[str, Any], _say: object) -> None:
+        await self._on_message(event)
 
     async def _on_message(self, event: dict[str, Any]) -> None:
         subtype = str(event.get("subtype", "") or "")
