@@ -49,6 +49,7 @@ The onboarding wizard handles CLI checks, transport setup, timezone, optional Do
 
 For Matrix support: `ductor-slack install matrix` — see [Matrix setup guide](docs/matrix-setup.md).
 For Slack support: `pip install "ductor-slack[slack]"`, then follow [`docs/installation.md#slack-setup`](docs/installation.md#slack-setup) and configure `slack.bot_token` + `slack.app_token`.
+For a direct deployment container, build [`Dockerfile.deploy`](Dockerfile.deploy) and follow [`docs/installation.md#container-deployment`](docs/installation.md#container-deployment).
 
 Detailed setup: [`docs/installation.md`](docs/installation.md)
 

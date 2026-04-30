@@ -251,6 +251,63 @@ Notes:
 - On Linux, ductor maps UID/GID to avoid root-owned files.
 - If Docker setup fails at startup, ductor logs warning and falls back to host execution.
 
+## Container deployment
+
+If you want to deploy the whole `ductor-slack` bot as a container, this fork also includes
+`Dockerfile.deploy`. Unlike `Dockerfile.sandbox`, it runs the main `ductor-slack` process
+directly instead of creating the reusable sidecar sandbox.
+
+Build:
+
+```bash
+docker build -f Dockerfile.deploy -t ductor-slack:deploy .
+```
+
+First run with onboarding attached:
+
+```bash
+docker run --rm -it \
+  --name ductor-slack-bootstrap \
+  -v ductor-slack-home:/home/node/.ductor-slack \
+  -v ductor-slack-claude:/home/node/.claude \
+  -v ductor-slack-codex:/home/node/.codex \
+  -v ductor-slack-gemini:/home/node/.gemini \
+  -v "$HOME/.claude.json:/home/node/.claude.json" \
+  -v "$HOME/.config:/home/node/.config" \
+  -v "$HOME/.cache/claude-cli-nodejs:/home/node/.cache/claude-cli-nodejs" \
+  -v "$PWD:/workspace" \
+  ductor-slack:deploy
+```
+
+Then switch to the long-running pattern:
+
+```bash
+docker run -d \
+  --name ductor-slack \
+  --restart unless-stopped \
+  -v ductor-slack-home:/home/node/.ductor-slack \
+  -v ductor-slack-claude:/home/node/.claude \
+  -v ductor-slack-codex:/home/node/.codex \
+  -v ductor-slack-gemini:/home/node/.gemini \
+  -v "$HOME/.claude.json:/home/node/.claude.json" \
+  -v "$HOME/.config:/home/node/.config" \
+  -v "$HOME/.cache/claude-cli-nodejs:/home/node/.cache/claude-cli-nodejs" \
+  -v "$PWD:/workspace" \
+  ductor-slack:deploy
+```
+
+Notes:
+
+- the image already installs the official `claude`, `codex`, and `gemini` CLIs
+- the default command is `ductor-slack`
+- the default working directory is `/workspace`; bind-mount the repo or project you want the bot to work on there
+- `~/.ductor-slack` should be persisted, otherwise config/sessions/logs are lost on recreate
+- for Claude auth persistence, `~/.claude`, `~/.claude.json`, and `~/.cache/claude-cli-nodejs`
+  are the most important mounts
+- for Slack, pre-seed `~/.ductor-slack/config/config.json` or attach once and run onboarding in
+  the container
+- avoid `ductor-slack service install` inside this image; let Docker handle restart policy instead
+
 Docker CLI shortcuts:
 
 ```bash

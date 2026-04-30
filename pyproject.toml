@@ -91,6 +91,8 @@ include = [
     "ductor_slack/",
     "config.example.json",
     "Dockerfile.sandbox",
+    "Dockerfile.deploy",
+    "docker-entrypoint.sh",
     "LICENSE",
     "README.md",
     "pyproject.toml",
