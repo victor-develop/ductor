@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import logging
 import signal
 from collections.abc import Awaitable, Callable
@@ -38,6 +39,32 @@ class StreamingCallbacks:
     on_thinking_delta: Callable[[str], Awaitable[None]] | None = field(default=None)
     on_tool_activity: Callable[[ToolUseEvent], Awaitable[None]] | None = field(default=None)
     on_system_status: Callable[[str | None], Awaitable[None]] | None = field(default=None)
+    on_reasoning_delta: Callable[[str], Awaitable[None]] | None = field(default=None)
+
+
+def _consume_background_result(task: asyncio.Task[None]) -> None:
+    """Consume task cancellation so fire-and-forget tasks stay quiet."""
+    with contextlib.suppress(asyncio.CancelledError):
+        task.result()
+
+
+def _schedule_memory_flush(orch: Orchestrator, key: SessionKey, session: SessionData) -> None:
+    """Run memory maintenance after the current locked user turn can release."""
+    flusher = orch._memory_flusher
+    if flusher is None:
+        return
+
+    async def _run() -> None:
+        try:
+            await flusher.maybe_flush(key, session)
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            logger.exception("Memory flush task failed chat=%d", key.chat_id)
+
+    topic = "main" if key.topic_id is None else str(key.topic_id)
+    task = asyncio.create_task(_run(), name=f"memory-flush:{key.chat_id}:{topic}")
+    task.add_done_callback(_consume_background_result)
 
 
 def _make_timeout_controller(orch: Orchestrator, kind: str) -> TimeoutController | None:
@@ -119,6 +146,7 @@ async def _prepare_normal(
         provider_override=req_provider,
         chat_id=key.chat_id,
         topic_id=key.topic_id,
+        transport=key.transport,
         resume_session=None if is_new else session.session_id,
         timeout_seconds=timeout_secs,
         timeout_controller=_make_timeout_controller(orch, "normal"),
@@ -213,6 +241,8 @@ _INVALID_SESSION_MARKERS = (
     # for resumed sessions whose cached session_id has expired. Keeping all
     # known phrasings here lets foreground + inter-agent paths share detection.
     "no conversation found",
+    "no rollout found",
+    "thread/resume failed",
 )
 
 
@@ -500,6 +530,7 @@ async def normal_streaming(  # noqa: PLR0911
             on_thinking_delta=cb.on_thinking_delta,
             on_tool_activity=cb.on_tool_activity,
             on_system_status=cb.on_system_status,
+            on_reasoning_delta=cb.on_reasoning_delta,
             on_compact_boundary=_on_compact if orch._memory_flusher is not None else None,
         )
         outcome = await _maybe_recover_session(
@@ -536,8 +567,7 @@ async def normal_streaming(  # noqa: PLR0911
                 cli_detail=response.result,
             )
         await _update_session(orch, session, response)
-        if orch._memory_flusher is not None:
-            await orch._memory_flusher.maybe_flush(key, session)
+        _schedule_memory_flush(orch, key, session)
         logger.info("Streaming flow completed")
         req_model, _prov = _request_target(orch, request)
         return _finish_normal(
@@ -681,6 +711,7 @@ async def named_session_flow(
         provider_override=ns.provider,
         chat_id=key.chat_id,
         topic_id=key.topic_id,
+        transport=key.transport,
         process_label=f"ns:{session_name}",
         resume_session=ns.session_id or None,
         timeout_seconds=resolve_timeout(orch._config, "normal"),
@@ -733,6 +764,7 @@ async def named_session_streaming(
         provider_override=ns.provider,
         chat_id=key.chat_id,
         topic_id=key.topic_id,
+        transport=key.transport,
         process_label=f"ns:{session_name}",
         resume_session=ns.session_id or None,
         timeout_seconds=resolve_timeout(orch._config, "normal"),
@@ -755,6 +787,7 @@ async def named_session_streaming(
         on_thinking_delta=cb.on_thinking_delta,
         on_tool_activity=cb.on_tool_activity,
         on_system_status=cb.on_system_status,
+        on_reasoning_delta=cb.on_reasoning_delta,
     )
 
     _reg2 = orch._process_registry
@@ -831,6 +864,7 @@ async def heartbeat_flow(
         provider_override=req_provider,
         chat_id=key.chat_id,
         topic_id=key.topic_id,
+        transport=key.transport,
         resume_session=session.session_id,
         timeout_seconds=resolve_timeout(orch._config, "normal"),
         timeout_controller=_make_timeout_controller(orch, "normal"),

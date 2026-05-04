@@ -1,4 +1,4 @@
-"""Detect how ductor was installed (pipx, pip, or dev/source)."""
+"""Detect how ductor was installed (pipx, uv tool, pip, or dev/source)."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from ductor_slack.app_identity import PACKAGE_NAME
 
 logger = logging.getLogger(__name__)
 
-InstallMode = Literal["pipx", "pip", "dev"]
+InstallMode = Literal["pipx", "uv", "pip", "dev"]
 
 _PACKAGE_NAME = PACKAGE_NAME
 
@@ -22,11 +22,17 @@ def detect_install_mode() -> InstallMode:
 
     Returns:
         ``"pipx"`` -- installed via ``pipx install ductor-slack``
+        ``"uv"``   -- installed via ``uv tool install ductor``
         ``"pip"``  -- installed via ``pip install ductor-slack`` (from PyPI)
         ``"dev"``  -- editable install (``pip install -e .``) or running from source
     """
-    if "pipx" in sys.prefix:
+    prefix = str(sys.prefix).replace("\\", "/").lower()
+    executable = str(getattr(sys, "executable", "")).replace("\\", "/").lower()
+
+    if "pipx" in prefix:
         return "pipx"
+    if "/uv/tools/" in prefix or "/uv/tools/" in executable:
+        return "uv"
 
     try:
         dist = distribution(_PACKAGE_NAME)
@@ -42,5 +48,5 @@ def detect_install_mode() -> InstallMode:
 
 
 def is_upgradeable() -> bool:
-    """Return True if the bot can self-upgrade (pipx or pip, not dev)."""
+    """Return True if the bot can self-upgrade (pipx, uv, or pip; not dev)."""
     return detect_install_mode() != "dev"

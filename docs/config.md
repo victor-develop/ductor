@@ -232,6 +232,13 @@ Behavior notes:
 | `max_edit_failures` | `int` | `3` |
 | `append_mode` | `bool` | `false` |
 | `sentence_break` | `bool` | `true` |
+| `show_reasoning_stream` | `bool` | `false` |
+| `show_tool_progress` | `bool` | `true` |
+| `show_thinking_indicator` | `bool` | `true` |
+
+- `show_reasoning_stream`: when the provider exposes reasoning/thinking blocks, stream them as separate Telegram messages instead of degrading them to a plain status indicator.
+- `show_tool_progress`: show live Telegram tool activity messages during streaming turns.
+- `show_thinking_indicator`: keep the lighter Telegram `THINKING` status indicator when no reasoning stream is being shown.
 
 ## `DockerConfig`
 

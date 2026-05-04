@@ -23,6 +23,14 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_TRANSPORT_ALIASES = {"telegram": "tg", "matrix": "mx"}
+
+
+def _transport_id(value: str) -> str:
+    """Return the short transport id used by SessionKey and Envelope."""
+    stripped = value.strip().lower()
+    return _TRANSPORT_ALIASES.get(stripped, stripped or "tg")
+
 
 # ---------------------------------------------------------------------------
 # Shared injection helper
@@ -50,6 +58,7 @@ async def _inject_prompt(  # noqa: PLR0913
         prompt=prompt,
         chat_id=chat_id,
         topic_id=topic_id,
+        transport=transport,
         process_label=process_label,
         resume_session=resume_id,
         timeout_seconds=orch._config.cli_timeout,
@@ -166,6 +175,7 @@ async def handle_interagent_message(
     """
     own_name = orch._cli_service._config.agent_name
     chat_id = _interagent_chat_id(orch)
+    transport = _transport_id(orch._config.transport)
     ns, _is_new, provider_switch_notice = _get_or_create_interagent_session(
         orch,
         sender,
@@ -184,6 +194,7 @@ async def handle_interagent_message(
     request = AgentRequest(
         prompt=prompt,
         chat_id=chat_id,
+        transport=transport,
         process_label=f"interagent:{sender}",
         resume_session=ns.session_id or None,
         timeout_seconds=orch._config.cli_timeout,
@@ -220,6 +231,7 @@ async def handle_interagent_message(
         retry_request = AgentRequest(
             prompt=prompt,
             chat_id=chat_id,
+            transport=transport,
             process_label=f"interagent:{sender}",
             resume_session=None,
             timeout_seconds=orch._config.cli_timeout,

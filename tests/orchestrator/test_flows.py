@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 from unittest.mock import AsyncMock
 
 import pytest
@@ -359,6 +360,37 @@ async def test_streaming_fallback_flag(orch: Orchestrator) -> None:
     )
     result = await normal_streaming(orch, SessionKey(chat_id=1), "Hello")
     assert result.stream_fallback is True
+
+
+async def test_streaming_schedules_memory_flush_without_blocking_reply(
+    orch: Orchestrator,
+) -> None:
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def _maybe_flush(_key: SessionKey, _session: SessionData) -> None:
+        started.set()
+        await release.wait()
+
+    memory_flusher = AsyncMock()
+    memory_flusher.maybe_flush = AsyncMock(side_effect=_maybe_flush)
+    object.__setattr__(orch, "_memory_flusher", memory_flusher)
+    object.__setattr__(
+        orch._cli_service,
+        "execute_streaming",
+        AsyncMock(return_value=_mock_response()),
+    )
+
+    result = await asyncio.wait_for(
+        normal_streaming(orch, SessionKey(chat_id=1), "Hello"),
+        timeout=0.5,
+    )
+
+    assert result.text == "Hello from agent"
+    await asyncio.wait_for(started.wait(), timeout=0.5)
+    release.set()
+    await asyncio.sleep(0)
+    memory_flusher.maybe_flush.assert_awaited_once()
 
 
 async def test_streaming_sigkill_recovers_once_then_succeeds(orch: Orchestrator) -> None:
@@ -744,6 +776,17 @@ def test_is_invalid_session_case_insensitive() -> None:
 
     response = AgentResponse(
         result="NO CONVERSATION FOUND with session ID: XYZ",
+        is_error=True,
+    )
+    assert _is_invalid_session(response) is True
+
+
+def test_is_invalid_session_matches_codex_resume_rollout_error() -> None:
+    """Codex can report stale resume state as a missing rollout/thread resume failure."""
+    from ductor_bot.orchestrator.flows import _is_invalid_session
+
+    response = AgentResponse(
+        result="Error: thread/resume failed: no rollout found for thread id abc",
         is_error=True,
     )
     assert _is_invalid_session(response) is True

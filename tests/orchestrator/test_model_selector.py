@@ -384,3 +384,39 @@ async def test_switch_reasoning_only(orch: Orchestrator) -> None:
     assert "Reasoning effort updated" in result
     mock_kill.assert_not_called()
     mock_reset.assert_not_called()
+
+
+async def test_switch_model_rejects_invalid_codex_reasoning_effort(orch: Orchestrator) -> None:
+    from unittest.mock import MagicMock
+
+    from ductor_bot.cli.codex_cache import CodexModelCache
+    from ductor_bot.cli.codex_discovery import CodexModelInfo
+
+    object.__setattr__(orch._process_registry, "kill_all", AsyncMock(return_value=0))
+    orch._observers.codex_cache_obs = MagicMock(
+        get_cache=MagicMock(
+            return_value=CodexModelCache(
+                last_updated="2026-04-23T12:00:00",
+                models=[
+                    CodexModelInfo(
+                        id="gpt-4o-mini",
+                        display_name="GPT-4o Mini",
+                        description="mini",
+                        supported_efforts=(),
+                        default_effort="",
+                        is_default=False,
+                    )
+                ],
+            )
+        )
+    )
+
+    result = await switch_model(
+        orch,
+        SessionKey(chat_id=1),
+        "gpt-4o-mini",
+        reasoning_effort="high",
+    )
+
+    assert "Invalid reasoning effort" in result
+    assert "gpt-4o-mini" in result

@@ -1195,7 +1195,17 @@ class MatrixBot:
     # --- Inter-agent & task handlers (BotProtocol) ---
 
     async def on_async_interagent_result(self, result: AsyncInterAgentResult) -> None:
-        from ductor_slack.bus.adapters import from_interagent_result
+        from ductor_slack.bus.adapters import (
+            build_interagent_injection_prompt,
+            from_interagent_result,
+        )
+
+        if result.transport and result.transport != "mx":
+            logger.debug(
+                "Skipping async interagent result for transport=%s in Matrix handler",
+                result.transport,
+            )
+            return
 
         chat_id = self._default_chat_id()
         if not chat_id:
@@ -1206,9 +1216,21 @@ class MatrixBot:
             text = result.result_text or f"Inter-agent result from {result.recipient}"
             await self._notification_service.notify_all(text)
             return
-        env = from_interagent_result(result, chat_id)
-        env.transport = "mx"
-        await self._bus.submit(env)
+
+        injection_prompt = build_interagent_injection_prompt(
+            result,
+            agent_name=self._agent_name,
+            transport_label="Matrix room",
+        )
+
+        await self._bus.submit(
+            from_interagent_result(
+                result,
+                chat_id,
+                injection_prompt=injection_prompt,
+                transport="mx",
+            )
+        )
 
     async def on_task_result(self, result: TaskResult) -> None:
         from ductor_slack.bus.adapters import from_task_result

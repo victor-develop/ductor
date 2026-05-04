@@ -97,6 +97,15 @@ def _build_upgrade_command(
         return cmd
 
     spec = f"{PACKAGE_NAME}=={target_version}" if target_version else PACKAGE_NAME
+    if mode == "uv":
+        spec = f"{PACKAGE_NAME}=={target_version}" if target_version else PACKAGE_NAME
+        cmd = ["uv", "tool", "upgrade"]
+        if force_reinstall:
+            cmd.append("--reinstall")
+        cmd.append(spec)
+        return cmd
+
+    spec = f"{PACKAGE_NAME}=={target_version}" if target_version else PACKAGE_NAME
     cmd = [sys.executable, "-m", "pip", "install", "--upgrade", "--no-cache-dir"]
     if force_reinstall:
         cmd.append("--force-reinstall")

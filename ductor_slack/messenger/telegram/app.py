@@ -1465,7 +1465,17 @@ class TelegramBot:
 
     async def on_async_interagent_result(self, result: AsyncInterAgentResult) -> None:
         """Handle async inter-agent result via the message bus."""
-        from ductor_slack.bus.adapters import from_interagent_result
+        from ductor_slack.bus.adapters import (
+            build_interagent_injection_prompt,
+            from_interagent_result,
+        )
+
+        if result.transport and result.transport != "tg":
+            logger.debug(
+                "Skipping async interagent result for transport=%s in Telegram handler",
+                result.transport,
+            )
+            return
 
         # Prefer the originating chat context carried by the result;
         # fall back to the sender agent's default DM.
@@ -1476,7 +1486,28 @@ class TelegramBot:
             logger.warning("No chat_id available for async interagent result delivery")
             return
         set_log_context(operation="ia-async", chat_id=chat_id)
-        await self._bus.submit(from_interagent_result(result, chat_id))
+
+        injection_prompt = build_interagent_injection_prompt(
+            result,
+            agent_name=self._agent_name,
+            transport_label="Telegram chat",
+        )
+        if injection_prompt:
+            logger.info(
+                "ia-async inject: task=%s from=%s prompt_len=%d",
+                result.task_id,
+                result.recipient or result.sender,
+                len(injection_prompt),
+            )
+
+        await self._bus.submit(
+            from_interagent_result(
+                result,
+                chat_id,
+                injection_prompt=injection_prompt,
+                transport="tg",
+            )
+        )
 
     async def on_task_result(self, result: TaskResult) -> None:
         """Handle background task result via the message bus."""

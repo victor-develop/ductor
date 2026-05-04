@@ -13,7 +13,7 @@ from ductor_slack.messenger.telegram.sender import (
     send_files_from_text,
     send_rich,
 )
-from ductor_slack.messenger.telegram.streaming import create_stream_editor
+from ductor_slack.messenger.telegram.streaming import StreamEditor, create_stream_editor
 from ductor_slack.messenger.telegram.typing import TypingContext
 from ductor_slack.orchestrator.registry import OrchestratorResult
 from ductor_slack.session.key import SessionKey
@@ -143,6 +143,13 @@ def _status_reaction_enabled(scene: SceneConfig | None) -> bool:
     return bool(scene is not None and scene.status_reaction)
 
 
+def _format_reasoning_chunk(text: str) -> str:
+    normalized = text.strip()
+    if not normalized:
+        return ""
+    return f"**Thinking**\n\n{normalized}"
+
+
 @dataclass(slots=True)
 class NonStreamingDispatch:
     """Input payload for one non-streaming message turn.
@@ -220,7 +227,7 @@ async def run_non_streaming_message(
         await tracker.clear()
 
 
-async def run_streaming_message(
+async def run_streaming_message(  # noqa: C901, PLR0915
     dispatch: StreamingDispatch,
 ) -> str:
     """Execute one streaming turn and deliver text/files to Telegram."""
@@ -240,6 +247,14 @@ async def run_streaming_message(
         cfg=dispatch.streaming_cfg,
         thread_id=dispatch.thread_id,
     )
+    streamed_text_sent = False
+
+    async def _flush_text_chunk(chunk: str) -> None:
+        nonlocal streamed_text_sent
+        if chunk.strip():
+            streamed_text_sent = True
+        await editor.append_text(chunk)
+
     coalescer = StreamCoalescer(
         config=CoalesceConfig(
             min_chars=dispatch.streaming_cfg.min_chars,
@@ -247,8 +262,34 @@ async def run_streaming_message(
             idle_ms=dispatch.streaming_cfg.idle_ms,
             sentence_break=dispatch.streaming_cfg.sentence_break,
         ),
-        on_flush=editor.append_text,
+        on_flush=_flush_text_chunk,
     )
+
+    reasoning_coalescer: StreamCoalescer | None = None
+    if dispatch.streaming_cfg.show_reasoning_stream:
+        reasoning_editor = StreamEditor(
+            dispatch.bot,
+            dispatch.key.chat_id,
+            thread_id=dispatch.thread_id,
+        )
+
+        async def _flush_reasoning_chunk(chunk: str) -> None:
+            formatted = _format_reasoning_chunk(chunk)
+            if not formatted:
+                return
+            await reasoning_editor.append_text(formatted)
+
+        reasoning_coalescer = StreamCoalescer(
+            config=CoalesceConfig(
+                min_chars=dispatch.streaming_cfg.min_chars,
+                max_chars=dispatch.streaming_cfg.max_chars,
+                idle_ms=dispatch.streaming_cfg.idle_ms,
+                sentence_break=dispatch.streaming_cfg.sentence_break,
+            ),
+            on_flush=_flush_reasoning_chunk,
+        )
+
+    thinking_indicator_sent = False
 
     async def on_text(delta: str) -> None:
         await coalescer.feed(delta)
@@ -257,7 +298,10 @@ async def run_streaming_message(
         tool_name = str(getattr(tool, "tool_name", tool))
         await tracker.set_tool(tool_name)
         await coalescer.flush(force=True)
-        await editor.append_tool(tool_name)
+        if reasoning_coalescer is not None:
+            await reasoning_coalescer.flush(force=True)
+        if dispatch.streaming_cfg.show_tool_progress:
+            await editor.append_tool(tool_name)
 
     async def on_system(status: str | None) -> None:
         system_map: dict[str, str] = {
@@ -270,9 +314,29 @@ async def run_streaming_message(
         label = system_map.get(status or "")
         if label is None:
             return
+        if status == "thinking":
+            if dispatch.streaming_cfg.show_reasoning_stream:
+                return
+            if not dispatch.streaming_cfg.show_thinking_indicator:
+                return
         await tracker.set_system()
         await coalescer.flush(force=True)
+        if reasoning_coalescer is not None:
+            await reasoning_coalescer.flush(force=True)
         await editor.append_system(label)
+
+    async def on_reasoning(delta: str) -> None:
+        nonlocal thinking_indicator_sent
+        if not delta.strip():
+            return
+        await tracker.set_thinking()
+        await coalescer.flush(force=True)
+        if reasoning_coalescer is not None:
+            await reasoning_coalescer.feed(delta)
+            return
+        if dispatch.streaming_cfg.show_thinking_indicator and not thinking_indicator_sent:
+            thinking_indicator_sent = True
+            await on_system("thinking")
 
     try:
         await tracker.set_thinking()
@@ -283,10 +347,14 @@ async def run_streaming_message(
                 on_text_delta=on_text,
                 on_tool_activity=on_tool,
                 on_system_status=on_system,
+                on_reasoning_delta=on_reasoning,
             )
 
         await coalescer.flush(force=True)
         coalescer.stop()
+        if reasoning_coalescer is not None:
+            await reasoning_coalescer.flush(force=True)
+            reasoning_coalescer.stop()
         footer = _build_footer(result, dispatch.scene_config)
         if footer:
             await editor.append_text(footer)
@@ -299,7 +367,7 @@ async def run_streaming_message(
             editor.has_content,
         )
 
-        if result.stream_fallback or not editor.has_content:
+        if result.stream_fallback or not streamed_text_sent or not editor.has_content:
             await send_rich(
                 dispatch.bot,
                 dispatch.key.chat_id,
