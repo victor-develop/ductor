@@ -51,14 +51,17 @@ class AsyncSendOptions:
 
     *new_session*: end any existing inter-agent session before processing.
     *summary*: notification preview shown in the recipient's Telegram chat.
-    *chat_id* / *topic_id*: originating Telegram group/topic context so
+    *chat_id* / *topic_id*: originating transport chat/topic context so
     that results are delivered back to the correct thread.
+    *transport*: short transport id (``"tg"`` / ``"mx"``) for multi-transport
+    result routing.
     """
 
     new_session: bool = False
     summary: str = ""
     chat_id: int = 0
     topic_id: int | None = None
+    transport: str = ""
     # #86: when non-empty, the async result handler is resolved against this
     # agent name instead of ``sender`` — lets cross-server SSH pipelines
     # route replies to a specific agent even when ``sender`` is "unknown".
@@ -83,6 +86,7 @@ class AsyncInterAgentTask:
     asyncio_task: asyncio.Task[None] | None = field(default=None, repr=False)
     chat_id: int = 0
     topic_id: int | None = None
+    transport: str = ""
     reply_to: str = ""  # #86
     silent: bool = False  # #86
 
@@ -104,6 +108,7 @@ class AsyncInterAgentResult:
     original_message: str = ""
     chat_id: int = 0
     topic_id: int | None = None
+    transport: str = ""
     reply_to: str = ""  # #86 — overrides sender for handler lookup when set
 
 
@@ -254,6 +259,7 @@ class InterAgentBus:
             summary=o.summary,
             chat_id=o.chat_id,
             topic_id=o.topic_id,
+            transport=o.transport,
             reply_to=o.reply_to,
             silent=o.silent,
         )
@@ -299,6 +305,7 @@ class InterAgentBus:
                         original_message=task.message,
                         chat_id=task.chat_id,
                         topic_id=task.topic_id,
+                        transport=task.transport,
                         reply_to=task.reply_to,
                     )
                 )
@@ -338,6 +345,7 @@ class InterAgentBus:
                     original_message=task.message,
                     chat_id=task.chat_id,
                     topic_id=task.topic_id,
+                    transport=task.transport,
                     reply_to=task.reply_to,
                 )
             )
@@ -362,6 +370,7 @@ class InterAgentBus:
                     original_message=task.message,
                     chat_id=task.chat_id,
                     topic_id=task.topic_id,
+                    transport=task.transport,
                     reply_to=task.reply_to,
                 )
             )
@@ -381,6 +390,7 @@ class InterAgentBus:
                     original_message=task.message,
                     chat_id=task.chat_id,
                     topic_id=task.topic_id,
+                    transport=task.transport,
                     reply_to=task.reply_to,
                 )
             )

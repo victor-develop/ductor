@@ -45,12 +45,14 @@ class _StreamCallbacks:
         on_thinking: Callable[[str], Awaitable[None]] | None,
         on_tool: _ToolCallback | None,
         on_status: Callable[[str | None], Awaitable[None]] | None,
+        on_reasoning: Callable[[str], Awaitable[None]] | None = None,
         on_compact_boundary: Callable[[], Awaitable[None]] | None = None,
     ) -> None:
         self._on_text = on_text
         self._on_thinking = on_thinking
         self._on_tool = on_tool
         self._on_status = on_status
+        self._on_reasoning = on_reasoning
         self._on_compact_boundary = on_compact_boundary
         self.init_session_id: str | None = None
 
@@ -66,7 +68,9 @@ class _StreamCallbacks:
         if isinstance(event, ThinkingEvent):
             if event.text and self._on_thinking is not None:
                 await self._on_thinking(event.text)
-            if self._on_status is not None:
+            if self._on_reasoning is not None and event.text:
+                await self._on_reasoning(event.text)
+            elif self._on_status is not None:
                 await self._on_status("thinking")
         elif isinstance(event, ToolUseEvent) and self._on_tool is not None:
             await self._on_tool(event)
@@ -193,6 +197,7 @@ class CLIService:
         on_thinking_delta: Callable[[str], Awaitable[None]] | None = None,
         on_tool_activity: _ToolCallback | None = None,
         on_system_status: Callable[[str | None], Awaitable[None]] | None = None,
+        on_reasoning_delta: Callable[[str], Awaitable[None]] | None = None,
         on_compact_boundary: Callable[[], Awaitable[None]] | None = None,
     ) -> AgentResponse:
         """Execute a streaming CLI call with automatic fallback to non-streaming."""
@@ -212,6 +217,7 @@ class CLIService:
             on_thinking_delta,
             on_tool_activity,
             on_system_status,
+            on_reasoning_delta,
             on_compact_boundary,
         )
 
@@ -349,6 +355,7 @@ class CLIService:
                 process_registry=self._process_registry,
                 chat_id=request.chat_id,
                 topic_id=request.topic_id,
+                transport=request.transport,
                 process_label=request.process_label,
                 cli_parameters=self._config.cli_parameters_for_provider(provider),
                 agent_name=self._config.agent_name,

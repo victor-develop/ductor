@@ -56,6 +56,9 @@ class StreamingConfig(BaseModel):
     max_edit_failures: int = 3
     append_mode: bool = False
     sentence_break: bool = True
+    show_reasoning_stream: bool = False
+    show_tool_progress: bool = True
+    show_thinking_indicator: bool = True
 
 
 class DockerConfig(BaseModel):

@@ -97,10 +97,13 @@ def main() -> None:
         body["silent"] = True
     chat_id = os.environ.get("DUCTOR_CHAT_ID", "")
     topic_id = os.environ.get("DUCTOR_TOPIC_ID", "")
+    transport = os.environ.get("DUCTOR_TRANSPORT", "")
     if chat_id:
         body["chat_id"] = int(chat_id)
     if topic_id:
         body["topic_id"] = int(topic_id)
+    if transport:
+        body["transport"] = transport
     payload = json.dumps(body).encode()
 
     req = urllib.request.Request(

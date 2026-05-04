@@ -82,16 +82,15 @@ def test_resolve_with_task_overrides(
     """Should apply task overrides over global config."""
     overrides = TaskOverrides(
         provider="codex",
-        model="gpt-4o-mini",
+        model="gpt-4o",
         reasoning_effort="low",
     )
 
     result = resolve_cli_config(base_config, codex_cache, task_overrides=overrides)
 
     assert result.provider == "codex"
-    assert result.model == "gpt-4o-mini"
-    # gpt-4o-mini doesn't support reasoning, should be empty
-    assert result.reasoning_effort == ""
+    assert result.model == "gpt-4o"
+    assert result.reasoning_effort == "low"
     assert result.cli_parameters == []
 
 
@@ -150,17 +149,15 @@ def test_resolve_codex_reasoning_effort(
 def test_resolve_codex_effort_fallback(
     base_config: AgentConfig, codex_cache: CodexModelCache
 ) -> None:
-    """Should fall back to empty reasoning effort for non-reasoning models."""
+    """Explicit invalid reasoning override must fail loudly."""
     overrides = TaskOverrides(
         provider="codex",
         model="gpt-4o-mini",
         reasoning_effort="high",  # Attempt to set, but model doesn't support
     )
 
-    result = resolve_cli_config(base_config, codex_cache, task_overrides=overrides)
-
-    assert result.model == "gpt-4o-mini"
-    assert result.reasoning_effort == ""
+    with pytest.raises(DuctorError, match="Invalid reasoning effort"):
+        resolve_cli_config(base_config, codex_cache, task_overrides=overrides)
 
 
 def test_resolve_claude_ignores_reasoning(

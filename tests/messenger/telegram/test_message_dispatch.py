@@ -1,4 +1,4 @@
-"""Unit tests for ReactionTracker in telegram.message_dispatch (#63)."""
+"""Unit tests for Telegram message dispatch helpers."""
 
 from __future__ import annotations
 
@@ -13,8 +13,11 @@ from ductor_bot.messenger.telegram.message_dispatch import (
     _REACTION_THINKING,
     NonStreamingDispatch,
     ReactionTracker,
+    StreamingDispatch,
     run_non_streaming_message,
+    run_streaming_message,
 )
+from ductor_bot.orchestrator.registry import OrchestratorResult
 from ductor_bot.session.key import SessionKey
 
 
@@ -160,3 +163,121 @@ async def test_non_streaming_reacts_on_trigger_message_not_reply_to() -> None:
 
 if __name__ == "__main__":  # pragma: no cover
     raise SystemExit(pytest.main([__file__, "-v"]))
+
+
+async def test_streaming_reasoning_only_still_sends_final_answer() -> None:
+    """Reasoning text must never suppress the final Telegram answer."""
+    from ductor_bot.config import StreamingConfig
+
+    bot = _make_bot()
+    bot.send_message = AsyncMock(return_value=MagicMock())
+    message = MagicMock()
+    message.message_id = 55
+
+    editor = MagicMock()
+    editor.has_content = False
+    editor.append_text = AsyncMock()
+    editor.append_tool = AsyncMock()
+    editor.append_system = AsyncMock()
+    editor.finalize = AsyncMock()
+
+    orch = MagicMock()
+
+    async def _handle_streaming(*_args, **kwargs):
+        await kwargs["on_reasoning_delta"]("I am thinking through the patch")
+        return OrchestratorResult(text="Final answer delivered")
+
+    orch.handle_message_streaming = AsyncMock(side_effect=_handle_streaming)
+
+    dispatch = StreamingDispatch(
+        bot=bot,
+        orchestrator=orch,
+        message=message,
+        key=SessionKey(chat_id=1),
+        text="hello",
+        streaming_cfg=StreamingConfig(
+            show_reasoning_stream=True,
+            show_tool_progress=True,
+            show_thinking_indicator=False,
+        ),
+        allowed_roots=[Path("/tmp")],
+    )
+
+    with (
+        patch(
+            "ductor_bot.messenger.telegram.message_dispatch.create_stream_editor",
+            return_value=editor,
+        ),
+        patch(
+            "ductor_bot.messenger.telegram.message_dispatch.send_rich",
+            new_callable=AsyncMock,
+        ) as send_rich_mock,
+        patch(
+            "ductor_bot.messenger.telegram.message_dispatch.send_files_from_text",
+            new_callable=AsyncMock,
+        ) as send_files_mock,
+        patch("ductor_bot.messenger.telegram.message_dispatch.TypingContext") as typing_ctx,
+    ):
+        typing_ctx.return_value.__aenter__ = AsyncMock()
+        typing_ctx.return_value.__aexit__ = AsyncMock()
+
+        result = await run_streaming_message(dispatch)
+
+    assert result == "Final answer delivered"
+    send_rich_mock.assert_awaited_once()
+    assert send_rich_mock.await_args.args[2] == "Final answer delivered"
+    send_files_mock.assert_not_awaited()
+
+
+async def test_streaming_tool_progress_can_be_disabled() -> None:
+    from ductor_bot.config import StreamingConfig
+
+    bot = _make_bot()
+    message = MagicMock()
+    message.message_id = 77
+
+    editor = MagicMock()
+    editor.has_content = False
+    editor.append_text = AsyncMock()
+    editor.append_tool = AsyncMock()
+    editor.append_system = AsyncMock()
+    editor.finalize = AsyncMock()
+
+    orch = MagicMock()
+
+    async def _handle_streaming(*_args, **kwargs):
+        await kwargs["on_tool_activity"]("Read")
+        return OrchestratorResult(text="done", stream_fallback=True)
+
+    orch.handle_message_streaming = AsyncMock(side_effect=_handle_streaming)
+
+    dispatch = StreamingDispatch(
+        bot=bot,
+        orchestrator=orch,
+        message=message,
+        key=SessionKey(chat_id=1),
+        text="hello",
+        streaming_cfg=StreamingConfig(show_tool_progress=False),
+        allowed_roots=[Path("/tmp")],
+    )
+
+    with (
+        patch(
+            "ductor_bot.messenger.telegram.message_dispatch.create_stream_editor",
+            return_value=editor,
+        ),
+        patch(
+            "ductor_bot.messenger.telegram.message_dispatch.send_rich",
+            new_callable=AsyncMock,
+        ),
+        patch(
+            "ductor_bot.messenger.telegram.message_dispatch.send_files_from_text",
+            new_callable=AsyncMock,
+        ),
+        patch("ductor_bot.messenger.telegram.message_dispatch.TypingContext") as typing_ctx,
+    ):
+        typing_ctx.return_value.__aenter__ = AsyncMock()
+        typing_ctx.return_value.__aexit__ = AsyncMock()
+        await run_streaming_message(dispatch)
+
+    editor.append_tool.assert_not_awaited()
