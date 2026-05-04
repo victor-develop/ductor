@@ -53,6 +53,8 @@ logger = logging.getLogger(__name__)
 _DEFAULT_MENTIONED_THREAD_TTL_SECONDS = 3600.0
 _DEFAULT_MENTIONED_THREAD_MAX_SIZE = 200
 _DEFAULT_THREAD_CONTEXT_CACHE_MAX_SIZE = 200
+_DEFAULT_RECENT_EVENT_TTL_SECONDS = 120.0
+_DEFAULT_RECENT_EVENT_MAX_SIZE = 500
 _MESSAGE_COMMANDS_WITH_ARGS = frozenset(
     {"agent_restart", "agent_start", "agent_stop", "model", "session", "showfiles"}
 )
@@ -142,10 +144,13 @@ class SlackBot:
         self._team_id = ""
         self._last_active_channel: str | None = None
         self._mentioned_threads: dict[tuple[str, str], float] = {}
+        self._recent_events: dict[tuple[str, str], float] = {}
         self._user_name_cache: dict[str, str] = {}
         self._thread_context_cache: dict[str, _ThreadContextCache] = {}
         self._MENTIONED_THREAD_TTL = _DEFAULT_MENTIONED_THREAD_TTL_SECONDS
         self._MENTIONED_THREAD_MAX_SIZE = _DEFAULT_MENTIONED_THREAD_MAX_SIZE
+        self._RECENT_EVENT_TTL = _DEFAULT_RECENT_EVENT_TTL_SECONDS
+        self._RECENT_EVENT_MAX_SIZE = _DEFAULT_RECENT_EVENT_MAX_SIZE
         self._THREAD_CACHE_TTL = 60.0
         self._THREAD_CONTEXT_CACHE_MAX_SIZE = _DEFAULT_THREAD_CONTEXT_CACHE_MAX_SIZE
 
@@ -235,10 +240,10 @@ class SlackBot:
         self._app.event("message")(self._handle_message_event)
         self._app.event("app_mention")(self._handle_mention_event)
 
-    async def _handle_message_event(self, event: dict[str, Any], _say: object) -> None:
+    async def _handle_message_event(self, event: dict[str, Any]) -> None:
         await self._on_message(event)
 
-    async def _handle_mention_event(self, event: dict[str, Any], _say: object) -> None:
+    async def _handle_mention_event(self, event: dict[str, Any]) -> None:
         await self._on_message(event)
 
     async def _on_message(self, event: dict[str, Any]) -> None:
@@ -261,6 +266,9 @@ class SlackBot:
 
         thread_ts = str(event.get("thread_ts", "") or "")
         ts = str(event.get("ts", "") or "")
+        if self._should_skip_recent_event(channel_id, ts):
+            logger.debug("Skipping duplicate Slack event for %s/%s", channel_id, ts)
+            return
         reply_thread_ts = thread_ts or (ts if not is_dm else "")
         is_thread_reply = bool(reply_thread_ts and reply_thread_ts != ts)
         has_thread_session = bool(
@@ -740,6 +748,32 @@ class SlackBot:
         while len(self._mentioned_threads) > max_size:
             oldest = next(iter(self._mentioned_threads))
             del self._mentioned_threads[oldest]
+
+    def _prune_recent_events(self, now: float) -> None:
+        if self._RECENT_EVENT_TTL > 0:
+            cutoff = now - self._RECENT_EVENT_TTL
+            expired = [key for key, seen_at in self._recent_events.items() if seen_at < cutoff]
+            for key in expired:
+                del self._recent_events[key]
+        max_size = max(1, self._RECENT_EVENT_MAX_SIZE)
+        while len(self._recent_events) > max_size:
+            oldest = next(iter(self._recent_events))
+            del self._recent_events[oldest]
+
+    def _should_skip_recent_event(self, channel_id: str, message_ts: str) -> bool:
+        if not channel_id or not message_ts:
+            return False
+        now = time.monotonic()
+        self._prune_recent_events(now)
+        key = (channel_id, message_ts)
+        seen_at = self._recent_events.get(key)
+        if seen_at is not None:
+            if self._RECENT_EVENT_TTL <= 0 or now - seen_at < self._RECENT_EVENT_TTL:
+                return True
+            del self._recent_events[key]
+        self._recent_events[key] = now
+        self._prune_recent_events(now)
+        return False
 
     def _mark_mentioned_thread(self, channel_id: str, thread_ts: str) -> None:
         now = time.monotonic()
