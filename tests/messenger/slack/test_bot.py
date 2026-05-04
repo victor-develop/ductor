@@ -38,10 +38,13 @@ def _make_bot() -> SlackBot:
     bot._team_id = "T123"
     bot._last_active_channel = None
     bot._mentioned_threads = {}
+    bot._recent_events = {}
     bot._user_name_cache = {}
     bot._thread_context_cache = {}
     bot._MENTIONED_THREAD_TTL = 3600.0
     bot._MENTIONED_THREAD_MAX_SIZE = 200
+    bot._RECENT_EVENT_TTL = 120.0
+    bot._RECENT_EVENT_MAX_SIZE = 500
     bot._THREAD_CACHE_TTL = 60.0
     bot._THREAD_CONTEXT_CACHE_MAX_SIZE = 200
     bot._dispatch_with_lock = AsyncMock()
@@ -94,6 +97,36 @@ class TestMentionedThreadCache:
             bot._mark_mentioned_thread("C123", "three")
 
         assert list(bot._mentioned_threads) == [("C123", "two"), ("C123", "three")]
+
+
+class TestRecentEventCache:
+    def test_prunes_expired_entries(self) -> None:
+        bot = _make_bot()
+        now = time.monotonic()
+        bot._RECENT_EVENT_TTL = 10.0
+        bot._recent_events = {
+            ("C123", "old"): now - 20.0,
+            ("C123", "fresh"): now - 1.0,
+        }
+
+        with patch("ductor_slack.messenger.slack.bot.time") as mock_time:
+            mock_time.monotonic.return_value = now
+            skipped = bot._should_skip_recent_event("C123", "new")
+
+        assert skipped is False
+        assert ("C123", "old") not in bot._recent_events
+        assert ("C123", "fresh") in bot._recent_events
+        assert ("C123", "new") in bot._recent_events
+
+    def test_marks_duplicate_within_ttl(self) -> None:
+        bot = _make_bot()
+        now = time.monotonic()
+
+        with patch("ductor_slack.messenger.slack.bot.time") as mock_time:
+            mock_time.monotonic.return_value = now
+            assert bot._should_skip_recent_event("C123", "1710000000.456") is False
+            mock_time.monotonic.return_value = now + 1.0
+            assert bot._should_skip_recent_event("C123", "1710000000.456") is True
 
 
 class TestThreadContextFetching:
@@ -207,9 +240,26 @@ class TestMessageRouting:
             "text": "<@B123> status",
         }
 
-        await bot._handle_mention_event(event, object())
+        await bot._handle_mention_event(event)
 
         bot._on_message.assert_awaited_once_with(event)
+
+    async def test_dedupes_message_and_app_mention_for_same_slack_post(self) -> None:
+        bot = _make_bot()
+
+        event = {
+            "user": "U123",
+            "channel": "C123",
+            "channel_type": "channel",
+            "ts": "1710000000.456",
+            "text": "<@B123> how big is your memory file",
+        }
+
+        await bot._handle_message_event(event)
+        await bot._handle_mention_event(event)
+
+        bot._dispatch_with_lock.assert_awaited_once()
+        bot._handle_command.assert_not_awaited()
 
     async def test_backfills_first_thread_reply_after_mention(self) -> None:
         bot = _make_bot()
