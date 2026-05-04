@@ -39,7 +39,7 @@ _ToolCallback = Callable[[ToolUseEvent], Awaitable[None]]
 class _StreamCallbacks:
     """Dispatch stream events to the appropriate callbacks."""
 
-    def __init__(
+    def __init__(  # noqa: PLR0913
         self,
         on_text: Callable[[str], Awaitable[None]] | None,
         on_thinking: Callable[[str], Awaitable[None]] | None,
