@@ -53,6 +53,17 @@ For a direct deployment container, build [`Dockerfile.deploy`](Dockerfile.deploy
 
 Detailed setup: [`docs/installation.md`](docs/installation.md)
 
+## Upstream PR status
+
+This fork carries both fork-specific packaging/runtime changes and upstream-safe Slack fixes.
+
+- **Upstream PR:** [`PleasePrompto/ductor#114`](https://github.com/PleasePrompto/ductor/pull/114)
+- **Purpose:** backport Slack runtime fixes that are useful to upstream without requiring the long-lived `ductor-slack` fork identity
+- **Included there:** Slack `app_mention` handling, native Slack streaming / Thinking Steps UX, and duplicate `message` + `app_mention` deduplication
+- **Fork-only here:** the coexistence-safe `ductor-slack` runtime identity, the `ductor_slack` Python package rename, and the direct deployment image / docs for this fork
+
+If you are deploying this fork, use the `ductor-slack` branch. If you are tracking what may eventually merge back into upstream `ductor`, watch PR #114.
+
 ## New in v0.16.0
 
 - **Memory maintenance is now built in** — streaming compaction boundaries can trigger a silent memory flush, optional reflection hook, and LLM-driven `MAINMEMORY.md` compaction.
