@@ -44,6 +44,7 @@ def _make_bot() -> SlackBot:
     bot._recent_events = {}
     bot._pending_peer_edit_tasks = {}
     bot._processed_peer_edit_signatures = {}
+    bot._peer_turn_budget_cache = {}
     bot._user_name_cache = {}
     bot._thread_context_cache = {}
     bot._MENTIONED_THREAD_TTL = 3600.0
@@ -414,6 +415,45 @@ class TestMessageRouting:
         wrapped = bot._dispatch_with_lock.await_args.args[1]
         assert 'Message from peer agent "reviewer"' in wrapped
         assert wrapped.endswith("hello from allowed bot")
+
+    async def test_suppresses_peer_reply_after_budget_is_exhausted(self) -> None:
+        bot = _make_bot()
+        bot._config.slack.allowed_users = []
+        bot._config.slack.allowed_bot_ids = ["B456"]
+        bot._app.client.conversations_replies.return_value = {
+            "messages": [
+                {"ts": "1710000000.100", "user": "U123", "text": "不要超过 4 轮"},
+                {"ts": "1710000000.200", "bot_id": "BOTSELF", "text": "一"},
+                {"ts": "1710000000.300", "bot_id": "B456", "text": "二"},
+                {"ts": "1710000000.400", "bot_id": "BOTSELF", "text": "三"},
+                {"ts": "1710000000.500", "bot_id": "B456", "text": "四"},
+            ]
+        }
+        bot._extract_peer_turn_budget = AsyncMock(return_value=4)
+
+        await bot._on_message(
+            {
+                "bot_id": "B456",
+                "channel": "C123",
+                "channel_type": "channel",
+                "thread_ts": "1710000000.100",
+                "subtype": "bot_message",
+                "ts": "1710000000.500",
+                "text": "四",
+            }
+        )
+
+        bot._dispatch_with_lock.assert_not_awaited()
+
+    async def test_peer_turn_budget_defaults_to_ten_when_parser_returns_invalid_json(self) -> None:
+        bot = _make_bot()
+        bot._orchestrator._cli_service.execute = AsyncMock(
+            return_value=SimpleNamespace(result="definitely not json")
+        )
+
+        budget = await bot._extract_peer_turn_budget("开始对话")
+
+        assert budget == 10
 
     async def test_debounces_peer_bot_message_changed_to_final_text(self) -> None:
         bot = _make_bot()
