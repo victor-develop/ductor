@@ -49,6 +49,8 @@ _SLACK_BOT_TOKEN_RE = re.compile(r"^xoxb-[A-Za-z0-9-]+$")
 _SLACK_APP_TOKEN_RE = re.compile(r"^xapp-[A-Za-z0-9-]+$")
 _SLACK_CHANNEL_RE = re.compile(r"^[CG][A-Z0-9]{8,}$")
 _SLACK_USER_RE = re.compile(r"^U[A-Z0-9]{8,}$")
+_SLACK_BOT_ID_RE = re.compile(r"^B[A-Z0-9]{8,}$")
+_SLACK_APP_ID_RE = re.compile(r"^A[A-Z0-9]{8,}$")
 
 _TIMEZONES: list[str] = [
     # Europe
@@ -458,6 +460,54 @@ def _ask_slack_allowed_users(console: Console) -> list[str]:
         console.print(t_rich("wizard.slack.allowed_users.error"))
 
 
+def _ask_slack_allowed_bot_ids(console: Console) -> list[str]:
+    """Prompt for allowed Slack bot IDs."""
+    console.print(
+        Panel(
+            t_rich("wizard.slack.allowed_bot_ids.body"),
+            title=t_rich("wizard.slack.allowed_bot_ids.title"),
+            border_style="blue",
+            padding=(1, 2),
+        )
+    )
+
+    while True:
+        raw: str | None = questionary.text(t_rich("wizard.slack.allowed_bot_ids.prompt")).ask()
+        if raw is None:
+            _abort()
+        raw = raw.strip()
+        if not raw:
+            return []
+        try:
+            return _parse_slack_ids(raw, pattern=_SLACK_BOT_ID_RE)
+        except ValueError:
+            console.print(t_rich("wizard.slack.allowed_bot_ids.error"))
+
+
+def _ask_slack_allowed_app_ids(console: Console) -> list[str]:
+    """Prompt for allowed Slack app IDs."""
+    console.print(
+        Panel(
+            t_rich("wizard.slack.allowed_app_ids.body"),
+            title=t_rich("wizard.slack.allowed_app_ids.title"),
+            border_style="blue",
+            padding=(1, 2),
+        )
+    )
+
+    while True:
+        raw: str | None = questionary.text(t_rich("wizard.slack.allowed_app_ids.prompt")).ask()
+        if raw is None:
+            _abort()
+        raw = raw.strip()
+        if not raw:
+            return []
+        try:
+            return _parse_slack_ids(raw, pattern=_SLACK_APP_ID_RE)
+        except ValueError:
+            console.print(t_rich("wizard.slack.allowed_app_ids.error"))
+
+
 # ---------------------------------------------------------------------------
 # Common steps
 # ---------------------------------------------------------------------------
@@ -683,6 +733,8 @@ class _WizardConfig(TypedDict, total=False):
     slack_app_token: str
     slack_allowed_channels: list[str] | None
     slack_allowed_users: list[str] | None
+    slack_allowed_bot_ids: list[str] | None
+    slack_allowed_app_ids: list[str] | None
 
 
 def _load_existing_config(config_path: Path) -> dict[str, object]:
@@ -726,6 +778,8 @@ def _apply_transport_config(merged: dict[str, object], cfg: _WizardConfig) -> No
         slack_section["app_token"] = cfg.get("slack_app_token", "")
         slack_section["allowed_channels"] = cfg.get("slack_allowed_channels") or []
         slack_section["allowed_users"] = cfg.get("slack_allowed_users") or []
+        slack_section["allowed_bot_ids"] = cfg.get("slack_allowed_bot_ids") or []
+        slack_section["allowed_app_ids"] = cfg.get("slack_allowed_app_ids") or []
 
 
 def _write_config(cfg: _WizardConfig) -> Path:
@@ -804,11 +858,17 @@ def _collect_transport_config(console: Console, transport: str) -> _WizardConfig
     console.print()
     slack_allowed_users = _ask_slack_allowed_users(console)
     console.print()
+    slack_allowed_bot_ids = _ask_slack_allowed_bot_ids(console)
+    console.print()
+    slack_allowed_app_ids = _ask_slack_allowed_app_ids(console)
+    console.print()
     return _WizardConfig(
         slack_bot_token=slack_bot_token,
         slack_app_token=slack_app_token,
         slack_allowed_channels=slack_allowed_channels,
         slack_allowed_users=slack_allowed_users,
+        slack_allowed_bot_ids=slack_allowed_bot_ids,
+        slack_allowed_app_ids=slack_allowed_app_ids,
     )
 
 
