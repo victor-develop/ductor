@@ -100,6 +100,21 @@ def _restart_marker_path(ductor_home: str) -> Path:
     return Path(ductor_home).expanduser() / "restart-requested"
 
 
+def _slack_response_data(response: object) -> dict[str, Any]:
+    """Return the dict body of a Slack SDK response.
+
+    `slack_sdk.web.async_slack_response.AsyncSlackResponse` is dict-like but
+    not a `dict` instance, so plain `isinstance(response, dict)` is False and
+    silently drops the payload. Fall back to its `.data` attribute.
+    """
+    if isinstance(response, dict):
+        return response
+    data = getattr(response, "data", None)
+    if isinstance(data, dict):
+        return data
+    return {}
+
+
 def _slack_ts_is_at_or_after(candidate_ts: str, current_ts: str) -> bool:
     """Return whether *candidate_ts* is the current Slack message or later."""
     try:
@@ -558,7 +573,8 @@ class SlackBot:
                 exc_info=True,
             )
             return []
-        messages = response.get("messages", []) if isinstance(response, dict) else []
+        data = _slack_response_data(response)
+        messages = data.get("messages", [])
         return messages if isinstance(messages, list) else []
 
     def _latest_human_anchor(
@@ -1222,7 +1238,8 @@ class SlackBot:
             return cached
         try:
             response = await self.client.users_info(user=user_id)
-            user = response.get("user", {}) if isinstance(response, dict) else {}
+            data = _slack_response_data(response)
+            user = data.get("user", {}) if isinstance(data, dict) else {}
             profile = user.get("profile", {}) if isinstance(user, dict) else {}
             name = (
                 profile.get("display_name")
@@ -1305,7 +1322,8 @@ class SlackBot:
             )
             return ""
 
-        messages = response.get("messages", []) if isinstance(response, dict) else []
+        data = _slack_response_data(response)
+        messages = data.get("messages", [])
         if not isinstance(messages, list) or not messages:
             return ""
 
