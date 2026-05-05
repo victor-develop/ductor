@@ -491,9 +491,18 @@ class SlackBot:
             return True
         messages = await self._fetch_thread_messages(channel_id=channel_id, thread_ts=thread_ts)
         if not messages:
+            logger.info(
+                "peer_turn_check ts=%s: empty thread snapshot -> ALLOW",
+                current_ts,
+            )
             return True
         anchor = self._latest_human_anchor(messages, current_ts=current_ts)
         if anchor is None:
+            logger.info(
+                "peer_turn_check ts=%s: no human anchor in %d msgs -> ALLOW",
+                current_ts,
+                len(messages),
+            )
             return True
         anchor_ts, anchor_text = anchor
         peer_turns = self._count_peer_turns_since_anchor(
@@ -502,6 +511,12 @@ class SlackBot:
             current_ts=current_ts,
         )
         if peer_turns <= 0:
+            logger.info(
+                "peer_turn_check ts=%s anchor=%s msgs=%d peer_turns=0 -> ALLOW",
+                current_ts,
+                anchor_ts,
+                len(messages),
+            )
             return True
         budget = await self._resolve_peer_turn_budget(
             channel_id=channel_id,
@@ -509,7 +524,17 @@ class SlackBot:
             anchor_ts=anchor_ts,
             anchor_text=anchor_text,
         )
-        return peer_turns < budget
+        decision = peer_turns < budget
+        logger.info(
+            "peer_turn_check ts=%s anchor=%s msgs=%d peer_turns=%d budget=%d -> %s",
+            current_ts,
+            anchor_ts,
+            len(messages),
+            peer_turns,
+            budget,
+            "ALLOW" if decision else "SUPPRESS",
+        )
+        return decision
 
     async def _fetch_thread_messages(
         self,
