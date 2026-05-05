@@ -22,7 +22,16 @@ from ductor_bot.infra.version import get_current_version
 from ductor_bot.messenger.commands import classify_command
 from ductor_bot.messenger.notifications import NotificationService
 from ductor_bot.messenger.slack.id_map import SlackIdMap
-from ductor_bot.messenger.slack.sender import SlackSendOpts, send_rich
+from ductor_bot.messenger.slack.sender import (
+    SlackSendOpts,
+    send_rich,
+)
+from ductor_bot.messenger.slack.sender import (
+    add_reaction as slack_add_reaction,
+)
+from ductor_bot.messenger.slack.sender import (
+    remove_reaction as slack_remove_reaction,
+)
 from ductor_bot.session.key import SessionKey
 from ductor_bot.text.response_format import SEP, fmt
 
@@ -41,6 +50,7 @@ try:
         AsyncSocketModeHandler as _SlackSocketModeHandler,
     )
     from slack_bolt.async_app import AsyncApp as _SlackAsyncApp
+
     _SLACK_AVAILABLE = True
 except ImportError:  # pragma: no cover - import fallback
     _SLACK_AVAILABLE = False
@@ -137,6 +147,7 @@ class SlackBot:
         self._update_observer: UpdateObserver | None = None
         self._restart_watcher: asyncio.Task[None] | None = None
         self._bot_user_id = ""
+        self._bot_id = ""
         self._bot_name = "slack-bot"
         self._last_active_channel: str | None = None
         self._mentioned_threads: dict[tuple[str, str], float] = {}
@@ -185,6 +196,7 @@ class SlackBot:
     async def run(self) -> int:
         auth = await self.client.auth_test()
         self._bot_user_id = str(auth.get("user_id", ""))
+        self._bot_id = str(auth.get("bot_id", ""))
         self._bot_name = str(auth.get("user", "slack-bot"))
 
         from ductor_bot.messenger.slack.startup import run_slack_startup
@@ -239,31 +251,62 @@ class SlackBot:
         await self._on_message(event)
 
     async def _on_message(self, event: dict[str, Any]) -> None:
-        subtype = str(event.get("subtype", "") or "")
-        user_id = str(event.get("user", "") or "")
+        parsed = self._parse_message_event(event)
+        if parsed is None:
+            return
+        _, channel_id, text, ts, reply_thread_ts, is_dm, _is_peer_bot = parsed
+        has_thread_session = await self._has_thread_session(
+            channel_id=channel_id,
+            reply_thread_ts=reply_thread_ts,
+        )
+        text = await self._prepare_message_text(
+            event,
+            text=text,
+            has_thread_session=has_thread_session,
+            reply_thread_ts=reply_thread_ts,
+        )
+        if text is None:
+            return
+
+        chat_id = self._id_map.channel_to_int(channel_id)
+        topic_id = (
+            self._id_map.thread_to_int(channel_id, reply_thread_ts) if reply_thread_ts else None
+        )
+        key = SessionKey.for_transport("sl", chat_id, topic_id)
+        self._last_active_channel = channel_id
+
+        command_text = self._normalize_command_text(text)
+        async with self._processing_reaction(channel_id, ts):
+            if command_text is not None:
+                await self._handle_command(command_text, channel_id, key, reply_thread_ts or None)
+                return
+
+            if reply_thread_ts and not is_dm and not has_thread_session:
+                thread_context = await self._fetch_thread_context(
+                    channel_id=channel_id,
+                    thread_ts=reply_thread_ts,
+                    current_ts=ts,
+                )
+                if thread_context:
+                    text = thread_context + text
+
+            await self._dispatch_with_lock(key, text, channel_id, reply_thread_ts or None)
+
+    async def _prepare_message_text(
+        self,
+        event: dict[str, Any],
+        *,
+        text: str,
+        has_thread_session: bool,
+        reply_thread_ts: str,
+    ) -> str | None:
         channel_id = str(event.get("channel", "") or "")
-        text = str(event.get("text", "") or "").strip()
-        if (
-            subtype in {"bot_message", "message_changed", "message_deleted"}
-            or event.get("bot_id")
-            or not user_id
-            or not channel_id
-            or not text
-        ):
-            return
-
         is_dm = str(event.get("channel_type", "") or "") == "im"
-        if not self._is_authorized(channel_id, user_id, is_dm=is_dm):
-            return
-
-        thread_ts = str(event.get("thread_ts", "") or "")
-        ts = str(event.get("ts", "") or "")
-        reply_thread_ts = thread_ts or (ts if not is_dm else "")
-        is_thread_reply = bool(reply_thread_ts and reply_thread_ts != ts)
-        has_thread_session = bool(
-            reply_thread_ts and await self._has_active_session_for_thread(channel_id, reply_thread_ts)
+        is_peer_bot = str(event.get("subtype", "") or "") == "bot_message" or bool(
+            event.get("bot_id") or self._extract_app_id(event)
         )
         if not is_dm and self._config.group_mention_only:
+            is_thread_reply = bool(reply_thread_ts and reply_thread_ts != str(event.get("ts", "") or ""))
             is_mentioned = bool(self._bot_user_id and f"<@{self._bot_user_id}>" in text)
             in_mentioned_thread = bool(
                 is_thread_reply
@@ -271,31 +314,59 @@ class SlackBot:
                 and self._has_recent_mentioned_thread(channel_id, reply_thread_ts)
             )
             if not is_mentioned and not in_mentioned_thread and not has_thread_session:
-                return
+                return None
             text = self._strip_mention(text)
             if is_mentioned and reply_thread_ts:
                 self._mark_mentioned_thread(channel_id, reply_thread_ts)
+        if not is_peer_bot:
+            return text
+        peer_name = await self._resolve_peer_name(event, channel_id=channel_id)
+        return self._wrap_peer_message(text, peer_name)
 
-        chat_id = self._id_map.channel_to_int(channel_id)
-        topic_id = self._id_map.thread_to_int(channel_id, reply_thread_ts) if reply_thread_ts else None
-        key = SessionKey.for_transport("sl", chat_id, topic_id)
-        self._last_active_channel = channel_id
+    async def _has_thread_session(
+        self,
+        *,
+        channel_id: str,
+        reply_thread_ts: str,
+    ) -> bool:
+        return bool(
+            reply_thread_ts and await self._has_active_session_for_thread(channel_id, reply_thread_ts)
+        )
 
-        command_text = self._normalize_command_text(text)
-        if command_text is not None:
-            await self._handle_command(command_text, channel_id, key, reply_thread_ts or None)
-            return
+    def _parse_message_event(
+        self,
+        event: dict[str, Any],
+    ) -> tuple[str, str, str, str, str, bool, bool] | None:
+        subtype = str(event.get("subtype", "") or "")
+        user_id = str(event.get("user", "") or "")
+        channel_id = str(event.get("channel", "") or "")
+        text = str(event.get("text", "") or "").strip()
+        bot_id = str(event.get("bot_id", "") or "")
+        app_id = self._extract_app_id(event)
+        is_peer_bot = subtype == "bot_message" or bool(bot_id or app_id)
+        if subtype in {"message_changed", "message_deleted"} or not channel_id or not text:
+            return None
 
-        if is_thread_reply and reply_thread_ts and not has_thread_session:
-            thread_context = await self._fetch_thread_context(
-                channel_id=channel_id,
-                thread_ts=reply_thread_ts,
-                current_ts=ts,
-            )
-            if thread_context:
-                text = thread_context + text
+        is_dm = str(event.get("channel_type", "") or "") == "im"
+        if self._is_self_sender(user_id=user_id, bot_id=bot_id):
+            return None
+        if not user_id and not is_peer_bot:
+            return None
+        if not self._is_authorized(channel_id, user_id, is_dm=is_dm, is_peer_bot=is_peer_bot):
+            return None
 
-        await self._dispatch_with_lock(key, text, channel_id, reply_thread_ts or None)
+        thread_ts = str(event.get("thread_ts", "") or "")
+        ts = str(event.get("ts", "") or "")
+        reply_thread_ts = thread_ts or (ts if not is_dm else "")
+        return (
+            user_id,
+            channel_id,
+            text,
+            ts,
+            reply_thread_ts,
+            is_dm,
+            is_peer_bot,
+        )
 
     async def _handle_command(
         self,
@@ -318,7 +389,9 @@ class SlackBot:
                     thread_ts=thread_ts,
                 )
         elif classify_command(cmd) in ("orchestrator", "multiagent"):
-            await self._cmd_orchestrator(text=text, channel_id=channel_id, key=key, thread_ts=thread_ts)
+            await self._cmd_orchestrator(
+                text=text, channel_id=channel_id, key=key, thread_ts=thread_ts
+            )
         else:
             await self._dispatch_with_lock(key, text, channel_id, thread_ts)
 
@@ -363,7 +436,28 @@ class SlackBot:
         channel_id: str,
         thread_ts: str | None,
     ) -> None:
-        await self._run_non_streaming(key, text, channel_id, thread_ts)
+        orch = self._orchestrator
+        if orch is None:
+            return
+
+        from ductor_bot.messenger.slack.streaming import SlackStreamEditor
+
+        editor = SlackStreamEditor(
+            self.client,
+            channel_id,
+            thread_ts=thread_ts,
+            edit_interval_seconds=self._config.streaming.edit_interval_seconds,
+        )
+        result = await orch.handle_message_streaming(
+            key,
+            text,
+            on_text_delta=editor.on_delta,
+            on_thinking_delta=editor.on_thinking,
+            on_tool_activity=editor.on_tool,
+            on_system_status=editor.on_system,
+        )
+        self._maybe_append_footer(result)
+        await editor.finalize(result.text)
 
     async def _run_non_streaming(
         self,
@@ -623,10 +717,44 @@ class SlackBot:
             t("help.slack_footer"),
         )
 
-    def _is_authorized(self, channel_id: str, user_id: str, *, is_dm: bool) -> bool:
+    def _extract_app_id(self, event: dict[str, Any]) -> str:
+        app_id = event.get("app_id") or event.get("api_app_id")
+        if app_id:
+            return str(app_id)
+        bot_profile = event.get("bot_profile")
+        if isinstance(bot_profile, dict):
+            return str(bot_profile.get("app_id", "") or "")
+        return ""
+
+    def _is_self_sender(self, *, user_id: str, bot_id: str) -> bool:
+        if self._bot_user_id and user_id == self._bot_user_id:
+            return True
+        return bool(self._bot_id and bot_id == self._bot_id)
+
+    def _wrap_peer_message(self, text: str, peer_name: str) -> str:
+        speaker = peer_name or "unknown"
+        return (
+            f'[Message from peer agent "{speaker}". This is NOT a user request and NOT your '
+            f'sub-agent. They are an independent agent in this thread. Respond with your own '
+            f'perspective as "{self._bot_name}"; do not repeat their points, do not mirror '
+            "their structure or wording, and do not speak on their behalf. If you agree, say "
+            "so briefly and move forward; if you disagree, push back.]\n\n"
+            f"{text}"
+        )
+
+    def _is_authorized(
+        self,
+        channel_id: str,
+        user_id: str,
+        *,
+        is_dm: bool,
+        is_peer_bot: bool = False,
+    ) -> bool:
         slack = self._config.slack
         channel_ok = is_dm or not slack.allowed_channels or channel_id in slack.allowed_channels
         if self._config.group_mention_only and not is_dm:
+            return channel_ok
+        if is_peer_bot:
             return channel_ok
         user_ok = not slack.allowed_users or user_id in slack.allowed_users
         return channel_ok and user_ok
@@ -715,11 +843,35 @@ class SlackBot:
                 or user_id
             )
         except Exception:
-            logger.debug("Failed to resolve Slack user name in channel %s", channel_id, exc_info=True)
+            logger.debug(
+                "Failed to resolve Slack user name in channel %s", channel_id, exc_info=True
+            )
             name = user_id
         resolved = str(name).strip() or user_id
         self._user_name_cache[user_id] = resolved
         return resolved
+
+    async def _resolve_peer_name(self, event: dict[str, Any], *, channel_id: str) -> str:
+        bot_profile = event.get("bot_profile")
+        if isinstance(bot_profile, dict):
+            profile_name = bot_profile.get("name")
+            if profile_name:
+                return str(profile_name).strip()
+        username = event.get("username")
+        if username:
+            return str(username).strip()
+        user_id = str(event.get("user", "") or "")
+        if user_id:
+            user_name = await self._resolve_user_name(user_id, channel_id=channel_id)
+            if user_name and user_name != "unknown":
+                return user_name
+        app_id = self._extract_app_id(event)
+        if app_id:
+            return app_id
+        bot_id = event.get("bot_id")
+        if bot_id:
+            return str(bot_id)
+        return "unknown"
 
     async def _fetch_thread_context(
         self,
@@ -757,7 +909,7 @@ class SlackBot:
         if not isinstance(messages, list) or not messages:
             return ""
 
-        context_parts = await self._build_thread_context_parts(
+        context_parts, has_peer_agent = await self._build_thread_context_parts(
             messages=messages,
             channel_id=channel_id,
             thread_ts=thread_ts,
@@ -767,6 +919,7 @@ class SlackBot:
             cache_key=cache_key,
             content_parts=context_parts,
             fetched_at=now,
+            has_peer_agent=has_peer_agent,
         )
 
     async def _build_thread_context_parts(
@@ -776,16 +929,15 @@ class SlackBot:
         channel_id: str,
         thread_ts: str,
         current_ts: str,
-    ) -> list[str]:
+    ) -> tuple[list[str], bool]:
         """Build normalized thread-history lines from Slack reply payloads."""
         context_parts: list[str] = []
+        has_peer_agent = False
         for msg in messages:
             if not isinstance(msg, dict):
                 continue
             msg_ts = str(msg.get("ts", "") or "")
             if not msg_ts or _slack_ts_is_at_or_after(msg_ts, current_ts):
-                continue
-            if msg.get("bot_id") or msg.get("subtype") == "bot_message":
                 continue
             msg_text = str(msg.get("text", "") or "").strip()
             if not msg_text:
@@ -794,11 +946,21 @@ class SlackBot:
                 msg_text = msg_text.replace(f"<@{self._bot_user_id}>", "").strip()
             if not msg_text:
                 continue
+            msg_bot_id = str(msg.get("bot_id", "") or "")
+            msg_app_id = self._extract_app_id(msg)
+            is_peer_bot = msg.get("subtype") == "bot_message" or bool(msg_bot_id or msg_app_id)
             msg_user = str(msg.get("user", "") or "")
-            user_name = await self._resolve_user_name(msg_user, channel_id=channel_id)
+            if self._is_self_sender(user_id=msg_user, bot_id=msg_bot_id):
+                continue
+            msg_user = str(msg.get("user", "") or "")
+            if is_peer_bot:
+                speaker = f"peer agent {await self._resolve_peer_name(msg, channel_id=channel_id)}"
+                has_peer_agent = True
+            else:
+                speaker = await self._resolve_user_name(msg_user, channel_id=channel_id)
             prefix = "[thread parent] " if msg_ts == thread_ts else ""
-            context_parts.append(f"{prefix}{user_name}: {msg_text}")
-        return context_parts
+            context_parts.append(f"{prefix}{speaker}: {msg_text}")
+        return context_parts, has_peer_agent
 
     def _cache_thread_context(
         self,
@@ -806,6 +968,7 @@ class SlackBot:
         cache_key: str,
         content_parts: list[str],
         fetched_at: float,
+        has_peer_agent: bool = False,
     ) -> str:
         """Persist thread-context cache entry and return the formatted content."""
         self._prune_thread_context_cache(fetched_at)
@@ -818,11 +981,14 @@ class SlackBot:
             self._prune_thread_context_cache(fetched_at)
             return ""
 
-        content = (
-            "[Thread context — prior messages in this thread (not yet in conversation history):]\n"
-            + "\n".join(content_parts)
-            + "\n[End of thread context]\n\n"
-        )
+        header = "[Thread context — prior messages in this thread (not yet in conversation history)."
+        if has_peer_agent:
+            header += (
+                f'\nYou are "{self._bot_name}". Lines tagged "peer agent X" are from other '
+                "independent agents — do not mirror or speak for them."
+            )
+        header += "]\n"
+        content = header + "\n".join(content_parts) + "\n[End of thread context]\n\n"
         self._thread_context_cache.pop(cache_key, None)
         self._thread_context_cache[cache_key] = _ThreadContextCache(
             content=content,
@@ -878,6 +1044,29 @@ class SlackBot:
         thread_ts: str | None = None,
     ) -> str | None:
         return await send_rich(self.client, channel_id, text, SlackSendOpts(thread_ts=thread_ts))
+
+    @contextlib.asynccontextmanager
+    async def _processing_reaction(self, channel_id: str, message_ts: str) -> Any:
+        added = await self._add_processing_reaction(channel_id, message_ts)
+        try:
+            yield
+        finally:
+            if added:
+                await self._remove_processing_reaction(channel_id, message_ts)
+
+    async def _add_processing_reaction(self, channel_id: str, message_ts: str) -> bool:
+        try:
+            await slack_add_reaction(self.client, channel_id, message_ts, "eyes")
+        except Exception:
+            logger.debug("Failed to add processing reaction", exc_info=True)
+            return False
+        return True
+
+    async def _remove_processing_reaction(self, channel_id: str, message_ts: str) -> None:
+        try:
+            await slack_remove_reaction(self.client, channel_id, message_ts, "eyes")
+        except Exception:
+            logger.debug("Failed to remove processing reaction", exc_info=True)
 
     def _broadcast_channels(self) -> list[str]:
         channels = list(self._config.slack.allowed_channels)

@@ -6,6 +6,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 from ductor_bot.config import AgentConfig
 from ductor_bot.messenger.slack.bot import SlackBot, _ThreadContextCache
+from ductor_bot.orchestrator.registry import OrchestratorResult
 from ductor_bot.session.manager import SessionData
 
 
@@ -32,6 +33,7 @@ def _make_bot() -> SlackBot:
     bot._orchestrator._sessions.list_active_for_chat = AsyncMock(return_value=[])
     bot._startup_hooks = []
     bot._bot_user_id = "B123"
+    bot._bot_id = "BOT-SELF"
     bot._bot_name = "ductor"
     bot._last_active_channel = None
     bot._mentioned_threads = {}
@@ -100,7 +102,12 @@ class TestThreadContextFetching:
             "messages": [
                 {"ts": "1710000000.100", "user": "U111", "text": "First context"},
                 {"ts": "1710000000.123", "user": "U222", "text": "<@B123> Parent message"},
-                {"ts": "1710000000.200", "bot_id": "BOT", "text": "Bot output"},
+                {
+                    "ts": "1710000000.200",
+                    "bot_id": "BOT",
+                    "bot_profile": {"name": "reviewer"},
+                    "text": "Bot output",
+                },
                 {"ts": "1710000000.300", "user": "U333", "text": "Current message"},
                 {"ts": "1710000000.301", "user": "U444", "text": "Future message"},
             ]
@@ -115,9 +122,10 @@ class TestThreadContextFetching:
 
         assert "Alice: First context" in content
         assert "[thread parent] Bob: Parent message" in content
+        assert "peer agent reviewer: Bot output" in content
+        assert 'You are "ductor". Lines tagged "peer agent X"' in content
         assert "Current message" not in content
         assert "Future message" not in content
-        assert "Bot output" not in content
 
         again = await bot._fetch_thread_context(
             channel_id="C123",
@@ -174,6 +182,24 @@ class TestCommandPresentation:
 
 
 class TestMessageRouting:
+    async def test_on_message_wraps_processing_reaction(self) -> None:
+        bot = _make_bot()
+        bot._add_processing_reaction = AsyncMock(return_value=True)
+        bot._remove_processing_reaction = AsyncMock()
+
+        await bot._on_message(
+            {
+                "user": "U123",
+                "channel": "C123",
+                "channel_type": "im",
+                "ts": "1710000000.456",
+                "text": "hello",
+            }
+        )
+
+        bot._add_processing_reaction.assert_awaited_once_with("C123", "1710000000.456")
+        bot._remove_processing_reaction.assert_awaited_once_with("C123", "1710000000.456")
+
     async def test_app_mention_event_routes_like_message(self) -> None:
         bot = _make_bot()
         bot._on_message = AsyncMock()
@@ -278,3 +304,71 @@ class TestMessageRouting:
 
         bot._handle_command.assert_not_awaited()
         bot._dispatch_with_lock.assert_awaited_once()
+
+    async def test_peer_bot_message_is_wrapped_before_dispatch(self) -> None:
+        bot = _make_bot()
+
+        await bot._on_message(
+            {
+                "bot_id": "BOT-PEER",
+                "bot_profile": {"name": "reviewer"},
+                "channel": "C123",
+                "channel_type": "im",
+                "ts": "1710000000.456",
+                "text": "hello from peer",
+                "subtype": "bot_message",
+            }
+        )
+
+        bot._dispatch_with_lock.assert_awaited_once()
+        wrapped = bot._dispatch_with_lock.await_args.args[1]
+        assert 'Message from peer agent "reviewer"' in wrapped
+        assert wrapped.endswith("hello from peer")
+
+    async def test_self_bot_message_is_ignored(self) -> None:
+        bot = _make_bot()
+
+        await bot._on_message(
+            {
+                "bot_id": "BOT-SELF",
+                "channel": "C123",
+                "channel_type": "im",
+                "ts": "1710000000.456",
+                "text": "loop",
+                "subtype": "bot_message",
+            }
+        )
+
+        bot._dispatch_with_lock.assert_not_awaited()
+
+    async def test_run_streaming_updates_single_slack_message(self) -> None:
+        bot = _make_bot()
+        bot._config.streaming.edit_interval_seconds = 0.0
+
+        async def _fake_stream(
+            key: object,
+            text: str,
+            *,
+            on_text_delta: object = None,
+            on_thinking_delta: object = None,
+            on_tool_activity: object = None,
+            on_system_status: object = None,
+        ) -> OrchestratorResult:
+            assert key is not None
+            assert text == "hello"
+            assert on_thinking_delta is not None
+            assert on_text_delta is not None
+            await on_thinking_delta("step 1")
+            await on_tool_activity("bash")
+            await on_text_delta("final")
+            await on_system_status(None)
+            return OrchestratorResult(text="final")
+
+        bot._orchestrator.handle_message_streaming = _fake_stream
+        bot._app.client.chat_postMessage.return_value = {"ts": "2.0"}
+
+        await bot._run_streaming(MagicMock(), "hello", "C123", "1710000000.123")
+
+        bot._app.client.chat_postMessage.assert_awaited_once()
+        assert "💭 *Thinking*" in bot._app.client.chat_postMessage.await_args.kwargs["text"]
+        bot._app.client.chat_update.assert_awaited()
