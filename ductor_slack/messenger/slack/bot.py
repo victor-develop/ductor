@@ -66,6 +66,7 @@ _DEFAULT_THREAD_CONTEXT_CACHE_MAX_SIZE = 200
 _DEFAULT_RECENT_EVENT_TTL_SECONDS = 120.0
 _DEFAULT_RECENT_EVENT_MAX_SIZE = 500
 _MENTION_ORDER_DELAY_SECONDS = 0.2
+_PEER_EDIT_DEBOUNCE_SECONDS = 1.0
 _MESSAGE_COMMANDS_WITH_ARGS = frozenset(
     {"agent_restart", "agent_start", "agent_stop", "model", "session", "showfiles"}
 )
@@ -158,6 +159,8 @@ class SlackBot:
         self._last_active_channel: str | None = None
         self._mentioned_threads: dict[tuple[str, str], float] = {}
         self._recent_events: dict[tuple[str, str], float] = {}
+        self._pending_peer_edit_tasks: dict[tuple[str, str], asyncio.Task[None]] = {}
+        self._processed_peer_edit_signatures: dict[tuple[str, str], str] = {}
         self._user_name_cache: dict[str, str] = {}
         self._thread_context_cache: dict[str, _ThreadContextCache] = {}
         self._MENTIONED_THREAD_TTL = _DEFAULT_MENTIONED_THREAD_TTL_SECONDS
@@ -229,6 +232,14 @@ class SlackBot:
         return self._exit_code
 
     async def shutdown(self) -> None:
+        pending_peer_edit_tasks = list(self._pending_peer_edit_tasks.values())
+        for task in pending_peer_edit_tasks:
+            task.cancel()
+        for task in pending_peer_edit_tasks:
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+        self._pending_peer_edit_tasks.clear()
+
         if self._restart_watcher:
             self._restart_watcher.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -262,16 +273,26 @@ class SlackBot:
 
     async def _on_message(self, event: dict[str, Any]) -> None:
         subtype = str(event.get("subtype", "") or "")
+        if subtype == "message_deleted":
+            return
+        if subtype == "message_changed":
+            await self._schedule_peer_edit_processing(event)
+            return
+        await self._process_message_event(event)
+
+    async def _process_message_event(
+        self,
+        event: dict[str, Any],
+        *,
+        skip_recent_event_check: bool = False,
+    ) -> None:
+        subtype = str(event.get("subtype", "") or "")
         user_id = str(event.get("user", "") or "")
         bot_id = str(event.get("bot_id", "") or "")
         app_id = self._extract_app_id(event)
         channel_id = str(event.get("channel", "") or "")
         text = str(event.get("text", "") or "").strip()
-        if (
-            subtype in {"message_changed", "message_deleted"}
-            or not channel_id
-            or not text
-        ):
+        if not channel_id or not text:
             return
 
         is_dm = str(event.get("channel_type", "") or "") == "im"
@@ -286,7 +307,7 @@ class SlackBot:
 
         thread_ts = str(event.get("thread_ts", "") or "")
         ts = str(event.get("ts", "") or "")
-        if self._should_skip_recent_event(channel_id, ts):
+        if not skip_recent_event_check and self._should_skip_recent_event(channel_id, ts):
             logger.debug("Skipping duplicate Slack event for %s/%s", channel_id, ts)
             return
         reply_thread_ts = thread_ts or (ts if not is_dm else "")
@@ -349,6 +370,83 @@ class SlackBot:
                 stream_thread_ts=reply_thread_ts or ts,
                 recipient_user_id=user_id,
             )
+
+    async def _schedule_peer_edit_processing(self, event: dict[str, Any]) -> None:
+        message = self._normalize_message_changed_event(event)
+        if message is None:
+            return
+        channel_id = str(message.get("channel", "") or "")
+        message_ts = str(message.get("ts", "") or "")
+        if not channel_id or not message_ts:
+            return
+        user_id = str(message.get("user", "") or "")
+        bot_id = str(message.get("bot_id", "") or "")
+        app_id = self._extract_app_id(message)
+        is_dm = str(message.get("channel_type", "") or "") == "im"
+        if not self._is_authorized(
+            channel_id,
+            user_id,
+            is_dm=is_dm,
+            bot_id=bot_id,
+            app_id=app_id,
+        ):
+            return
+        if not (bot_id or app_id or str(message.get("subtype", "") or "") == "bot_message"):
+            return
+
+        key = (channel_id, message_ts)
+        signature = self._peer_edit_signature(message)
+        if self._processed_peer_edit_signatures.get(key) == signature:
+            return
+
+        existing = self._pending_peer_edit_tasks.pop(key, None)
+        if existing is not None:
+            existing.cancel()
+
+        task = asyncio.create_task(self._debounce_peer_edit(key, message, signature))
+        self._pending_peer_edit_tasks[key] = task
+
+    def _normalize_message_changed_event(self, event: dict[str, Any]) -> dict[str, Any] | None:
+        message = event.get("message")
+        if not isinstance(message, dict):
+            return None
+        normalized = dict(message)
+        normalized.setdefault("channel", str(event.get("channel", "") or ""))
+        channel_type = str(event.get("channel_type", "") or "")
+        if channel_type:
+            normalized.setdefault("channel_type", channel_type)
+        subtype = str(normalized.get("subtype", "") or "")
+        if not subtype and (normalized.get("bot_id") or self._extract_app_id(normalized)):
+            normalized["subtype"] = "bot_message"
+        return normalized
+
+    def _peer_edit_signature(self, event: dict[str, Any]) -> str:
+        return "|".join(
+            [
+                str(event.get("ts", "") or ""),
+                str(event.get("thread_ts", "") or ""),
+                str(event.get("bot_id", "") or ""),
+                self._extract_app_id(event),
+                str(event.get("text", "") or ""),
+            ]
+        )
+
+    async def _debounce_peer_edit(
+        self,
+        key: tuple[str, str],
+        event: dict[str, Any],
+        signature: str,
+    ) -> None:
+        try:
+            await asyncio.sleep(_PEER_EDIT_DEBOUNCE_SECONDS)
+            if self._processed_peer_edit_signatures.get(key) == signature:
+                return
+            await self._process_message_event(event, skip_recent_event_check=True)
+            self._processed_peer_edit_signatures[key] = signature
+        finally:
+            current = self._pending_peer_edit_tasks.get(key)
+            if current is asyncio.current_task():
+                self._pending_peer_edit_tasks.pop(key, None)
 
     async def _prepare_inbound_text(  # noqa: PLR0913
         self,

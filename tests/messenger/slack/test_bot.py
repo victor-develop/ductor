@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import asyncio
+import contextlib
 import time
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -40,6 +42,8 @@ def _make_bot() -> SlackBot:
     bot._last_active_channel = None
     bot._mentioned_threads = {}
     bot._recent_events = {}
+    bot._pending_peer_edit_tasks = {}
+    bot._processed_peer_edit_signatures = {}
     bot._user_name_cache = {}
     bot._thread_context_cache = {}
     bot._MENTIONED_THREAD_TTL = 3600.0
@@ -410,6 +414,57 @@ class TestMessageRouting:
         wrapped = bot._dispatch_with_lock.await_args.args[1]
         assert 'Message from peer agent "reviewer"' in wrapped
         assert wrapped.endswith("hello from allowed bot")
+
+    async def test_debounces_peer_bot_message_changed_to_final_text(self) -> None:
+        bot = _make_bot()
+        bot._config.slack.allowed_users = []
+        bot._config.slack.allowed_bot_ids = ["B456"]
+        gate = asyncio.Event()
+
+        async def _sleep(_delay: float) -> None:
+            await gate.wait()
+
+        first_event = {
+            "subtype": "message_changed",
+            "channel": "C123",
+            "message": {
+                "bot_id": "B456",
+                "bot_profile": {"name": "reviewer"},
+                "channel": "C123",
+                "channel_type": "im",
+                "subtype": "bot_message",
+                "ts": "1710000000.456",
+                "text": "draft",
+            },
+        }
+        second_event = {
+            "subtype": "message_changed",
+            "channel": "C123",
+            "message": {
+                "bot_id": "B456",
+                "bot_profile": {"name": "reviewer"},
+                "channel": "C123",
+                "channel_type": "im",
+                "subtype": "bot_message",
+                "ts": "1710000000.456",
+                "text": "final answer",
+            },
+        }
+
+        with patch("ductor_slack.messenger.slack.bot.asyncio.sleep", side_effect=_sleep):
+            await bot._on_message(first_event)
+            first_task = bot._pending_peer_edit_tasks[("C123", "1710000000.456")]
+            await bot._on_message(second_event)
+            second_task = bot._pending_peer_edit_tasks[("C123", "1710000000.456")]
+            gate.set()
+            await second_task
+            with contextlib.suppress(asyncio.CancelledError):
+                await first_task
+
+        bot._dispatch_with_lock.assert_awaited_once()
+        wrapped = bot._dispatch_with_lock.await_args.args[1]
+        assert wrapped.endswith("final answer")
+        assert "draft" not in wrapped
 
     async def test_backfills_first_thread_reply_after_mention(self) -> None:
         bot = _make_bot()
