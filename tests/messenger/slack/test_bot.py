@@ -34,6 +34,7 @@ def _make_bot() -> SlackBot:
     bot._orchestrator._sessions.list_active_for_chat = AsyncMock(return_value=[])
     bot._startup_hooks = []
     bot._bot_user_id = "B123"
+    bot._bot_id = "BOTSELF"
     bot._bot_name = "ductor"
     bot._team_id = "T123"
     bot._last_active_channel = None
@@ -258,8 +259,96 @@ class TestMessageRouting:
         await bot._handle_message_event(event)
         await bot._handle_mention_event(event)
 
+    async def test_allows_explicitly_allowlisted_bot_id(self) -> None:
+        bot = _make_bot()
+        bot._config.slack.allowed_users = []
+        bot._config.slack.allowed_bot_ids = ["B456"]
+
+        await bot._on_message(
+            {
+                "bot_id": "B456",
+                "channel": "C123",
+                "channel_type": "im",
+                "subtype": "bot_message",
+                "ts": "1710000000.456",
+                "text": "hello from allowed bot",
+            }
+        )
+
         bot._dispatch_with_lock.assert_awaited_once()
-        bot._handle_command.assert_not_awaited()
+
+    async def test_allows_explicitly_allowlisted_app_id(self) -> None:
+        bot = _make_bot()
+        bot._config.slack.allowed_users = []
+        bot._config.slack.allowed_app_ids = ["A456"]
+
+        await bot._on_message(
+            {
+                "bot_id": "B999",
+                "app_id": "A456",
+                "channel": "C123",
+                "channel_type": "im",
+                "subtype": "bot_message",
+                "ts": "1710000000.456",
+                "text": "hello from allowed app",
+            }
+        )
+
+        bot._dispatch_with_lock.assert_awaited_once()
+
+    async def test_rejects_unallowlisted_bot_message(self) -> None:
+        bot = _make_bot()
+        bot._config.slack.allowed_users = []
+        bot._config.slack.allowed_bot_ids = []
+        bot._config.slack.allowed_app_ids = []
+
+        await bot._on_message(
+            {
+                "bot_id": "B456",
+                "channel": "C123",
+                "channel_type": "im",
+                "subtype": "bot_message",
+                "ts": "1710000000.456",
+                "text": "hello from blocked bot",
+            }
+        )
+
+        bot._dispatch_with_lock.assert_not_awaited()
+
+    async def test_rejects_own_bot_message_even_if_allowlisted(self) -> None:
+        bot = _make_bot()
+        bot._config.slack.allowed_users = []
+        bot._config.slack.allowed_bot_ids = ["BOTSELF"]
+
+        await bot._on_message(
+            {
+                "bot_id": "BOTSELF",
+                "channel": "C123",
+                "channel_type": "im",
+                "subtype": "bot_message",
+                "ts": "1710000000.456",
+                "text": "loop me maybe",
+            }
+        )
+
+        bot._dispatch_with_lock.assert_not_awaited()
+
+    async def test_thread_context_keeps_allowlisted_bot_messages(self) -> None:
+        bot = _make_bot()
+        bot._config.slack.allowed_bot_ids = ["B456"]
+        bot._resolve_user_name = AsyncMock(return_value="Allowed Bot")
+
+        content = await bot._build_thread_context_parts(
+            messages=[
+                {"ts": "1710000000.100", "bot_id": "B456", "text": "Bot context"},
+                {"ts": "1710000000.200", "bot_id": "B789", "text": "Blocked context"},
+            ],
+            channel_id="C123",
+            thread_ts="1710000000.100",
+            current_ts="1710000000.300",
+        )
+
+        assert content == ["[thread parent] Allowed Bot: Bot context"]
 
     async def test_backfills_first_thread_reply_after_mention(self) -> None:
         bot = _make_bot()

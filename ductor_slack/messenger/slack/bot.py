@@ -149,6 +149,7 @@ class SlackBot:
         self._update_observer: UpdateObserver | None = None
         self._restart_watcher: asyncio.Task[None] | None = None
         self._bot_user_id = ""
+        self._bot_id = ""
         self._bot_name = "slack-bot"
         self._team_id = ""
         self._last_active_channel: str | None = None
@@ -201,6 +202,7 @@ class SlackBot:
     async def run(self) -> int:
         auth = await self.client.auth_test()
         self._bot_user_id = str(auth.get("user_id", ""))
+        self._bot_id = str(auth.get("bot_id", ""))
         self._bot_name = str(auth.get("user", "slack-bot"))
         self._team_id = str(auth.get("team_id", ""))
 
@@ -258,19 +260,25 @@ class SlackBot:
     async def _on_message(self, event: dict[str, Any]) -> None:
         subtype = str(event.get("subtype", "") or "")
         user_id = str(event.get("user", "") or "")
+        bot_id = str(event.get("bot_id", "") or "")
+        app_id = self._extract_app_id(event)
         channel_id = str(event.get("channel", "") or "")
         text = str(event.get("text", "") or "").strip()
         if (
-            subtype in {"bot_message", "message_changed", "message_deleted"}
-            or event.get("bot_id")
-            or not user_id
+            subtype in {"message_changed", "message_deleted"}
             or not channel_id
             or not text
         ):
             return
 
         is_dm = str(event.get("channel_type", "") or "") == "im"
-        if not self._is_authorized(channel_id, user_id, is_dm=is_dm):
+        if not self._is_authorized(
+            channel_id,
+            user_id,
+            is_dm=is_dm,
+            bot_id=bot_id,
+            app_id=app_id,
+        ):
             return
 
         thread_ts = str(event.get("thread_ts", "") or "")
@@ -717,13 +725,47 @@ class SlackBot:
             t("help.slack_footer"),
         )
 
-    def _is_authorized(self, channel_id: str, user_id: str, *, is_dm: bool) -> bool:
+    @staticmethod
+    def _extract_app_id(event: dict[str, Any]) -> str:
+        app_id = str(event.get("app_id", "") or "")
+        if app_id:
+            return app_id
+        bot_profile = event.get("bot_profile")
+        if isinstance(bot_profile, dict):
+            return str(bot_profile.get("app_id", "") or "")
+        return ""
+
+    def _is_self_sender(self, user_id: str, bot_id: str) -> bool:
+        return (bool(user_id) and user_id == self._bot_user_id) or (
+            bool(bot_id) and bool(self._bot_id) and bot_id == self._bot_id
+        )
+
+    def _is_allowed_bot_sender(self, bot_id: str, app_id: str) -> bool:
+        slack = self._config.slack
+        bot_ok = bool(bot_id) and bot_id in slack.allowed_bot_ids
+        app_ok = bool(app_id) and app_id in slack.allowed_app_ids
+        return bot_ok or app_ok
+
+    def _is_authorized(
+        self,
+        channel_id: str,
+        user_id: str,
+        *,
+        is_dm: bool,
+        bot_id: str = "",
+        app_id: str = "",
+    ) -> bool:
         slack = self._config.slack
         channel_ok = is_dm or not slack.allowed_channels or channel_id in slack.allowed_channels
+        if not channel_ok:
+            return False
+        if self._is_self_sender(user_id, bot_id):
+            return False
+        if bot_id or app_id or not user_id:
+            return self._is_allowed_bot_sender(bot_id, app_id)
         if self._config.group_mention_only and not is_dm:
             return channel_ok
-        user_ok = not slack.allowed_users or user_id in slack.allowed_users
-        return channel_ok and user_ok
+        return not slack.allowed_users or user_id in slack.allowed_users
 
     def _is_message_addressed(self, channel_id: str, thread_ts: str, text: str) -> bool:
         if self._bot_user_id and f"<@{self._bot_user_id}>" in text:
@@ -907,7 +949,14 @@ class SlackBot:
             msg_ts = str(msg.get("ts", "") or "")
             if not msg_ts or _slack_ts_is_at_or_after(msg_ts, current_ts):
                 continue
-            if msg.get("bot_id") or msg.get("subtype") == "bot_message":
+            msg_user = str(msg.get("user", "") or "")
+            msg_bot_id = str(msg.get("bot_id", "") or "")
+            msg_app_id = self._extract_app_id(msg)
+            if self._is_self_sender(msg_user, msg_bot_id):
+                continue
+            if (msg_bot_id or msg.get("subtype") == "bot_message" or msg_app_id) and not (
+                self._is_allowed_bot_sender(msg_bot_id, msg_app_id)
+            ):
                 continue
             msg_text = str(msg.get("text", "") or "").strip()
             if not msg_text:
@@ -916,7 +965,6 @@ class SlackBot:
                 msg_text = msg_text.replace(f"<@{self._bot_user_id}>", "").strip()
             if not msg_text:
                 continue
-            msg_user = str(msg.get("user", "") or "")
             user_name = await self._resolve_user_name(msg_user, channel_id=channel_id)
             prefix = "[thread parent] " if msg_ts == thread_ts else ""
             context_parts.append(f"{prefix}{user_name}: {msg_text}")

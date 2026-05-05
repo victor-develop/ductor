@@ -98,7 +98,12 @@ def _is_configured_slack(data: dict[str, object]) -> bool:
     if not isinstance(slack, dict):
         return False
     has_tokens = bool(slack.get("bot_token")) and bool(slack.get("app_token"))
-    has_targets = bool(slack.get("allowed_users")) or bool(slack.get("allowed_channels"))
+    has_targets = (
+        bool(slack.get("allowed_users"))
+        or bool(slack.get("allowed_channels"))
+        or bool(slack.get("allowed_bot_ids"))
+        or bool(slack.get("allowed_app_ids"))
+    )
     return has_tokens and has_targets
 
 

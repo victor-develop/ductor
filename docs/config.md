@@ -82,7 +82,7 @@ Changes take effect on the next CLI invocation (mtime-based cache invalidation, 
 | `reasoning_effort` | `str` | `"medium"` | Default Codex reasoning level |
 | `file_access` | `str` | `"all"` | File access scope (`all`, `home`, `workspace`) for file sends and API `GET /files`; unknown values fall back to workspace-only |
 | `gemini_api_key` | `str \| None` | `None` | Config fallback key injected for Gemini API-key mode |
-| `transport` | `str` | `"telegram"` | Messaging transport: `"telegram"` or `"matrix"` |
+| `transport` | `str` | `"telegram"` | Messaging transport: `"telegram"`, `"matrix"`, or `"slack"` |
 | `transports` | `list[str]` | `[]` | List of transports to run in parallel (e.g. `["telegram", "matrix"]`). When empty, falls back to single `transport` value. |
 | `telegram_token` | `str` | `""` | Telegram bot token (required when `transport=telegram`) |
 | `allowed_user_ids` | `list[int]` | `[]` | Telegram user allowlist (applies in both private and group chats) |
@@ -90,6 +90,7 @@ Changes take effect on the next CLI invocation (mtime-based cache invalidation, 
 | `allowed_channel_ids` | `list[int]` | `[]` | Telegram channel allowlist for join/audit behavior; unauthorized channels are auto-left |
 | `group_mention_only` | `bool` | `false` | Mention/reply gating in group rooms. Telegram: filter only (no auth bypass). Matrix: in non-DM rooms this bypasses `allowed_users` and uses room + mention/reply as gate |
 | `matrix` | `MatrixConfig` | see below | Matrix homeserver connection (required when `transport=matrix`) |
+| `slack` | `SlackConfig` | see below | Slack Socket Mode config (required when `transport=slack`) |
 | `streaming` | `StreamingConfig` | see below | Streaming tuning |
 | `docker` | `DockerConfig` | see below | Docker sidecar config |
 | `heartbeat` | `HeartbeatConfig` | see below | Background heartbeat config |
@@ -137,6 +138,23 @@ Notes:
 - when `access_token` and `device_id` are explicitly present in `config.json`, runtime restores from them and also mirrors them into the credentials store
 - The bot supports end-to-end encrypted rooms via `matrix-nio[e2e]`.
 - `allowed_rooms` and `allowed_users` together form the Matrix auth model.
+
+## `SlackConfig`
+
+| Field | Type | Default | Notes |
+|---|---|---|---|
+| `bot_token` | `str` | `""` | Slack bot token (`xoxb-...`) |
+| `app_token` | `str` | `""` | Slack Socket Mode app token (`xapp-...`) |
+| `allowed_channels` | `list[str]` | `[]` | Channel IDs the bot may respond in; DMs bypass this check |
+| `allowed_users` | `list[str]` | `[]` | Human Slack user IDs allowed to interact |
+| `allowed_bot_ids` | `list[str]` | `[]` | Bot IDs explicitly allowed to send messages to ductor-slack |
+| `allowed_app_ids` | `list[str]` | `[]` | Slack app IDs explicitly allowed to send messages to ductor-slack |
+
+Notes:
+
+- bot-originated Slack messages are still ignored by default
+- `allowed_bot_ids` / `allowed_app_ids` opt specific third-party bots/apps back in
+- the bot still suppresses its own bot-originated events to avoid loops
 
 ## `CLIParametersConfig`
 
