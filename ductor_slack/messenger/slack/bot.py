@@ -584,20 +584,9 @@ class SlackBot:
                 continue
             if _slack_ts_is_at_or_after(msg_ts, current_ts) and msg_ts != current_ts:
                 continue
-            if self._is_peer_thread_message(msg):
+            if self._looks_like_bot_message(msg):
                 count += 1
         return count
-
-    def _is_peer_thread_message(self, msg: dict[str, Any]) -> bool:
-        msg_user = str(msg.get("user", "") or "")
-        msg_bot_id = str(msg.get("bot_id", "") or "")
-        msg_app_id = self._extract_app_id(msg)
-        subtype = str(msg.get("subtype", "") or "")
-        if self._is_self_sender(msg_user, msg_bot_id):
-            return True
-        if msg_bot_id or msg_app_id or subtype == "bot_message":
-            return self._is_allowed_bot_sender(msg_bot_id, msg_app_id)
-        return False
 
     async def _resolve_peer_turn_budget(
         self,

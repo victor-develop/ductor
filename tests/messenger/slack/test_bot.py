@@ -470,6 +470,39 @@ class TestMessageRouting:
 
         assert await bot._extract_peer_turn_budget("max_turns 9999") == 50
 
+    async def test_counts_peer_turns_when_thread_snapshot_lacks_app_id(self) -> None:
+        # Slack's conversations.replies sometimes omits bot_profile/app_id even
+        # though the live message event carried it. The peer-turn counter must
+        # still recognise those messages as bot activity so the budget kicks in.
+        bot = _make_bot()
+        bot._config.slack.allowed_users = []
+        bot._config.slack.allowed_bot_ids = []
+        bot._config.slack.allowed_app_ids = ["A_PEER"]
+        bot._app.client.conversations_replies.return_value = {
+            "messages": [
+                {"ts": "1710000000.100", "user": "U123", "text": "聊 4 轮"},
+                {"ts": "1710000000.200", "bot_id": "BOTSELF", "text": "一"},
+                {"ts": "1710000000.300", "bot_id": "B_PEER", "text": "二"},
+                {"ts": "1710000000.400", "bot_id": "BOTSELF", "text": "三"},
+                {"ts": "1710000000.500", "bot_id": "B_PEER", "text": "四"},
+            ]
+        }
+
+        await bot._on_message(
+            {
+                "bot_id": "B_PEER",
+                "app_id": "A_PEER",
+                "channel": "C123",
+                "channel_type": "channel",
+                "thread_ts": "1710000000.100",
+                "subtype": "bot_message",
+                "ts": "1710000000.500",
+                "text": "四",
+            }
+        )
+
+        bot._dispatch_with_lock.assert_not_awaited()
+
     async def test_unallowlisted_peer_bot_does_not_reset_anchor(self) -> None:
         bot = _make_bot()
         bot._config.slack.allowed_users = ["U123"]
