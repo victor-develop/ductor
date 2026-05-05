@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
-import json
 import logging
 import re
 import time
@@ -16,7 +15,6 @@ from typing import TYPE_CHECKING, Any
 
 from ductor_slack.bus.bus import MessageBus
 from ductor_slack.bus.lock_pool import LockPool
-from ductor_slack.cli.types import AgentRequest
 from ductor_slack.commands import BOT_COMMANDS, MULTIAGENT_SUB_COMMANDS
 from ductor_slack.config import AgentConfig
 from ductor_slack.files.allowed_roots import resolve_allowed_roots
@@ -69,9 +67,19 @@ _DEFAULT_RECENT_EVENT_TTL_SECONDS = 120.0
 _DEFAULT_RECENT_EVENT_MAX_SIZE = 500
 _MENTION_ORDER_DELAY_SECONDS = 0.2
 _PEER_EDIT_DEBOUNCE_SECONDS = 1.0
-_DEFAULT_PEER_TURN_BUDGET = 10
+_DEFAULT_PEER_TURN_BUDGET = 2
 _MAX_PEER_TURN_BUDGET = 50
-_PEER_TURN_BUDGET_TIMEOUT_SECONDS = 30.0
+_PEER_TURN_BUDGET_CACHE_MAX = 200
+_PEER_TURN_BUDGET_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(
+        r"(?:max[\s_-]*turns?|at\s*most|no\s*more\s*than|up\s*to|limit(?:\s*of)?)"
+        r"\D{0,8}(\d+)",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\b(\d+)\s*(?:turns?|rounds?|exchanges?|replies?)\b", re.IGNORECASE),
+    re.compile(r"(?:最多|不超过|不多于|不得超过|限定?|上限)\D{0,4}(\d+)"),
+    re.compile(r"(\d+)\s*(?:轮|次|回合)"),
+)
 _MESSAGE_COMMANDS_WITH_ARGS = frozenset(
     {"agent_restart", "agent_start", "agent_stop", "model", "session", "showfiles"}
 )
@@ -541,13 +549,24 @@ class SlackBot:
             msg_ts = str(msg.get("ts", "") or "")
             if not msg_ts or _slack_ts_is_at_or_after(msg_ts, current_ts):
                 continue
-            if self._is_peer_thread_message(msg):
+            if self._looks_like_bot_message(msg):
                 continue
             msg_text = str(msg.get("text", "") or "").strip()
             if not msg_text:
                 continue
             latest = (msg_ts, msg_text)
         return latest
+
+    def _looks_like_bot_message(self, msg: dict[str, Any]) -> bool:
+        msg_user = str(msg.get("user", "") or "")
+        msg_bot_id = str(msg.get("bot_id", "") or "")
+        if self._is_self_sender(msg_user, msg_bot_id):
+            return True
+        if msg_bot_id:
+            return True
+        if self._extract_app_id(msg):
+            return True
+        return str(msg.get("subtype", "") or "") == "bot_message"
 
     def _count_peer_turns_since_anchor(
         self,
@@ -593,69 +612,25 @@ class SlackBot:
         if cached is not None:
             return cached
         budget = await self._extract_peer_turn_budget(anchor_text)
+        if len(self._peer_turn_budget_cache) >= _PEER_TURN_BUDGET_CACHE_MAX:
+            oldest = next(iter(self._peer_turn_budget_cache))
+            self._peer_turn_budget_cache.pop(oldest, None)
         self._peer_turn_budget_cache[cache_key] = budget
         return budget
 
     async def _extract_peer_turn_budget(self, anchor_text: str) -> int:
-        orch = self._orchestrator
-        cli_service = getattr(orch, "_cli_service", None)
-        if orch is None or cli_service is None:
-            return _DEFAULT_PEER_TURN_BUDGET
-        prompt = (
-            "You extract only one thing from a user message: the explicit maximum total "
-            "number of peer bot replies allowed in the conversation. Return strict JSON "
-            'only, with exactly this shape: {"max_turns": integer|null}. '
-            "Use null when the user did not specify an explicit numeric turn limit. "
-            "Do not infer or guess. User message:\n"
-            f"{anchor_text}"
-        )
-        try:
-            response = await cli_service.execute(
-                AgentRequest(
-                    prompt=prompt,
-                    chat_id=0,
-                    transport="sl",
-                    process_label="slack-peer-turn-budget",
-                    timeout_seconds=min(self._config.cli_timeout, _PEER_TURN_BUDGET_TIMEOUT_SECONDS),
-                )
-            )
-        except Exception:
-            logger.warning(
-                "Peer turn budget extraction failed; defaulting to %d",
-                _DEFAULT_PEER_TURN_BUDGET,
-                exc_info=True,
-            )
-            return _DEFAULT_PEER_TURN_BUDGET
-        return self._parse_peer_turn_budget_response(response.result)
-
-    def _parse_peer_turn_budget_response(self, raw: str) -> int:
-        payload = self._extract_json_object(raw)
-        if payload is None:
-            return _DEFAULT_PEER_TURN_BUDGET
-        value = payload.get("max_turns")
-        if value is None:
-            return _DEFAULT_PEER_TURN_BUDGET
-        try:
-            turns = int(value)
-        except (TypeError, ValueError):
-            return _DEFAULT_PEER_TURN_BUDGET
-        return max(1, min(_MAX_PEER_TURN_BUDGET, turns))
-
-    def _extract_json_object(self, raw: str) -> dict[str, Any] | None:
-        text = raw.strip()
-        candidates = [text]
-        start = text.find("{")
-        end = text.rfind("}")
-        if start != -1 and end != -1 and end > start:
-            candidates.append(text[start : end + 1])
-        for candidate in candidates:
-            try:
-                parsed = json.loads(candidate)
-            except json.JSONDecodeError:
+        for pattern in _PEER_TURN_BUDGET_PATTERNS:
+            match = pattern.search(anchor_text)
+            if match is None:
                 continue
-            if isinstance(parsed, dict):
-                return parsed
-        return None
+            try:
+                turns = int(match.group(1))
+            except (TypeError, ValueError):
+                continue
+            if turns <= 0:
+                continue
+            return max(1, min(_MAX_PEER_TURN_BUDGET, turns))
+        return _DEFAULT_PEER_TURN_BUDGET
 
     async def _prepare_inbound_text(  # noqa: PLR0913
         self,

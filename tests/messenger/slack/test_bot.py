@@ -445,15 +445,57 @@ class TestMessageRouting:
 
         bot._dispatch_with_lock.assert_not_awaited()
 
-    async def test_peer_turn_budget_defaults_to_ten_when_parser_returns_invalid_json(self) -> None:
+    async def test_peer_turn_budget_falls_back_when_no_number_present(self) -> None:
         bot = _make_bot()
-        bot._orchestrator._cli_service.execute = AsyncMock(
-            return_value=SimpleNamespace(result="definitely not json")
-        )
 
         budget = await bot._extract_peer_turn_budget("开始对话")
 
-        assert budget == 10
+        assert budget == 2
+
+    async def test_peer_turn_budget_extracts_chinese_round_count(self) -> None:
+        bot = _make_bot()
+
+        assert await bot._extract_peer_turn_budget("不要超过 4 轮") == 4
+        assert await bot._extract_peer_turn_budget("最多 6 次回复") == 6
+
+    async def test_peer_turn_budget_extracts_english_phrasing(self) -> None:
+        bot = _make_bot()
+
+        assert await bot._extract_peer_turn_budget("max_turns: 7") == 7
+        assert await bot._extract_peer_turn_budget("no more than 3 turns please") == 3
+        assert await bot._extract_peer_turn_budget("limit 5 rounds") == 5
+
+    async def test_peer_turn_budget_caps_extracted_value(self) -> None:
+        bot = _make_bot()
+
+        assert await bot._extract_peer_turn_budget("max_turns 9999") == 50
+
+    async def test_unallowlisted_peer_bot_does_not_reset_anchor(self) -> None:
+        bot = _make_bot()
+        bot._config.slack.allowed_users = ["U123"]
+        bot._config.slack.allowed_bot_ids = ["B456"]
+        bot._app.client.conversations_replies.return_value = {
+            "messages": [
+                {"ts": "1710000000.100", "user": "U123", "text": "聊 2 轮"},
+                {"ts": "1710000000.200", "bot_id": "BOTSELF", "text": "一"},
+                {"ts": "1710000000.300", "bot_id": "B999", "text": "stranger bot chimes in"},
+                {"ts": "1710000000.400", "bot_id": "B456", "text": "二"},
+            ]
+        }
+
+        await bot._on_message(
+            {
+                "bot_id": "B456",
+                "channel": "C123",
+                "channel_type": "channel",
+                "thread_ts": "1710000000.100",
+                "subtype": "bot_message",
+                "ts": "1710000000.400",
+                "text": "二",
+            }
+        )
+
+        bot._dispatch_with_lock.assert_not_awaited()
 
     async def test_debounces_peer_bot_message_changed_to_final_text(self) -> None:
         bot = _make_bot()
