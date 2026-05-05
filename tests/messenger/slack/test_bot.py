@@ -13,6 +13,22 @@ from ductor_slack.orchestrator.registry import OrchestratorResult
 from ductor_slack.session.manager import SessionData
 
 
+@contextlib.asynccontextmanager
+async def _instant_peer_debounce(bot: SlackBot):
+    """Run the body with peer-edit debounce sleeps no-op'd, then flush pending tasks.
+
+    Peer bot inbound messages now go through the same debounced path as
+    `message_changed`, so callers that need to assert post-dispatch state must
+    wait for the scheduled task to finish.
+    """
+    with patch("ductor_slack.messenger.slack.bot.asyncio.sleep", new=AsyncMock()):
+        yield
+        pending = list(bot._pending_peer_edit_tasks.values())
+        for task in pending:
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+
+
 def _make_bot() -> SlackBot:
     bot = object.__new__(SlackBot)
     bot._config = AgentConfig(
@@ -303,16 +319,17 @@ class TestMessageRouting:
         bot._config.slack.allowed_users = []
         bot._config.slack.allowed_bot_ids = ["B456"]
 
-        await bot._on_message(
-            {
-                "bot_id": "B456",
-                "channel": "C123",
-                "channel_type": "im",
-                "subtype": "bot_message",
-                "ts": "1710000000.456",
-                "text": "hello from allowed bot",
-            }
-        )
+        async with _instant_peer_debounce(bot):
+            await bot._on_message(
+                {
+                    "bot_id": "B456",
+                    "channel": "C123",
+                    "channel_type": "im",
+                    "subtype": "bot_message",
+                    "ts": "1710000000.456",
+                    "text": "hello from allowed bot",
+                }
+            )
 
         bot._dispatch_with_lock.assert_awaited_once()
 
@@ -321,17 +338,18 @@ class TestMessageRouting:
         bot._config.slack.allowed_users = []
         bot._config.slack.allowed_app_ids = ["A456"]
 
-        await bot._on_message(
-            {
-                "bot_id": "B999",
-                "app_id": "A456",
-                "channel": "C123",
-                "channel_type": "im",
-                "subtype": "bot_message",
-                "ts": "1710000000.456",
-                "text": "hello from allowed app",
-            }
-        )
+        async with _instant_peer_debounce(bot):
+            await bot._on_message(
+                {
+                    "bot_id": "B999",
+                    "app_id": "A456",
+                    "channel": "C123",
+                    "channel_type": "im",
+                    "subtype": "bot_message",
+                    "ts": "1710000000.456",
+                    "text": "hello from allowed app",
+                }
+            )
 
         bot._dispatch_with_lock.assert_awaited_once()
 
@@ -399,17 +417,18 @@ class TestMessageRouting:
         bot._config.slack.allowed_users = []
         bot._config.slack.allowed_bot_ids = ["B456"]
 
-        await bot._on_message(
-            {
-                "bot_id": "B456",
-                "bot_profile": {"name": "reviewer"},
-                "channel": "C123",
-                "channel_type": "im",
-                "subtype": "bot_message",
-                "ts": "1710000000.456",
-                "text": "hello from allowed bot",
-            }
-        )
+        async with _instant_peer_debounce(bot):
+            await bot._on_message(
+                {
+                    "bot_id": "B456",
+                    "bot_profile": {"name": "reviewer"},
+                    "channel": "C123",
+                    "channel_type": "im",
+                    "subtype": "bot_message",
+                    "ts": "1710000000.456",
+                    "text": "hello from allowed bot",
+                }
+            )
 
         bot._dispatch_with_lock.assert_awaited_once()
         wrapped = bot._dispatch_with_lock.await_args.args[1]
@@ -431,17 +450,18 @@ class TestMessageRouting:
         }
         bot._extract_peer_turn_budget = AsyncMock(return_value=4)
 
-        await bot._on_message(
-            {
-                "bot_id": "B456",
-                "channel": "C123",
-                "channel_type": "channel",
-                "thread_ts": "1710000000.100",
-                "subtype": "bot_message",
-                "ts": "1710000000.500",
-                "text": "四",
-            }
-        )
+        async with _instant_peer_debounce(bot):
+            await bot._on_message(
+                {
+                    "bot_id": "B456",
+                    "channel": "C123",
+                    "channel_type": "channel",
+                    "thread_ts": "1710000000.100",
+                    "subtype": "bot_message",
+                    "ts": "1710000000.500",
+                    "text": "四",
+                }
+            )
 
         bot._dispatch_with_lock.assert_not_awaited()
 
@@ -488,18 +508,19 @@ class TestMessageRouting:
             ]
         }
 
-        await bot._on_message(
-            {
-                "bot_id": "B_PEER",
-                "app_id": "A_PEER",
-                "channel": "C123",
-                "channel_type": "channel",
-                "thread_ts": "1710000000.100",
-                "subtype": "bot_message",
-                "ts": "1710000000.500",
-                "text": "四",
-            }
-        )
+        async with _instant_peer_debounce(bot):
+            await bot._on_message(
+                {
+                    "bot_id": "B_PEER",
+                    "app_id": "A_PEER",
+                    "channel": "C123",
+                    "channel_type": "channel",
+                    "thread_ts": "1710000000.100",
+                    "subtype": "bot_message",
+                    "ts": "1710000000.500",
+                    "text": "四",
+                }
+            )
 
         bot._dispatch_with_lock.assert_not_awaited()
 
@@ -516,17 +537,18 @@ class TestMessageRouting:
             ]
         }
 
-        await bot._on_message(
-            {
-                "bot_id": "B456",
-                "channel": "C123",
-                "channel_type": "channel",
-                "thread_ts": "1710000000.100",
-                "subtype": "bot_message",
-                "ts": "1710000000.400",
-                "text": "二",
-            }
-        )
+        async with _instant_peer_debounce(bot):
+            await bot._on_message(
+                {
+                    "bot_id": "B456",
+                    "channel": "C123",
+                    "channel_type": "channel",
+                    "thread_ts": "1710000000.100",
+                    "subtype": "bot_message",
+                    "ts": "1710000000.400",
+                    "text": "二",
+                }
+            )
 
         bot._dispatch_with_lock.assert_not_awaited()
 
@@ -580,6 +602,57 @@ class TestMessageRouting:
         wrapped = bot._dispatch_with_lock.await_args.args[1]
         assert wrapped.endswith("final answer")
         assert "draft" not in wrapped
+
+    async def test_peer_bot_initial_post_then_edit_dispatches_once(self) -> None:
+        # Streaming bots first POST a placeholder then EDIT it. The receiver
+        # used to dispatch twice (once for the initial event, once for the
+        # debounced final edit). With the unified debounce, the initial post
+        # is treated like an edit and only the final stable text dispatches.
+        bot = _make_bot()
+        bot._config.slack.allowed_users = []
+        bot._config.slack.allowed_bot_ids = ["B456"]
+        gate = asyncio.Event()
+
+        async def _sleep(_delay: float) -> None:
+            await gate.wait()
+
+        initial_event = {
+            "bot_id": "B456",
+            "bot_profile": {"name": "reviewer"},
+            "channel": "C123",
+            "channel_type": "im",
+            "subtype": "bot_message",
+            "ts": "1710000000.789",
+            "text": "Working on your request",
+        }
+        edit_event = {
+            "subtype": "message_changed",
+            "channel": "C123",
+            "message": {
+                "bot_id": "B456",
+                "bot_profile": {"name": "reviewer"},
+                "channel": "C123",
+                "channel_type": "im",
+                "subtype": "bot_message",
+                "ts": "1710000000.789",
+                "text": "actual reply",
+            },
+        }
+
+        with patch("ductor_slack.messenger.slack.bot.asyncio.sleep", side_effect=_sleep):
+            await bot._on_message(initial_event)
+            first_task = bot._pending_peer_edit_tasks[("C123", "1710000000.789")]
+            await bot._on_message(edit_event)
+            second_task = bot._pending_peer_edit_tasks[("C123", "1710000000.789")]
+            gate.set()
+            await second_task
+            with contextlib.suppress(asyncio.CancelledError):
+                await first_task
+
+        bot._dispatch_with_lock.assert_awaited_once()
+        wrapped = bot._dispatch_with_lock.await_args.args[1]
+        assert wrapped.endswith("actual reply")
+        assert "Working on your request" not in wrapped
 
     async def test_backfills_first_thread_reply_after_mention(self) -> None:
         bot = _make_bot()

@@ -307,7 +307,22 @@ class SlackBot:
         if subtype == "message_changed":
             await self._schedule_peer_edit_processing(event)
             return
+        if self._is_peer_bot_inbound(event):
+            # Streaming bots post a placeholder first then edit it to the final
+            # text. Route the initial post through the same debounce path so we
+            # only act on the stable text and dispatch once per peer message.
+            await self._schedule_peer_edit_processing(event)
+            return
         await self._process_message_event(event)
+
+    def _is_peer_bot_inbound(self, event: dict[str, Any]) -> bool:
+        bot_id = str(event.get("bot_id", "") or "")
+        app_id = self._extract_app_id(event)
+        subtype = str(event.get("subtype", "") or "")
+        if not (bot_id or app_id or subtype == "bot_message"):
+            return False
+        user_id = str(event.get("user", "") or "")
+        return not self._is_self_sender(user_id, bot_id)
 
     async def _process_message_event(
         self,
@@ -447,10 +462,13 @@ class SlackBot:
         self._pending_peer_edit_tasks[key] = task
 
     def _normalize_message_changed_event(self, event: dict[str, Any]) -> dict[str, Any] | None:
-        message = event.get("message")
-        if not isinstance(message, dict):
-            return None
-        normalized = dict(message)
+        if str(event.get("subtype", "") or "") == "message_changed":
+            message = event.get("message")
+            if not isinstance(message, dict):
+                return None
+            normalized = dict(message)
+        else:
+            normalized = dict(event)
         normalized.setdefault("channel", str(event.get("channel", "") or ""))
         channel_type = str(event.get("channel_type", "") or "")
         if channel_type:
