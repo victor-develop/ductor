@@ -266,6 +266,33 @@ class TestMessageRouting:
         await bot._handle_message_event(event)
         await bot._handle_mention_event(event)
 
+    def test_mention_order_delay_is_based_on_unique_mention_position(self) -> None:
+        bot = _make_bot()
+
+        delay = bot._mention_order_delay_seconds(
+            text="<@B999> first <@B123> second <@B123> repeat",
+            is_dm=False,
+        )
+
+        assert delay == 0.2
+
+    async def test_delays_processing_for_later_mentions(self) -> None:
+        bot = _make_bot()
+
+        with patch("ductor_slack.messenger.slack.bot.asyncio.sleep", new=AsyncMock()) as mock_sleep:
+            await bot._on_message(
+                {
+                    "user": "U123",
+                    "channel": "C123",
+                    "channel_type": "channel",
+                    "ts": "1710000000.456",
+                    "text": "<@B999> check Neon, <@B123> check Supabase",
+                }
+            )
+
+        mock_sleep.assert_awaited_once_with(0.2)
+        bot._dispatch_with_lock.assert_awaited_once()
+
     async def test_allows_explicitly_allowlisted_bot_id(self) -> None:
         bot = _make_bot()
         bot._config.slack.allowed_users = []

@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import re
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -64,9 +65,11 @@ _DEFAULT_MENTIONED_THREAD_MAX_SIZE = 200
 _DEFAULT_THREAD_CONTEXT_CACHE_MAX_SIZE = 200
 _DEFAULT_RECENT_EVENT_TTL_SECONDS = 120.0
 _DEFAULT_RECENT_EVENT_MAX_SIZE = 500
+_MENTION_ORDER_DELAY_SECONDS = 0.2
 _MESSAGE_COMMANDS_WITH_ARGS = frozenset(
     {"agent_restart", "agent_start", "agent_stop", "model", "session", "showfiles"}
 )
+_SLACK_MENTION_RE = re.compile(r"<@([A-Z0-9]+)>")
 
 
 @dataclass(slots=True)
@@ -307,6 +310,7 @@ class SlackBot:
         if prepared_text is None:
             return
         text = prepared_text
+        await self._delay_for_mention_order(text=str(event.get("text", "") or ""), is_dm=is_dm)
 
         chat_id = self._id_map.channel_to_int(channel_id)
         topic_id = (
@@ -376,6 +380,27 @@ class SlackBot:
             peer_name = await self._resolve_peer_name(event, channel_id=channel_id)
             return self._wrap_peer_message(text, peer_name)
         return text
+
+    async def _delay_for_mention_order(self, *, text: str, is_dm: bool) -> None:
+        delay_seconds = self._mention_order_delay_seconds(text=text, is_dm=is_dm)
+        if delay_seconds <= 0:
+            return
+        await asyncio.sleep(delay_seconds)
+
+    def _mention_order_delay_seconds(self, *, text: str, is_dm: bool) -> float:
+        if is_dm or not self._bot_user_id:
+            return 0.0
+        mentioned_ids: list[str] = []
+        seen: set[str] = set()
+        for match in _SLACK_MENTION_RE.finditer(text):
+            mentioned_id = match.group(1)
+            if mentioned_id in seen:
+                continue
+            seen.add(mentioned_id)
+            mentioned_ids.append(mentioned_id)
+        if self._bot_user_id not in seen:
+            return 0.0
+        return mentioned_ids.index(self._bot_user_id) * _MENTION_ORDER_DELAY_SECONDS
 
     async def _handle_command(  # noqa: PLR0913
         self,
