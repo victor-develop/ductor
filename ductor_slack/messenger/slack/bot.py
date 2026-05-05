@@ -292,18 +292,21 @@ class SlackBot:
             reply_thread_ts
             and await self._has_active_session_for_thread(channel_id, reply_thread_ts)
         )
-        if not is_dm and self._config.group_mention_only:
-            is_mentioned = bool(self._bot_user_id and f"<@{self._bot_user_id}>" in text)
-            in_mentioned_thread = bool(
-                is_thread_reply
-                and reply_thread_ts
-                and self._has_recent_mentioned_thread(channel_id, reply_thread_ts)
-            )
-            if not is_mentioned and not in_mentioned_thread and not has_thread_session:
-                return
-            text = self._strip_mention(text)
-            if is_mentioned and reply_thread_ts:
-                self._mark_mentioned_thread(channel_id, reply_thread_ts)
+        prepared_text = await self._prepare_inbound_text(
+            event,
+            channel_id=channel_id,
+            text=text,
+            is_dm=is_dm,
+            is_thread_reply=is_thread_reply,
+            reply_thread_ts=reply_thread_ts,
+            has_thread_session=has_thread_session,
+            bot_id=bot_id,
+            app_id=app_id,
+            subtype=subtype,
+        )
+        if prepared_text is None:
+            return
+        text = prepared_text
 
         chat_id = self._id_map.channel_to_int(channel_id)
         topic_id = (
@@ -342,6 +345,37 @@ class SlackBot:
                 stream_thread_ts=reply_thread_ts or ts,
                 recipient_user_id=user_id,
             )
+
+    async def _prepare_inbound_text(  # noqa: PLR0913
+        self,
+        event: dict[str, Any],
+        *,
+        channel_id: str,
+        text: str,
+        is_dm: bool,
+        is_thread_reply: bool,
+        reply_thread_ts: str,
+        has_thread_session: bool,
+        bot_id: str,
+        app_id: str,
+        subtype: str,
+    ) -> str | None:
+        if not is_dm and self._config.group_mention_only:
+            is_mentioned = bool(self._bot_user_id and f"<@{self._bot_user_id}>" in text)
+            in_mentioned_thread = bool(
+                is_thread_reply
+                and reply_thread_ts
+                and self._has_recent_mentioned_thread(channel_id, reply_thread_ts)
+            )
+            if not is_mentioned and not in_mentioned_thread and not has_thread_session:
+                return None
+            text = self._strip_mention(text)
+            if is_mentioned and reply_thread_ts:
+                self._mark_mentioned_thread(channel_id, reply_thread_ts)
+        if bot_id or app_id or subtype == "bot_message":
+            peer_name = await self._resolve_peer_name(event, channel_id=channel_id)
+            return self._wrap_peer_message(text, peer_name)
+        return text
 
     async def _handle_command(  # noqa: PLR0913
         self,
@@ -885,6 +919,39 @@ class SlackBot:
         self._user_name_cache[user_id] = resolved
         return resolved
 
+    async def _resolve_peer_name(self, event: dict[str, Any], *, channel_id: str) -> str:
+        bot_profile = event.get("bot_profile")
+        if isinstance(bot_profile, dict):
+            profile_name = str(bot_profile.get("name", "") or "").strip()
+            if profile_name:
+                return profile_name
+        username = str(event.get("username", "") or "").strip()
+        if username:
+            return username
+        user_id = str(event.get("user", "") or "")
+        if user_id:
+            user_name = await self._resolve_user_name(user_id, channel_id=channel_id)
+            if user_name and user_name != "unknown":
+                return user_name
+        app_id = self._extract_app_id(event)
+        if app_id:
+            return app_id
+        bot_id = str(event.get("bot_id", "") or "")
+        if bot_id:
+            return bot_id
+        return "unknown"
+
+    def _wrap_peer_message(self, text: str, peer_name: str) -> str:
+        speaker = peer_name or "unknown"
+        return (
+            f'[Message from peer agent "{speaker}". This is NOT a user request and NOT your '
+            f'sub-agent. They are an independent agent in this thread. Respond with your own '
+            f'perspective as "{self._bot_name}"; do not repeat their points, do not mirror '
+            "their structure or wording, and do not speak on their behalf. If you agree, say "
+            "so briefly and move forward; if you disagree, push back.]\n\n"
+            f"{text}"
+        )
+
     async def _fetch_thread_context(
         self,
         *,
@@ -921,7 +988,7 @@ class SlackBot:
         if not isinstance(messages, list) or not messages:
             return ""
 
-        context_parts = await self._build_thread_context_parts(
+        context_parts, has_peer_agent = await self._build_thread_context_parts(
             messages=messages,
             channel_id=channel_id,
             thread_ts=thread_ts,
@@ -931,6 +998,7 @@ class SlackBot:
             cache_key=cache_key,
             content_parts=context_parts,
             fetched_at=now,
+            has_peer_agent=has_peer_agent,
         )
 
     async def _build_thread_context_parts(
@@ -940,9 +1008,10 @@ class SlackBot:
         channel_id: str,
         thread_ts: str,
         current_ts: str,
-    ) -> list[str]:
+    ) -> tuple[list[str], bool]:
         """Build normalized thread-history lines from Slack reply payloads."""
         context_parts: list[str] = []
+        has_peer_agent = False
         for msg in messages:
             if not isinstance(msg, dict):
                 continue
@@ -965,10 +1034,14 @@ class SlackBot:
                 msg_text = msg_text.replace(f"<@{self._bot_user_id}>", "").strip()
             if not msg_text:
                 continue
-            user_name = await self._resolve_user_name(msg_user, channel_id=channel_id)
+            if msg_bot_id or msg_app_id or msg.get("subtype") == "bot_message":
+                speaker = f"peer agent {await self._resolve_peer_name(msg, channel_id=channel_id)}"
+                has_peer_agent = True
+            else:
+                speaker = await self._resolve_user_name(msg_user, channel_id=channel_id)
             prefix = "[thread parent] " if msg_ts == thread_ts else ""
-            context_parts.append(f"{prefix}{user_name}: {msg_text}")
-        return context_parts
+            context_parts.append(f"{prefix}{speaker}: {msg_text}")
+        return context_parts, has_peer_agent
 
     def _cache_thread_context(
         self,
@@ -976,6 +1049,7 @@ class SlackBot:
         cache_key: str,
         content_parts: list[str],
         fetched_at: float,
+        has_peer_agent: bool = False,
     ) -> str:
         """Persist thread-context cache entry and return the formatted content."""
         self._prune_thread_context_cache(fetched_at)
@@ -988,11 +1062,14 @@ class SlackBot:
             self._prune_thread_context_cache(fetched_at)
             return ""
 
-        content = (
-            "[Thread context — prior messages in this thread (not yet in conversation history):]\n"
-            + "\n".join(content_parts)
-            + "\n[End of thread context]\n\n"
-        )
+        header = "[Thread context — prior messages in this thread (not yet in conversation history)."
+        if has_peer_agent:
+            header += (
+                f'\nYou are "{self._bot_name}". Lines tagged "peer agent X" are from other '
+                "independent agents — do not mirror or speak for them."
+            )
+        header += "]\n"
+        content = header + "\n".join(content_parts) + "\n[End of thread context]\n\n"
         self._thread_context_cache.pop(cache_key, None)
         self._thread_context_cache[cache_key] = _ThreadContextCache(
             content=content,

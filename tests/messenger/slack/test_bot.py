@@ -137,12 +137,18 @@ class TestThreadContextFetching:
             "messages": [
                 {"ts": "1710000000.100", "user": "U111", "text": "First context"},
                 {"ts": "1710000000.123", "user": "U222", "text": "<@B123> Parent message"},
-                {"ts": "1710000000.200", "bot_id": "BOT", "text": "Bot output"},
+                {
+                    "ts": "1710000000.200",
+                    "bot_id": "BOT",
+                    "bot_profile": {"name": "reviewer"},
+                    "text": "Bot output",
+                },
                 {"ts": "1710000000.300", "user": "U333", "text": "Current message"},
                 {"ts": "1710000000.301", "user": "U444", "text": "Future message"},
             ]
         }
         bot._resolve_user_name = AsyncMock(side_effect=["Alice", "Bob"])
+        bot._config.slack.allowed_bot_ids = ["BOT"]
 
         content = await bot._fetch_thread_context(
             channel_id="C123",
@@ -152,9 +158,10 @@ class TestThreadContextFetching:
 
         assert "Alice: First context" in content
         assert "[thread parent] Bob: Parent message" in content
+        assert "peer agent reviewer: Bot output" in content
+        assert 'You are "ductor". Lines tagged "peer agent X"' in content
         assert "Current message" not in content
         assert "Future message" not in content
-        assert "Bot output" not in content
 
         again = await bot._fetch_thread_context(
             channel_id="C123",
@@ -336,11 +343,15 @@ class TestMessageRouting:
     async def test_thread_context_keeps_allowlisted_bot_messages(self) -> None:
         bot = _make_bot()
         bot._config.slack.allowed_bot_ids = ["B456"]
-        bot._resolve_user_name = AsyncMock(return_value="Allowed Bot")
 
-        content = await bot._build_thread_context_parts(
+        content, has_peer_agent = await bot._build_thread_context_parts(
             messages=[
-                {"ts": "1710000000.100", "bot_id": "B456", "text": "Bot context"},
+                {
+                    "ts": "1710000000.100",
+                    "bot_id": "B456",
+                    "bot_profile": {"name": "Allowed Bot"},
+                    "text": "Bot context",
+                },
                 {"ts": "1710000000.200", "bot_id": "B789", "text": "Blocked context"},
             ],
             channel_id="C123",
@@ -348,7 +359,30 @@ class TestMessageRouting:
             current_ts="1710000000.300",
         )
 
-        assert content == ["[thread parent] Allowed Bot: Bot context"]
+        assert content == ["[thread parent] peer agent Allowed Bot: Bot context"]
+        assert has_peer_agent is True
+
+    async def test_wraps_allowlisted_peer_bot_before_dispatch(self) -> None:
+        bot = _make_bot()
+        bot._config.slack.allowed_users = []
+        bot._config.slack.allowed_bot_ids = ["B456"]
+
+        await bot._on_message(
+            {
+                "bot_id": "B456",
+                "bot_profile": {"name": "reviewer"},
+                "channel": "C123",
+                "channel_type": "im",
+                "subtype": "bot_message",
+                "ts": "1710000000.456",
+                "text": "hello from allowed bot",
+            }
+        )
+
+        bot._dispatch_with_lock.assert_awaited_once()
+        wrapped = bot._dispatch_with_lock.await_args.args[1]
+        assert 'Message from peer agent "reviewer"' in wrapped
+        assert wrapped.endswith("hello from allowed bot")
 
     async def test_backfills_first_thread_reply_after_mention(self) -> None:
         bot = _make_bot()
