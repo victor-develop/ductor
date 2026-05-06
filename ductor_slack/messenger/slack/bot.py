@@ -394,6 +394,7 @@ class SlackBot:
         )
         key = SessionKey.for_transport("sl", chat_id, topic_id)
         self._last_active_channel = channel_id
+        force_fresh_session = not is_dm
 
         command_text = self._normalize_command_text(text)
         async with self._processing_reaction(channel_id, ts):
@@ -408,7 +409,7 @@ class SlackBot:
                 )
                 return
 
-            if is_thread_reply and reply_thread_ts and not has_thread_session:
+            if is_thread_reply and reply_thread_ts and not is_dm:
                 thread_context = await self._fetch_thread_context(
                     channel_id=channel_id,
                     thread_ts=reply_thread_ts,
@@ -424,6 +425,7 @@ class SlackBot:
                 reply_thread_ts or None,
                 stream_thread_ts=reply_thread_ts or ts,
                 recipient_user_id=user_id,
+                force_fresh_session=force_fresh_session,
             )
 
     async def _schedule_peer_edit_processing(self, event: dict[str, Any]) -> None:
@@ -778,6 +780,7 @@ class SlackBot:
         *,
         stream_thread_ts: str | None = None,
         recipient_user_id: str | None = None,
+        force_fresh_session: bool = False,
     ) -> None:
         lock = self._lock_pool.get(key.lock_key)
         async with lock:
@@ -788,6 +791,7 @@ class SlackBot:
                 thread_ts,
                 stream_thread_ts=stream_thread_ts,
                 recipient_user_id=recipient_user_id,
+                force_fresh_session=force_fresh_session,
             )
 
     async def _run_handler_with_lock(
@@ -810,6 +814,7 @@ class SlackBot:
         *,
         stream_thread_ts: str | None = None,
         recipient_user_id: str | None = None,
+        force_fresh_session: bool = False,
     ) -> None:
         if self._config.streaming.enabled:
             await self._run_streaming(
@@ -818,11 +823,18 @@ class SlackBot:
                 channel_id,
                 stream_thread_ts or thread_ts,
                 recipient_user_id=recipient_user_id,
+                force_fresh_session=force_fresh_session,
             )
             return
-        await self._run_non_streaming(key, text, channel_id, thread_ts)
+        await self._run_non_streaming(
+            key,
+            text,
+            channel_id,
+            thread_ts,
+            force_fresh_session=force_fresh_session,
+        )
 
-    async def _run_streaming(
+    async def _run_streaming(  # noqa: PLR0913
         self,
         key: SessionKey,
         text: str,
@@ -830,6 +842,7 @@ class SlackBot:
         thread_ts: str | None,
         *,
         recipient_user_id: str | None = None,
+        force_fresh_session: bool = False,
     ) -> None:
         orch = self._orchestrator
         if orch is None or thread_ts is None:
@@ -848,6 +861,7 @@ class SlackBot:
         result = await orch.handle_message_streaming(
             key,
             text,
+            force_fresh_session=force_fresh_session,
             on_text_delta=editor.on_delta,
             on_thinking_delta=editor.on_thinking,
             on_tool_activity=editor.on_tool,
@@ -862,11 +876,13 @@ class SlackBot:
         text: str,
         channel_id: str,
         thread_ts: str | None,
+        *,
+        force_fresh_session: bool = False,
     ) -> None:
         orch = self._orchestrator
         if orch is None:
             return
-        result = await orch.handle_message(key, text)
+        result = await orch.handle_message(key, text, force_fresh_session=force_fresh_session)
         self._maybe_append_footer(result)
         if result.text:
             await self._send_rich(channel_id, result.text, thread_ts=thread_ts)
@@ -1316,8 +1332,8 @@ class SlackBot:
         current_ts: str,
         limit: int = 30,
     ) -> str:
-        """Fetch earlier Slack thread messages for the first message in a fresh session."""
-        cache_key = f"{channel_id}:{thread_ts}"
+        """Fetch earlier Slack thread messages for the current non-DM turn snapshot."""
+        cache_key = f"{channel_id}:{thread_ts}:{current_ts}"
         now = time.monotonic()
         self._prune_thread_context_cache(now)
         cached = self._thread_context_cache.get(cache_key)
