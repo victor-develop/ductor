@@ -95,6 +95,8 @@ def test_write_config_writes_slack_section(tmp_path: Path) -> None:
                 slack_app_token="xapp-test-app-token",
                 slack_allowed_channels=["C0123456789", "G0123456789"],
                 slack_allowed_users=["U0123456789"],
+                slack_allowed_bot_ids=["B0123456789"],
+                slack_allowed_app_ids=["A0123456789"],
                 user_timezone="UTC",
                 docker_enabled=False,
             )
@@ -107,6 +109,8 @@ def test_write_config_writes_slack_section(tmp_path: Path) -> None:
     assert data["slack"]["app_token"] == "xapp-test-app-token"
     assert data["slack"]["allowed_channels"] == ["C0123456789", "G0123456789"]
     assert data["slack"]["allowed_users"] == ["U0123456789"]
+    assert data["slack"]["allowed_bot_ids"] == ["B0123456789"]
+    assert data["slack"]["allowed_app_ids"] == ["A0123456789"]
 
 
 def test_ask_transport_offers_slack() -> None:
@@ -190,6 +194,14 @@ def test_run_onboarding_collects_slack_config(tmp_path: Path) -> None:
             "ductor_slack.cli.init_wizard._ask_slack_allowed_users",
             return_value=["U0123456789"],
         ),
+        patch(
+            "ductor_slack.cli.init_wizard._ask_slack_allowed_bot_ids",
+            return_value=["B0123456789"],
+        ),
+        patch(
+            "ductor_slack.cli.init_wizard._ask_slack_allowed_app_ids",
+            return_value=["A0123456789"],
+        ),
         patch("ductor_slack.cli.init_wizard._ask_docker", return_value=False),
         patch("ductor_slack.cli.init_wizard._ask_timezone", return_value="UTC"),
         patch("ductor_slack.cli.init_wizard.resolve_paths", return_value=paths),
@@ -204,6 +216,8 @@ def test_run_onboarding_collects_slack_config(tmp_path: Path) -> None:
     assert submitted["slack_app_token"] == "xapp-test-app-token"
     assert submitted["slack_allowed_channels"] == ["C0123456789"]
     assert submitted["slack_allowed_users"] == ["U0123456789"]
+    assert submitted["slack_allowed_bot_ids"] == ["B0123456789"]
+    assert submitted["slack_allowed_app_ids"] == ["A0123456789"]
 
 
 # --- Regression tests for non-fatal CLI auth-check failures (#109 / P1-BUG-01) ---

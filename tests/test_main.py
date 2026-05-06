@@ -261,6 +261,28 @@ class TestIsConfiguredExtended:
         with patch("ductor_slack.__main__.resolve_paths", return_value=paths):
             assert _is_configured() is True
 
+    def test_configured_with_slack_bot_allowlist(self, tmp_path: Path) -> None:
+        from ductor_slack.__main__ import _is_configured
+
+        paths = _make_paths(tmp_path)
+        _write_config(
+            paths,
+            {
+                "transport": "slack",
+                "transports": ["slack"],
+                "slack": {
+                    "bot_token": "xoxb-token",
+                    "app_token": "xapp-token",
+                    "allowed_users": [],
+                    "allowed_channels": [],
+                    "allowed_bot_ids": ["B0123456789"],
+                    "allowed_app_ids": [],
+                },
+            },
+        )
+        with patch("ductor_slack.__main__.resolve_paths", return_value=paths):
+            assert _is_configured() is True
+
     def test_configured_with_stale_transports_is_normalized(self, tmp_path: Path) -> None:
         from ductor_slack.__main__ import _is_configured, load_config
 

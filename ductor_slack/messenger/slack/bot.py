@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import logging
+import re
 import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
@@ -64,9 +65,25 @@ _DEFAULT_MENTIONED_THREAD_MAX_SIZE = 200
 _DEFAULT_THREAD_CONTEXT_CACHE_MAX_SIZE = 200
 _DEFAULT_RECENT_EVENT_TTL_SECONDS = 120.0
 _DEFAULT_RECENT_EVENT_MAX_SIZE = 500
+_MENTION_ORDER_DELAY_SECONDS = 0.2
+_PEER_EDIT_DEBOUNCE_SECONDS = 1.0
+_DEFAULT_PEER_TURN_BUDGET = 2
+_MAX_PEER_TURN_BUDGET = 50
+_PEER_TURN_BUDGET_CACHE_MAX = 200
+_PEER_TURN_BUDGET_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(
+        r"(?:max[\s_-]*turns?|at\s*most|no\s*more\s*than|up\s*to|limit(?:\s*of)?)"
+        r"\D{0,8}(\d+)",
+        re.IGNORECASE,
+    ),
+    re.compile(r"\b(\d+)\s*(?:turns?|rounds?|exchanges?|replies?)\b", re.IGNORECASE),
+    re.compile(r"(?:最多|不超过|不多于|不得超过|限定?|上限)\D{0,4}(\d+)"),
+    re.compile(r"(\d+)\s*(?:轮|次|回合)"),
+)
 _MESSAGE_COMMANDS_WITH_ARGS = frozenset(
     {"agent_restart", "agent_start", "agent_stop", "model", "session", "showfiles"}
 )
+_SLACK_MENTION_RE = re.compile(r"<@([A-Z0-9]+)>")
 
 
 @dataclass(slots=True)
@@ -81,6 +98,21 @@ class _ThreadContextCache:
 def _restart_marker_path(ductor_home: str) -> Path:
     """Return the restart marker path."""
     return Path(ductor_home).expanduser() / "restart-requested"
+
+
+def _slack_response_data(response: object) -> dict[str, Any]:
+    """Return the dict body of a Slack SDK response.
+
+    `slack_sdk.web.async_slack_response.AsyncSlackResponse` is dict-like but
+    not a `dict` instance, so plain `isinstance(response, dict)` is False and
+    silently drops the payload. Fall back to its `.data` attribute.
+    """
+    if isinstance(response, dict):
+        return response
+    data = getattr(response, "data", None)
+    if isinstance(data, dict):
+        return data
+    return {}
 
 
 def _slack_ts_is_at_or_after(candidate_ts: str, current_ts: str) -> bool:
@@ -149,11 +181,15 @@ class SlackBot:
         self._update_observer: UpdateObserver | None = None
         self._restart_watcher: asyncio.Task[None] | None = None
         self._bot_user_id = ""
+        self._bot_id = ""
         self._bot_name = "slack-bot"
         self._team_id = ""
         self._last_active_channel: str | None = None
         self._mentioned_threads: dict[tuple[str, str], float] = {}
         self._recent_events: dict[tuple[str, str], float] = {}
+        self._pending_peer_edit_tasks: dict[tuple[str, str], asyncio.Task[None]] = {}
+        self._processed_peer_edit_signatures: dict[tuple[str, str], str] = {}
+        self._peer_turn_budget_cache: dict[tuple[str, str, str], int] = {}
         self._user_name_cache: dict[str, str] = {}
         self._thread_context_cache: dict[str, _ThreadContextCache] = {}
         self._MENTIONED_THREAD_TTL = _DEFAULT_MENTIONED_THREAD_TTL_SECONDS
@@ -201,6 +237,7 @@ class SlackBot:
     async def run(self) -> int:
         auth = await self.client.auth_test()
         self._bot_user_id = str(auth.get("user_id", ""))
+        self._bot_id = str(auth.get("bot_id", ""))
         self._bot_name = str(auth.get("user", "slack-bot"))
         self._team_id = str(auth.get("team_id", ""))
 
@@ -224,6 +261,14 @@ class SlackBot:
         return self._exit_code
 
     async def shutdown(self) -> None:
+        pending_peer_edit_tasks = list(self._pending_peer_edit_tasks.values())
+        for task in pending_peer_edit_tasks:
+            task.cancel()
+        for task in pending_peer_edit_tasks:
+            with contextlib.suppress(asyncio.CancelledError):
+                await task
+        self._pending_peer_edit_tasks.clear()
+
         if self._restart_watcher:
             self._restart_watcher.cancel()
             with contextlib.suppress(asyncio.CancelledError):
@@ -257,25 +302,56 @@ class SlackBot:
 
     async def _on_message(self, event: dict[str, Any]) -> None:
         subtype = str(event.get("subtype", "") or "")
+        if subtype == "message_deleted":
+            return
+        if subtype == "message_changed":
+            await self._schedule_peer_edit_processing(event)
+            return
+        if self._is_peer_bot_inbound(event):
+            # Streaming bots post a placeholder first then edit it to the final
+            # text. Route the initial post through the same debounce path so we
+            # only act on the stable text and dispatch once per peer message.
+            await self._schedule_peer_edit_processing(event)
+            return
+        await self._process_message_event(event)
+
+    def _is_peer_bot_inbound(self, event: dict[str, Any]) -> bool:
+        bot_id = str(event.get("bot_id", "") or "")
+        app_id = self._extract_app_id(event)
+        subtype = str(event.get("subtype", "") or "")
+        if not (bot_id or app_id or subtype == "bot_message"):
+            return False
         user_id = str(event.get("user", "") or "")
+        return not self._is_self_sender(user_id, bot_id)
+
+    async def _process_message_event(
+        self,
+        event: dict[str, Any],
+        *,
+        skip_recent_event_check: bool = False,
+    ) -> None:
+        subtype = str(event.get("subtype", "") or "")
+        user_id = str(event.get("user", "") or "")
+        bot_id = str(event.get("bot_id", "") or "")
+        app_id = self._extract_app_id(event)
         channel_id = str(event.get("channel", "") or "")
         text = str(event.get("text", "") or "").strip()
-        if (
-            subtype in {"bot_message", "message_changed", "message_deleted"}
-            or event.get("bot_id")
-            or not user_id
-            or not channel_id
-            or not text
-        ):
+        if not channel_id or not text:
             return
 
         is_dm = str(event.get("channel_type", "") or "") == "im"
-        if not self._is_authorized(channel_id, user_id, is_dm=is_dm):
+        if not self._is_authorized(
+            channel_id,
+            user_id,
+            is_dm=is_dm,
+            bot_id=bot_id,
+            app_id=app_id,
+        ):
             return
 
         thread_ts = str(event.get("thread_ts", "") or "")
         ts = str(event.get("ts", "") or "")
-        if self._should_skip_recent_event(channel_id, ts):
+        if not skip_recent_event_check and self._should_skip_recent_event(channel_id, ts):
             logger.debug("Skipping duplicate Slack event for %s/%s", channel_id, ts)
             return
         reply_thread_ts = thread_ts or (ts if not is_dm else "")
@@ -284,18 +360,33 @@ class SlackBot:
             reply_thread_ts
             and await self._has_active_session_for_thread(channel_id, reply_thread_ts)
         )
-        if not is_dm and self._config.group_mention_only:
-            is_mentioned = bool(self._bot_user_id and f"<@{self._bot_user_id}>" in text)
-            in_mentioned_thread = bool(
-                is_thread_reply
-                and reply_thread_ts
-                and self._has_recent_mentioned_thread(channel_id, reply_thread_ts)
-            )
-            if not is_mentioned and not in_mentioned_thread and not has_thread_session:
-                return
-            text = self._strip_mention(text)
-            if is_mentioned and reply_thread_ts:
-                self._mark_mentioned_thread(channel_id, reply_thread_ts)
+        prepared_text = await self._prepare_inbound_text(
+            event,
+            channel_id=channel_id,
+            text=text,
+            is_dm=is_dm,
+            is_thread_reply=is_thread_reply,
+            reply_thread_ts=reply_thread_ts,
+            has_thread_session=has_thread_session,
+            bot_id=bot_id,
+            app_id=app_id,
+            subtype=subtype,
+        )
+        if prepared_text is None:
+            return
+        text = prepared_text
+        if not await self._should_process_peer_turn(
+            event,
+            channel_id=channel_id,
+            thread_ts=reply_thread_ts,
+            current_ts=ts,
+            is_dm=is_dm,
+            bot_id=bot_id,
+            app_id=app_id,
+            subtype=subtype,
+        ):
+            return
+        await self._delay_for_mention_order(text=str(event.get("text", "") or ""), is_dm=is_dm)
 
         chat_id = self._id_map.channel_to_int(channel_id)
         topic_id = (
@@ -334,6 +425,312 @@ class SlackBot:
                 stream_thread_ts=reply_thread_ts or ts,
                 recipient_user_id=user_id,
             )
+
+    async def _schedule_peer_edit_processing(self, event: dict[str, Any]) -> None:
+        message = self._normalize_message_changed_event(event)
+        if message is None:
+            return
+        channel_id = str(message.get("channel", "") or "")
+        message_ts = str(message.get("ts", "") or "")
+        if not channel_id or not message_ts:
+            return
+        user_id = str(message.get("user", "") or "")
+        bot_id = str(message.get("bot_id", "") or "")
+        app_id = self._extract_app_id(message)
+        is_dm = str(message.get("channel_type", "") or "") == "im"
+        if not self._is_authorized(
+            channel_id,
+            user_id,
+            is_dm=is_dm,
+            bot_id=bot_id,
+            app_id=app_id,
+        ):
+            return
+        if not (bot_id or app_id or str(message.get("subtype", "") or "") == "bot_message"):
+            return
+
+        key = (channel_id, message_ts)
+        signature = self._peer_edit_signature(message)
+        if self._processed_peer_edit_signatures.get(key) == signature:
+            return
+
+        existing = self._pending_peer_edit_tasks.pop(key, None)
+        if existing is not None:
+            existing.cancel()
+
+        task = asyncio.create_task(self._debounce_peer_edit(key, message, signature))
+        self._pending_peer_edit_tasks[key] = task
+
+    def _normalize_message_changed_event(self, event: dict[str, Any]) -> dict[str, Any] | None:
+        if str(event.get("subtype", "") or "") == "message_changed":
+            message = event.get("message")
+            if not isinstance(message, dict):
+                return None
+            normalized = dict(message)
+        else:
+            normalized = dict(event)
+        normalized.setdefault("channel", str(event.get("channel", "") or ""))
+        channel_type = str(event.get("channel_type", "") or "")
+        if channel_type:
+            normalized.setdefault("channel_type", channel_type)
+        subtype = str(normalized.get("subtype", "") or "")
+        if not subtype and (normalized.get("bot_id") or self._extract_app_id(normalized)):
+            normalized["subtype"] = "bot_message"
+        return normalized
+
+    def _peer_edit_signature(self, event: dict[str, Any]) -> str:
+        return "|".join(
+            [
+                str(event.get("ts", "") or ""),
+                str(event.get("thread_ts", "") or ""),
+                str(event.get("bot_id", "") or ""),
+                self._extract_app_id(event),
+                str(event.get("text", "") or ""),
+            ]
+        )
+
+    async def _debounce_peer_edit(
+        self,
+        key: tuple[str, str],
+        event: dict[str, Any],
+        signature: str,
+    ) -> None:
+        try:
+            await asyncio.sleep(_PEER_EDIT_DEBOUNCE_SECONDS)
+            if self._processed_peer_edit_signatures.get(key) == signature:
+                return
+            await self._process_message_event(event, skip_recent_event_check=True)
+            self._processed_peer_edit_signatures[key] = signature
+        finally:
+            current = self._pending_peer_edit_tasks.get(key)
+            if current is asyncio.current_task():
+                self._pending_peer_edit_tasks.pop(key, None)
+
+    async def _should_process_peer_turn(  # noqa: PLR0913
+        self,
+        event: dict[str, Any],
+        *,
+        channel_id: str,
+        thread_ts: str,
+        current_ts: str,
+        is_dm: bool,
+        bot_id: str,
+        app_id: str,
+        subtype: str,
+    ) -> bool:
+        if is_dm or not thread_ts:
+            return True
+        if not (bot_id or app_id or subtype == "bot_message"):
+            return True
+        messages = await self._fetch_thread_messages(channel_id=channel_id, thread_ts=thread_ts)
+        if not messages:
+            logger.info(
+                "peer_turn_check ts=%s: empty thread snapshot -> ALLOW",
+                current_ts,
+            )
+            return True
+        anchor = self._latest_human_anchor(messages, current_ts=current_ts)
+        if anchor is None:
+            logger.info(
+                "peer_turn_check ts=%s: no human anchor in %d msgs -> ALLOW",
+                current_ts,
+                len(messages),
+            )
+            return True
+        anchor_ts, anchor_text = anchor
+        peer_turns = self._count_peer_turns_since_anchor(
+            messages,
+            anchor_ts=anchor_ts,
+            current_ts=current_ts,
+        )
+        if peer_turns <= 0:
+            logger.info(
+                "peer_turn_check ts=%s anchor=%s msgs=%d peer_turns=0 -> ALLOW",
+                current_ts,
+                anchor_ts,
+                len(messages),
+            )
+            return True
+        budget = await self._resolve_peer_turn_budget(
+            channel_id=channel_id,
+            thread_ts=thread_ts,
+            anchor_ts=anchor_ts,
+            anchor_text=anchor_text,
+        )
+        decision = peer_turns < budget
+        logger.info(
+            "peer_turn_check ts=%s anchor=%s msgs=%d peer_turns=%d budget=%d -> %s",
+            current_ts,
+            anchor_ts,
+            len(messages),
+            peer_turns,
+            budget,
+            "ALLOW" if decision else "SUPPRESS",
+        )
+        return decision
+
+    async def _fetch_thread_messages(
+        self,
+        *,
+        channel_id: str,
+        thread_ts: str,
+        limit: int = 100,
+    ) -> list[object]:
+        try:
+            response = await self.client.conversations_replies(
+                channel=channel_id,
+                ts=thread_ts,
+                limit=limit,
+                inclusive=True,
+            )
+        except Exception:
+            logger.warning(
+                "Failed to fetch Slack thread messages for %s/%s",
+                channel_id,
+                thread_ts,
+                exc_info=True,
+            )
+            return []
+        data = _slack_response_data(response)
+        messages = data.get("messages", [])
+        return messages if isinstance(messages, list) else []
+
+    def _latest_human_anchor(
+        self,
+        messages: list[object],
+        *,
+        current_ts: str,
+    ) -> tuple[str, str] | None:
+        latest: tuple[str, str] | None = None
+        for msg in messages:
+            if not isinstance(msg, dict):
+                continue
+            msg_ts = str(msg.get("ts", "") or "")
+            if not msg_ts or _slack_ts_is_at_or_after(msg_ts, current_ts):
+                continue
+            if self._looks_like_bot_message(msg):
+                continue
+            msg_text = str(msg.get("text", "") or "").strip()
+            if not msg_text:
+                continue
+            latest = (msg_ts, msg_text)
+        return latest
+
+    def _looks_like_bot_message(self, msg: dict[str, Any]) -> bool:
+        msg_user = str(msg.get("user", "") or "")
+        msg_bot_id = str(msg.get("bot_id", "") or "")
+        if self._is_self_sender(msg_user, msg_bot_id):
+            return True
+        if msg_bot_id:
+            return True
+        if self._extract_app_id(msg):
+            return True
+        return str(msg.get("subtype", "") or "") == "bot_message"
+
+    def _count_peer_turns_since_anchor(
+        self,
+        messages: list[object],
+        *,
+        anchor_ts: str,
+        current_ts: str,
+    ) -> int:
+        count = 0
+        for msg in messages:
+            if not isinstance(msg, dict):
+                continue
+            msg_ts = str(msg.get("ts", "") or "")
+            if not msg_ts or _slack_ts_is_at_or_after(anchor_ts, msg_ts):
+                continue
+            if _slack_ts_is_at_or_after(msg_ts, current_ts) and msg_ts != current_ts:
+                continue
+            if self._looks_like_bot_message(msg):
+                count += 1
+        return count
+
+    async def _resolve_peer_turn_budget(
+        self,
+        *,
+        channel_id: str,
+        thread_ts: str,
+        anchor_ts: str,
+        anchor_text: str,
+    ) -> int:
+        cache_key = (channel_id, thread_ts, anchor_ts)
+        cached = self._peer_turn_budget_cache.get(cache_key)
+        if cached is not None:
+            return cached
+        budget = await self._extract_peer_turn_budget(anchor_text)
+        if len(self._peer_turn_budget_cache) >= _PEER_TURN_BUDGET_CACHE_MAX:
+            oldest = next(iter(self._peer_turn_budget_cache))
+            self._peer_turn_budget_cache.pop(oldest, None)
+        self._peer_turn_budget_cache[cache_key] = budget
+        return budget
+
+    async def _extract_peer_turn_budget(self, anchor_text: str) -> int:
+        for pattern in _PEER_TURN_BUDGET_PATTERNS:
+            match = pattern.search(anchor_text)
+            if match is None:
+                continue
+            try:
+                turns = int(match.group(1))
+            except (TypeError, ValueError):
+                continue
+            if turns <= 0:
+                continue
+            return max(1, min(_MAX_PEER_TURN_BUDGET, turns))
+        return _DEFAULT_PEER_TURN_BUDGET
+
+    async def _prepare_inbound_text(  # noqa: PLR0913
+        self,
+        event: dict[str, Any],
+        *,
+        channel_id: str,
+        text: str,
+        is_dm: bool,
+        is_thread_reply: bool,
+        reply_thread_ts: str,
+        has_thread_session: bool,
+        bot_id: str,
+        app_id: str,
+        subtype: str,
+    ) -> str | None:
+        if not is_dm and self._config.group_mention_only:
+            is_mentioned = bool(self._bot_user_id and f"<@{self._bot_user_id}>" in text)
+            in_mentioned_thread = bool(
+                is_thread_reply
+                and reply_thread_ts
+                and self._has_recent_mentioned_thread(channel_id, reply_thread_ts)
+            )
+            if not is_mentioned and not in_mentioned_thread and not has_thread_session:
+                return None
+            text = self._strip_mention(text)
+            if is_mentioned and reply_thread_ts:
+                self._mark_mentioned_thread(channel_id, reply_thread_ts)
+        if bot_id or app_id or subtype == "bot_message":
+            peer_name = await self._resolve_peer_name(event, channel_id=channel_id)
+            return self._wrap_peer_message(text, peer_name)
+        return text
+
+    async def _delay_for_mention_order(self, *, text: str, is_dm: bool) -> None:
+        delay_seconds = self._mention_order_delay_seconds(text=text, is_dm=is_dm)
+        if delay_seconds <= 0:
+            return
+        await asyncio.sleep(delay_seconds)
+
+    def _mention_order_delay_seconds(self, *, text: str, is_dm: bool) -> float:
+        if is_dm or not self._bot_user_id:
+            return 0.0
+        mentioned_ids: list[str] = []
+        seen: set[str] = set()
+        for match in _SLACK_MENTION_RE.finditer(text):
+            mentioned_id = match.group(1)
+            if mentioned_id in seen:
+                continue
+            seen.add(mentioned_id)
+            mentioned_ids.append(mentioned_id)
+        if self._bot_user_id not in seen:
+            return 0.0
+        return mentioned_ids.index(self._bot_user_id) * _MENTION_ORDER_DELAY_SECONDS
 
     async def _handle_command(  # noqa: PLR0913
         self,
@@ -717,13 +1114,47 @@ class SlackBot:
             t("help.slack_footer"),
         )
 
-    def _is_authorized(self, channel_id: str, user_id: str, *, is_dm: bool) -> bool:
+    @staticmethod
+    def _extract_app_id(event: dict[str, Any]) -> str:
+        app_id = str(event.get("app_id", "") or "")
+        if app_id:
+            return app_id
+        bot_profile = event.get("bot_profile")
+        if isinstance(bot_profile, dict):
+            return str(bot_profile.get("app_id", "") or "")
+        return ""
+
+    def _is_self_sender(self, user_id: str, bot_id: str) -> bool:
+        return (bool(user_id) and user_id == self._bot_user_id) or (
+            bool(bot_id) and bool(self._bot_id) and bot_id == self._bot_id
+        )
+
+    def _is_allowed_bot_sender(self, bot_id: str, app_id: str) -> bool:
+        slack = self._config.slack
+        bot_ok = bool(bot_id) and bot_id in slack.allowed_bot_ids
+        app_ok = bool(app_id) and app_id in slack.allowed_app_ids
+        return bot_ok or app_ok
+
+    def _is_authorized(
+        self,
+        channel_id: str,
+        user_id: str,
+        *,
+        is_dm: bool,
+        bot_id: str = "",
+        app_id: str = "",
+    ) -> bool:
         slack = self._config.slack
         channel_ok = is_dm or not slack.allowed_channels or channel_id in slack.allowed_channels
+        if not channel_ok:
+            return False
+        if self._is_self_sender(user_id, bot_id):
+            return False
+        if bot_id or app_id or not user_id:
+            return self._is_allowed_bot_sender(bot_id, app_id)
         if self._config.group_mention_only and not is_dm:
             return channel_ok
-        user_ok = not slack.allowed_users or user_id in slack.allowed_users
-        return channel_ok and user_ok
+        return not slack.allowed_users or user_id in slack.allowed_users
 
     def _is_message_addressed(self, channel_id: str, thread_ts: str, text: str) -> bool:
         if self._bot_user_id and f"<@{self._bot_user_id}>" in text:
@@ -825,7 +1256,8 @@ class SlackBot:
             return cached
         try:
             response = await self.client.users_info(user=user_id)
-            user = response.get("user", {}) if isinstance(response, dict) else {}
+            data = _slack_response_data(response)
+            user = data.get("user", {}) if isinstance(data, dict) else {}
             profile = user.get("profile", {}) if isinstance(user, dict) else {}
             name = (
                 profile.get("display_name")
@@ -842,6 +1274,39 @@ class SlackBot:
         resolved = str(name).strip() or user_id
         self._user_name_cache[user_id] = resolved
         return resolved
+
+    async def _resolve_peer_name(self, event: dict[str, Any], *, channel_id: str) -> str:
+        bot_profile = event.get("bot_profile")
+        if isinstance(bot_profile, dict):
+            profile_name = str(bot_profile.get("name", "") or "").strip()
+            if profile_name:
+                return profile_name
+        username = str(event.get("username", "") or "").strip()
+        if username:
+            return username
+        user_id = str(event.get("user", "") or "")
+        if user_id:
+            user_name = await self._resolve_user_name(user_id, channel_id=channel_id)
+            if user_name and user_name != "unknown":
+                return user_name
+        app_id = self._extract_app_id(event)
+        if app_id:
+            return app_id
+        bot_id = str(event.get("bot_id", "") or "")
+        if bot_id:
+            return bot_id
+        return "unknown"
+
+    def _wrap_peer_message(self, text: str, peer_name: str) -> str:
+        speaker = peer_name or "unknown"
+        return (
+            f'[Message from peer agent "{speaker}". This is NOT a user request and NOT your '
+            f'sub-agent. They are an independent agent in this thread. Respond with your own '
+            f'perspective as "{self._bot_name}"; do not repeat their points, do not mirror '
+            "their structure or wording, and do not speak on their behalf. If you agree, say "
+            "so briefly and move forward; if you disagree, push back.]\n\n"
+            f"{text}"
+        )
 
     async def _fetch_thread_context(
         self,
@@ -875,11 +1340,12 @@ class SlackBot:
             )
             return ""
 
-        messages = response.get("messages", []) if isinstance(response, dict) else []
+        data = _slack_response_data(response)
+        messages = data.get("messages", [])
         if not isinstance(messages, list) or not messages:
             return ""
 
-        context_parts = await self._build_thread_context_parts(
+        context_parts, has_peer_agent = await self._build_thread_context_parts(
             messages=messages,
             channel_id=channel_id,
             thread_ts=thread_ts,
@@ -889,6 +1355,7 @@ class SlackBot:
             cache_key=cache_key,
             content_parts=context_parts,
             fetched_at=now,
+            has_peer_agent=has_peer_agent,
         )
 
     async def _build_thread_context_parts(
@@ -898,16 +1365,24 @@ class SlackBot:
         channel_id: str,
         thread_ts: str,
         current_ts: str,
-    ) -> list[str]:
+    ) -> tuple[list[str], bool]:
         """Build normalized thread-history lines from Slack reply payloads."""
         context_parts: list[str] = []
+        has_peer_agent = False
         for msg in messages:
             if not isinstance(msg, dict):
                 continue
             msg_ts = str(msg.get("ts", "") or "")
             if not msg_ts or _slack_ts_is_at_or_after(msg_ts, current_ts):
                 continue
-            if msg.get("bot_id") or msg.get("subtype") == "bot_message":
+            msg_user = str(msg.get("user", "") or "")
+            msg_bot_id = str(msg.get("bot_id", "") or "")
+            msg_app_id = self._extract_app_id(msg)
+            if self._is_self_sender(msg_user, msg_bot_id):
+                continue
+            if (msg_bot_id or msg.get("subtype") == "bot_message" or msg_app_id) and not (
+                self._is_allowed_bot_sender(msg_bot_id, msg_app_id)
+            ):
                 continue
             msg_text = str(msg.get("text", "") or "").strip()
             if not msg_text:
@@ -916,11 +1391,14 @@ class SlackBot:
                 msg_text = msg_text.replace(f"<@{self._bot_user_id}>", "").strip()
             if not msg_text:
                 continue
-            msg_user = str(msg.get("user", "") or "")
-            user_name = await self._resolve_user_name(msg_user, channel_id=channel_id)
+            if msg_bot_id or msg_app_id or msg.get("subtype") == "bot_message":
+                speaker = f"peer agent {await self._resolve_peer_name(msg, channel_id=channel_id)}"
+                has_peer_agent = True
+            else:
+                speaker = await self._resolve_user_name(msg_user, channel_id=channel_id)
             prefix = "[thread parent] " if msg_ts == thread_ts else ""
-            context_parts.append(f"{prefix}{user_name}: {msg_text}")
-        return context_parts
+            context_parts.append(f"{prefix}{speaker}: {msg_text}")
+        return context_parts, has_peer_agent
 
     def _cache_thread_context(
         self,
@@ -928,6 +1406,7 @@ class SlackBot:
         cache_key: str,
         content_parts: list[str],
         fetched_at: float,
+        has_peer_agent: bool = False,
     ) -> str:
         """Persist thread-context cache entry and return the formatted content."""
         self._prune_thread_context_cache(fetched_at)
@@ -940,11 +1419,14 @@ class SlackBot:
             self._prune_thread_context_cache(fetched_at)
             return ""
 
-        content = (
-            "[Thread context — prior messages in this thread (not yet in conversation history):]\n"
-            + "\n".join(content_parts)
-            + "\n[End of thread context]\n\n"
-        )
+        header = "[Thread context — prior messages in this thread (not yet in conversation history)."
+        if has_peer_agent:
+            header += (
+                f'\nYou are "{self._bot_name}". Lines tagged "peer agent X" are from other '
+                "independent agents — do not mirror or speak for them."
+            )
+        header += "]\n"
+        content = header + "\n".join(content_parts) + "\n[End of thread context]\n\n"
         self._thread_context_cache.pop(cache_key, None)
         self._thread_context_cache[cache_key] = _ThreadContextCache(
             content=content,

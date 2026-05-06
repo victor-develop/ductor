@@ -260,6 +260,8 @@ class SlackConfig(BaseModel):
     app_token: str = ""
     allowed_channels: list[str] = Field(default_factory=list)
     allowed_users: list[str] = Field(default_factory=list)
+    allowed_bot_ids: list[str] = Field(default_factory=list)
+    allowed_app_ids: list[str] = Field(default_factory=list)
 
 
 class TasksConfig(BaseModel):

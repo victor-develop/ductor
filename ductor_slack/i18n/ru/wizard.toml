@@ -142,6 +142,26 @@ body = """\
 prompt = "Allowed user IDs:"
 error = "[red]Invalid Slack user ID. Use one or more U... IDs separated by commas/spaces.[/red]"
 
+[slack.allowed_bot_ids]
+title = "[bold]Allowed Bot IDs[/bold]"
+body = """\
+[bold]Which Slack bots should be allowed to talk to the bot?[/bold]\n
+  Enter one or more Slack bot IDs separated by commas or spaces.\n
+  Leave blank to keep bot-to-bot messaging disabled.\n
+[dim]Example: B0123456789[/dim]"""
+prompt = "Allowed bot IDs (optional):"
+error = "[red]Invalid Slack bot ID. Use one or more B... IDs separated by commas/spaces.[/red]"
+
+[slack.allowed_app_ids]
+title = "[bold]Allowed App IDs[/bold]"
+body = """\
+[bold]Which Slack apps should be allowed to talk to the bot?[/bold]\n
+  Enter one or more Slack app IDs separated by commas or spaces.\n
+  Leave blank to skip app-level allowlisting.\n
+[dim]Example: A0123456789[/dim]"""
+prompt = "Allowed app IDs (optional):"
+error = "[red]Invalid Slack app ID. Use one or more A... IDs separated by commas/spaces.[/red]"
+
 [docker]
 title = "[bold]Docker-песочница[/bold]"
 found_body = """\

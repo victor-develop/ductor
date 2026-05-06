@@ -40,6 +40,8 @@
         "app_token": "xapp-your-slack-app-token",
         "allowed_channels": ["C0123456789"],
         "allowed_users": ["U0123456789"],
+        "allowed_bot_ids": ["B0123456789"],
+        "allowed_app_ids": ["A0123456789"]
     },
     "streaming": {
         "enabled": true,
