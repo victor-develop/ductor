@@ -89,6 +89,7 @@ async def _prepare_normal(
     text: str,
     *,
     model_override: str | None = None,
+    force_fresh_session: bool = False,
 ) -> tuple[AgentRequest, SessionData]:
     """Shared setup for normal() and normal_streaming().
 
@@ -147,7 +148,7 @@ async def _prepare_normal(
         chat_id=key.chat_id,
         topic_id=key.topic_id,
         transport=key.transport,
-        resume_session=None if is_new else session.session_id,
+        resume_session=None if is_new or force_fresh_session else session.session_id,
         timeout_seconds=timeout_secs,
         timeout_controller=_make_timeout_controller(orch, "normal"),
     )
@@ -442,17 +443,24 @@ async def _gemini_missing_config_key_warning(
     return OrchestratorResult(text=t("gemini.missing_key"))
 
 
-async def normal(  # noqa: PLR0911
+async def normal(  # noqa: PLR0911, PLR0913
     orch: Orchestrator,
     key: SessionKey,
     text: str,
     *,
     model_override: str | None = None,
     is_recovery: bool = False,
+    force_fresh_session: bool = False,
 ) -> OrchestratorResult:
     """Handle normal conversation with session resume."""
     logger.info("Normal flow starting")
-    request, session = await _prepare_normal(orch, key, text, model_override=model_override)
+    request, session = await _prepare_normal(
+        orch,
+        key,
+        text,
+        model_override=model_override,
+        force_fresh_session=force_fresh_session,
+    )
     warning = await _gemini_missing_config_key_warning(orch, request)
     if warning is not None:
         logger.warning("Gemini API-key mode without configured ductor key")
@@ -500,17 +508,24 @@ async def normal(  # noqa: PLR0911
         orch._inflight_tracker.complete(key.chat_id)
 
 
-async def normal_streaming(  # noqa: PLR0911
+async def normal_streaming(  # noqa: PLR0911, PLR0913
     orch: Orchestrator,
     key: SessionKey,
     text: str,
     *,
     model_override: str | None = None,
+    force_fresh_session: bool = False,
     cbs: StreamingCallbacks | None = None,
 ) -> OrchestratorResult:
     """Handle normal conversation with streaming output."""
     logger.info("Streaming flow starting")
-    request, session = await _prepare_normal(orch, key, text, model_override=model_override)
+    request, session = await _prepare_normal(
+        orch,
+        key,
+        text,
+        model_override=model_override,
+        force_fresh_session=force_fresh_session,
+    )
     warning = await _gemini_missing_config_key_warning(orch, request)
     if warning is not None:
         logger.warning("Gemini API-key mode without configured ductor key")

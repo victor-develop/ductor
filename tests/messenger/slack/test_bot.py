@@ -192,6 +192,32 @@ class TestThreadContextFetching:
         assert again == content
         bot._app.client.conversations_replies.assert_awaited_once()
 
+    async def test_thread_context_cache_is_scoped_to_current_ts(self) -> None:
+        bot = _make_bot()
+        bot._app.client.conversations_replies.return_value = {
+            "messages": [
+                {"ts": "1710000000.100", "user": "U111", "text": "Parent"},
+                {"ts": "1710000000.200", "user": "U222", "text": "First reply"},
+                {"ts": "1710000000.300", "user": "U333", "text": "Second reply"},
+            ]
+        }
+        bot._resolve_user_name = AsyncMock(side_effect=["Alice", "Bob", "Cara"])
+
+        first = await bot._fetch_thread_context(
+            channel_id="C123",
+            thread_ts="1710000000.100",
+            current_ts="1710000000.200",
+        )
+        second = await bot._fetch_thread_context(
+            channel_id="C123",
+            thread_ts="1710000000.100",
+            current_ts="1710000000.300",
+        )
+
+        assert "First reply" not in first
+        assert "First reply" in second
+        assert bot._app.client.conversations_replies.await_count == 2
+
     def test_prunes_expired_cached_context_entries(self) -> None:
         bot = _make_bot()
         now = time.monotonic()
@@ -678,7 +704,7 @@ class TestMessageRouting:
         active = SessionData(chat_id=11, transport="sl", topic_id=22, provider_sessions={})
         active.session_id = "sid-1"
         bot._orchestrator._sessions.list_active_for_chat.return_value = [active]
-        bot._fetch_thread_context = AsyncMock()
+        bot._fetch_thread_context = AsyncMock(return_value="[ctx]\n")
 
         await bot._on_message(
             {
@@ -692,7 +718,38 @@ class TestMessageRouting:
         )
 
         bot._dispatch_with_lock.assert_awaited_once()
-        bot._fetch_thread_context.assert_not_awaited()
+        bot._fetch_thread_context.assert_awaited_once()
+        assert bot._dispatch_with_lock.await_args.args[1] == "[ctx]\nfollow-up without mention"
+
+    async def test_non_dm_messages_force_fresh_session(self) -> None:
+        bot = _make_bot()
+
+        await bot._on_message(
+            {
+                "user": "U123",
+                "channel": "C123",
+                "channel_type": "channel",
+                "ts": "1710000000.456",
+                "text": "<@B123> help here",
+            }
+        )
+
+        assert bot._dispatch_with_lock.await_args.kwargs["force_fresh_session"] is True
+
+    async def test_dm_messages_keep_session_resume(self) -> None:
+        bot = _make_bot()
+
+        await bot._on_message(
+            {
+                "user": "U123",
+                "channel": "D123",
+                "channel_type": "im",
+                "ts": "1710000000.456",
+                "text": "help here",
+            }
+        )
+
+        assert bot._dispatch_with_lock.await_args.kwargs["force_fresh_session"] is False
 
     async def test_routes_bare_message_command_without_leading_slash(self) -> None:
         bot = _make_bot()
@@ -755,6 +812,7 @@ class TestMessageRouting:
             key: object,
             text: str,
             *,
+            force_fresh_session: bool = False,
             on_text_delta: object = None,
             on_thinking_delta: object = None,
             on_tool_activity: object = None,
@@ -762,6 +820,7 @@ class TestMessageRouting:
         ) -> OrchestratorResult:
             assert key is not None
             assert text == "hello"
+            assert force_fresh_session is False
             assert on_thinking_delta is not None
             assert on_text_delta is not None
             await on_thinking_delta("step 1")
@@ -896,6 +955,30 @@ class TestMessageRouting:
             buffer_size=64,
         )
 
+    async def test_run_streaming_can_force_fresh_session(self) -> None:
+        bot = _make_bot()
+        streamer = MagicMock()
+        streamer.append = AsyncMock()
+        streamer.stop = AsyncMock()
+        bot._app.client.chat_stream = AsyncMock(return_value=streamer)
+        bot._orchestrator.handle_message_streaming = AsyncMock(
+            return_value=OrchestratorResult(text="ok")
+        )
+
+        await bot._run_streaming(
+            MagicMock(),
+            "hello",
+            "C123",
+            "1710000000.123",
+            recipient_user_id="U123",
+            force_fresh_session=True,
+        )
+
+        assert (
+            bot._orchestrator.handle_message_streaming.await_args.kwargs["force_fresh_session"]
+            is True
+        )
+
     async def test_run_streaming_falls_back_when_native_streaming_fails(self) -> None:
         bot = _make_bot()
         streamer = MagicMock()
@@ -907,6 +990,7 @@ class TestMessageRouting:
             key: object,
             text: str,
             *,
+            force_fresh_session: bool = False,
             on_text_delta: object = None,
             on_thinking_delta: object = None,
             on_tool_activity: object = None,
@@ -914,6 +998,7 @@ class TestMessageRouting:
         ) -> OrchestratorResult:
             assert key is not None
             assert text == "hello"
+            assert force_fresh_session is False
             assert on_thinking_delta is not None
             assert on_text_delta is not None
             await on_thinking_delta("step 1")
@@ -943,3 +1028,17 @@ class TestMessageRouting:
         assert "💭 *Thinking*" in sent_text
         assert "final" in sent_text
         streamer.stop.assert_not_awaited()
+
+    async def test_run_non_streaming_can_force_fresh_session(self) -> None:
+        bot = _make_bot()
+        bot._orchestrator.handle_message = AsyncMock(return_value=OrchestratorResult(text="ok"))
+
+        await bot._run_non_streaming(
+            MagicMock(),
+            "hello",
+            "C123",
+            "1710000000.123",
+            force_fresh_session=True,
+        )
+
+        assert bot._orchestrator.handle_message.await_args.kwargs["force_fresh_session"] is True

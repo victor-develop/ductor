@@ -104,6 +104,7 @@ class _MessageDispatch:
     text: str
     cmd: str
     streaming: bool = False
+    force_fresh_session: bool = False
     on_text_delta: _TextCallback | None = None
     on_thinking_delta: _TextCallback | None = None
     on_tool_activity: _ToolCallback | None = None
@@ -303,9 +304,20 @@ class Orchestrator:
         """Human-readable name for the active CLI provider."""
         return self._providers.active_provider_name
 
-    async def handle_message(self, key: SessionKey, text: str) -> OrchestratorResult:
+    async def handle_message(
+        self,
+        key: SessionKey,
+        text: str,
+        *,
+        force_fresh_session: bool = False,
+    ) -> OrchestratorResult:
         """Main entry point: route message to appropriate handler."""
-        dispatch = _MessageDispatch(key=key, text=text, cmd=text.strip().lower())
+        dispatch = _MessageDispatch(
+            key=key,
+            text=text,
+            cmd=text.strip().lower(),
+            force_fresh_session=force_fresh_session,
+        )
         return await self._handle_message_impl(dispatch)
 
     async def handle_message_streaming(  # noqa: PLR0913
@@ -313,6 +325,7 @@ class Orchestrator:
         key: SessionKey,
         text: str,
         *,
+        force_fresh_session: bool = False,
         on_text_delta: _TextCallback | None = None,
         on_thinking_delta: _TextCallback | None = None,
         on_tool_activity: _ToolCallback | None = None,
@@ -325,6 +338,7 @@ class Orchestrator:
             text=text,
             cmd=text.strip().lower(),
             streaming=True,
+            force_fresh_session=force_fresh_session,
             on_text_delta=on_text_delta,
             on_thinking_delta=on_thinking_delta,
             on_tool_activity=on_tool_activity,
@@ -399,19 +413,21 @@ class Orchestrator:
         prompt_text = directives.cleaned or dispatch.text
 
         if dispatch.streaming:
-            return await normal_streaming(
-                self,
-                dispatch.key,
-                prompt_text,
-                model_override=directives.model,
-                cbs=dispatch.streaming_callbacks(),
-            )
+                return await normal_streaming(
+                    self,
+                    dispatch.key,
+                    prompt_text,
+                    model_override=directives.model,
+                    force_fresh_session=dispatch.force_fresh_session,
+                    cbs=dispatch.streaming_callbacks(),
+                )
 
         return await normal(
             self,
             dispatch.key,
             prompt_text,
             model_override=directives.model,
+            force_fresh_session=dispatch.force_fresh_session,
         )
 
     def _register_commands(self) -> None:
