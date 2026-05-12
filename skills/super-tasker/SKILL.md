@@ -1,6 +1,6 @@
 ---
 name: super-tasker
-description: Multi-track task management for long-running agentic work. The skill owns a file-backed task DB and operates in two modes — Lead (default, scans the open tree and orchestrates work) and Executor (a single task is delegated to a worker). Activates on slash commands like `/super-tasker`, natural-language asks to "run the task lead", cron pings that include `[super-tasker:lead-pass]`, and worker prompts that include `[stask-exec:<task-id>]`. Builds on the responsive-agent skill for human-in-the-loop continuation — there are no hard time / step / token budgets; the loop is driven by Slack events and cron ticks.
+description: Multi-track task management for long-running agentic work. The skill owns a file-backed task DB and operates in two modes — Lead (default, walks the open frontier and dispatches one round of work) and Executor (a single task running in its own background-task session). Activates on slash commands like `/super-tasker`, natural-language asks to "run the task lead", cron-injected lead prompts, executor-completion callbacks injected into the parent session, and worker prompts that include `[stask-exec:<task-id>]`. Builds on the responsive-agent skill for human-in-the-loop continuation — there are no hard time / step / token budgets, and the agent cannot self-fire a lead pass; the loop is driven by external triggers.
 ---
 
 # Super Tasker
@@ -8,23 +8,50 @@ description: Multi-track task management for long-running agentic work. The skil
 Multi-track task orchestration that survives across agent sessions.
 
 Designed for the ductor / Slack environment: there is no continuous agent
-loop. The "loop" is a sequence of independent sessions (cron ticks, Slack
-replies, responsive-agent resumes). The skill keeps state on disk so each
-session can pick up exactly where the previous one left off.
+loop. A session ends when the model stops emitting tool calls. The "loop"
+is a sequence of independent sessions stitched together by external
+triggers; the skill keeps state on disk so each session can pick up where
+the previous one left off.
 
 ## Modes
 
 Two modes — the activation context tells you which one to enter.
 
-- **Lead** (default). Scan the open task tree, decide what to do next, and
-  delegate work. Entered on `/super-tasker`, natural-language equivalents,
-  cron pings, or any time the skill is invoked without an executor anchor.
-- **Executor**. Carry out one specific task. Entered only when the prompt
-  contains `[stask-exec:<task-id>]`. The wrapper that spawned you put that
-  anchor there.
+- **Lead** (default). Walk the open frontier, dispatch one round of work,
+  report, stop. Entered on `/super-tasker`, natural-language equivalents,
+  a cron-injected message, a `create_task.py` completion callback (an
+  executor finished and its result was injected into the parent session),
+  or a `responsive-agent` resume whose saved context is not executor-scoped.
+- **Executor**. Carry out one specific task in a dedicated background-task
+  session spawned by `scripts/spawn_executor.py`. Entered only when the
+  initial prompt contains `[stask-exec:<task-id>]`.
 
 If both signals are present, executor wins — finish the assigned task
 before doing any lead work.
+
+## What triggers a lead pass
+
+There is **no in-process loop and no self-trigger**. The agent cannot send
+itself a Slack message to wake up a new session — sending a message to
+your own chat does not re-enter the model. A new lead pass only fires when
+one of these external events drops a prompt into the agent's session:
+
+1. **User Slack message** — the user types `/super-tasker`, "do a lead
+   pass", or any natural-language equivalent.
+2. **Executor completion callback** — `tools/task_tools/create_task.py`
+   delivers the finished task's result back into the parent session as a
+   message. That message re-enters the model and the skill should run a
+   lead pass on the new state.
+3. **Responsive-agent resume** — a paused lead wakes up because the user
+   replied. The saved context is replayed, and if it does not carry an
+   executor anchor, treat it as a lead-pass continuation.
+4. **Cron or webhook** — `tools/cron_tools/` or `tools/webhook_tools/`
+   fire a prompt into the agent. Cron is an external scheduler, not the
+   agent talking to itself.
+
+A lead pass ends after dispatch + report. Do not poll, do not loop, do
+not try to schedule the next pass from inside the current one. The next
+pass arrives from one of the four triggers above.
 
 ## Data model
 
@@ -88,17 +115,33 @@ Open ──► WIP ──► Completed
   └─► Splitted / Merged / Dropped (allowed without entering WIP)
 ```
 
-`Splitted`, `Merged`, `Completed`, `Dropped` are terminal. Per Victor's
-spec: a split task stays in `Splitted` forever and is never revived.
+`Splitted`, `Merged`, `Completed`, `Dropped` are terminal — **one-way
+state transitions, no rollup**. Concretely:
 
-### Top-level definition
+- `a` splits into `a1, a2` → `a` is permanently `Splitted` and is never
+  revived, re-opened, or re-tracked. The active set replaces `a` with
+  `{a1, a2}`. There is no "complete the parent when all children are done"
+  rollup — the parent has already left the working set.
+- `b1, b2` merge into `b3` → `b1, b2` are permanently `Merged` and are no
+  longer tracked. The active set replaces them with `{b3}`. Completion
+  of the original goal is reached when `b3` itself terminates positively.
+- A goal is "done" when every currently-active leaf descended from it
+  has reached a terminal status. The lead never walks back up to
+  reconcile a Splitted/Merged ancestor.
 
-A task is **top-level** iff:
+### Frontier definition
+
+The **frontier** is the lead's working set: every non-terminal task whose
+`split_from` parent is either absent or itself terminal.
+
+A separate, stricter notion of **top-level** is used only for the
+user-facing "list my major initiatives" view:
 
 - `relations.split_from is None` AND
 - no other task has this task in its `relations.merged_from`.
 
-The lead pass only considers top-level tasks with `status in {Open, WIP}`.
+The lead pass walks the **frontier**, not top-level. (Children of a
+Splitted parent are on the frontier; the Splitted parent is not.)
 
 ### Recursion depth limit
 
@@ -110,9 +153,10 @@ attempts beyond the cap.
 
 Run on every activation that is not in executor mode.
 
-1. `python3 scripts/tasker.py brief --json` — get the active-root summary
-   (Open + WIP top-level tasks, with their depth, complexity, last event,
-   blocked deps, and any pending reeval signals).
+1. `python3 scripts/tasker.py brief --json` — get the frontier summary
+   (every non-terminal task whose split_from parent is terminal-or-absent,
+   with depth, complexity, last event, blocked deps, and any pending
+   reeval signals).
 2. For each active root, decide one of:
    - **idle** — task is `WIP` with an executor already in flight (last
      event is recent and there is no completion). Skip.
@@ -131,8 +175,10 @@ Run on every activation that is not in executor mode.
    - which roots you looked at,
    - what you delegated and why,
    - what is waiting on the user or on dependencies.
-   Then stop. Do not poll, do not sleep. The next lead pass is triggered
-   by the next user message, the cron tick, or the executor completing.
+   Then stop. Do not poll, do not sleep, do not try to keep the session
+   alive. The next lead pass is fired by one of the four external triggers
+   above (user msg, executor completion callback, responsive-agent resume,
+   cron/webhook).
 
 ### Re-evaluation cadence
 
@@ -208,18 +254,20 @@ The lead and the executor both pause through the responsive-agent skill.
 The responsive-agent skill is the only continuation mechanism — there are
 no internal timeouts or retry loops in super-tasker.
 
-When pausing, **always** include the task id and the mode in the question
-context so the resume can route correctly:
+When pausing from an executor, **always** include the `[stask-exec:<id>]`
+anchor in the saved context so the resume can route correctly:
 
 ```text
 ## Task
-[super-tasker mode=executor task=ab12cd34]
+[stask-exec:ab12cd34]
 <rest of context>
 ```
 
-On resume, responsive-agent will replay the saved context. If the context
-contains `[stask-exec:<id>]`, treat the next session as executor for that
-task; otherwise treat it as a lead-pass continuation.
+On resume, `responsive-agent`'s `resume.py` scans the saved context for
+`[stask-exec:<id>]` and, if found, surfaces that anchor on the first
+output line. The replaying agent therefore re-enters executor mode for
+that task without having to read the body first. If no executor anchor is
+present, the resume is a lead-pass continuation.
 
 ## Scripts
 
@@ -236,13 +284,25 @@ All scripts live under `scripts/` and are invoked via `python3`:
 
 ## Cron / activation patterns
 
-- Daily / hourly lead tick (suggested): create a cron via
-  `tools/cron_tools/` that pings ductor with a message like
-  `[super-tasker:lead-pass] do a lead pass`. The bracketed token both
-  triggers activation and reminds the agent which mode.
-- Manual: send `/super-tasker` (or natural language) in any Slack chat.
-- Worker resume: handled automatically by responsive-agent — the saved
-  context carries the `[stask-exec:<id>]` anchor.
+- **Manual lead pass**: the user sends `/super-tasker` (or natural
+  language) in any Slack chat. This is the primary entry point.
+- **Cron-driven lead pass**: create a cron via `tools/cron_tools/` whose
+  payload is a prompt like `[super-tasker:lead-pass] do a lead pass`.
+  Ductor's cron runner injects the payload into the agent's session as a
+  fresh prompt — that is what wakes the model up. The bracketed token is
+  purely a hint for the agent; it does nothing on its own.
+- **Executor completion**: handled automatically by ductor. When the
+  background task spawned via `create_task.py` finishes, its result is
+  injected into the parent session as a message. The skill should react
+  by running a lead pass on the new state.
+- **Worker resume**: handled automatically by responsive-agent — the
+  saved context carries the `[stask-exec:<id>]` anchor and `resume.py`
+  surfaces it at the top of the replay so the agent re-enters executor
+  mode without having to scan the body.
+
+Do **not** try to wake yourself up. Sending a Slack message to your own
+chat (whether via the messenger tools or any other means) does not
+re-enter the model — only the four external triggers do.
 
 ## Storage hygiene
 

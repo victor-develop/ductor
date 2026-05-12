@@ -63,9 +63,10 @@ Hard rules:
   2. First call: `python3 {tasker} update {task_id} --status WIP --by executor`
      and append a one-line plan via `--state "<plan>"`.
   3. Append a `state` event for each meaningful step.
-  4. If you need a human, use the responsive-agent skill. Include
-     `[super-tasker mode=executor task={task_id}]` in the saved context so
-     the resumed session re-enters executor mode.
+  4. If you need a human, use the responsive-agent skill. Include the
+     `[stask-exec:{task_id}]` anchor in the saved context so the resumed
+     session re-enters executor mode for this task. responsive-agent's
+     resume.py will surface that anchor on its first output line.
   5. If the task is too big, append a `reeval-request` event with a concrete
      proposed breakdown and stop. Do NOT split it yourself — that is the
      lead's job.

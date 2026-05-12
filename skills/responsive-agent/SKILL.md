@@ -98,6 +98,11 @@ When this skill triggers because the context contains `[ret-ref:XXXXXX]`:
    The script prints the saved task context followed by a JSON `meta` line
    with the original requester pointers and the ask message ts.
 
+   If the saved context contains a scope anchor that another skill cares
+   about (currently `[stask-exec:<id>]` for super-tasker), `resume.py`
+   re-emits it on the very first output line so the resumed agent re-enters
+   the right skill mode without having to scan the body first.
+
 2. Treat the latest Slack message in the current conversation context (the
    human's reply) as the answer to the question that was asked.
 3. Continue the task following the "How to resume" section of the saved

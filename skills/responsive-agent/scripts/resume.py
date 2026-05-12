@@ -19,11 +19,25 @@ from pathlib import Path
 
 STATE_ROOT = Path.home() / ".ductor-slack" / "workspace" / "responsive_state"
 ANCHOR_RE = re.compile(r"\[ret-ref:([0-9a-f]{6})\]")
+# Skill-mode anchors that callers can embed in the saved context to signal
+# how the resumed session should behave. resume.py surfaces the first match
+# on its first output line so the model sees it before reading any body.
+SCOPE_ANCHOR_RES = (
+    re.compile(r"\[stask-exec:[0-9a-f]{4,16}\]"),
+)
 
 
 def find_ref_in_text(text: str) -> str | None:
     m = ANCHOR_RE.search(text)
     return m.group(1) if m else None
+
+
+def find_scope_anchor(text: str) -> str | None:
+    for pat in SCOPE_ANCHOR_RES:
+        m = pat.search(text)
+        if m:
+            return m.group(0)
+    return None
 
 
 def main() -> int:
@@ -49,8 +63,14 @@ def main() -> int:
     if not ctx_path.exists():
         sys.exit(f"error: no saved context for ref {ref} at {state_dir}")
 
+    body = ctx_path.read_text(encoding="utf-8")
+    anchor = find_scope_anchor(body)
+    if anchor:
+        # Surface the anchor on the very first line so the agent re-enters
+        # the right skill mode without having to scan the saved body first.
+        sys.stdout.write(f"{anchor}\n")
     sys.stdout.write(f"=== resume context for ref {ref} ===\n")
-    sys.stdout.write(ctx_path.read_text(encoding="utf-8"))
+    sys.stdout.write(body)
     if meta_path.exists():
         sys.stdout.write("\n=== meta ===\n")
         sys.stdout.write(meta_path.read_text(encoding="utf-8"))
